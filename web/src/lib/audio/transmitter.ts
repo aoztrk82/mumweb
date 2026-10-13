@@ -99,6 +99,7 @@ export async function startMicrophone(): Promise<boolean> {
   mic.state = 'on'
   mic.errorName = ''
   mic.errorDetail = ''
+  mic.inputCount = -1
   return true
 }
 
@@ -107,6 +108,12 @@ function micFailed(name: string, detail: string): false {
   mic.state = name === 'NotAllowedError' ? 'denied' : 'unavailable'
   mic.errorName = name
   mic.errorDetail = detail
+  mic.inputCount = -1
+  // Diagnostic for the warning: how many microphones does the browser see at all?
+  navigator.mediaDevices
+    ?.enumerateDevices()
+    .then((all) => (mic.inputCount = all.filter((d) => d.kind === 'audioinput').length))
+    .catch(() => {})
   return false
 }
 

@@ -55,7 +55,11 @@
   <div class="mic-warning" role="alert">
     <span>
       {mic.state === 'denied' ? tr.audio.micDenied : (tr.audio.micErrors[mic.errorName] ?? tr.audio.micUnavailable)}
-      {#if mic.errorDetail}<small class="detail">({mic.errorName}: {mic.errorDetail})</small>{/if}
+      {#if mic.errorDetail}
+        <small class="detail">
+          ({mic.errorName}: {mic.errorDetail}){#if mic.inputCount >= 0} · {tr.audio.micInputCount(mic.inputCount)}{/if}
+        </small>
+      {/if}
     </span>
     <button type="button" onclick={() => startMicrophone()}>{tr.audio.micRetry}</button>
   </div>

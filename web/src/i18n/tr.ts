@@ -57,7 +57,8 @@ export const tr = {
     micDenied:
       'Mikrofon izni verilmedi; yalnızca dinleyebilirsiniz. Adres çubuğundaki mikrofon/kilit simgesinden bu siteye izin verip "Tekrar dene"ye basın.',
     micErrors: {
-      NotFoundError: 'Mikrofon bulunamadı. Bağlı olduğundan ve sistemde bir kayıt cihazı seçili olduğundan emin olun.',
+      NotFoundError:
+        'Tarayıcı hiç mikrofon göremiyor (bu yüzden izin de sormuyor). Windows\'ta kontrol edin: Ayarlar → Sistem → Ses → Giriş altında mikrofon görünüyor ve konuşunca seviye hareket ediyor mu; Ayarlar → Gizlilik ve güvenlik → Mikrofon altında "Mikrofon erişimi" ve "Masaüstü uygulamalarının mikrofonunuza erişmesine izin verin" açık mı. Sonra tarayıcıyı tamamen kapatıp açın.',
       NotReadableError:
         'Mikrofon açılamadı. Başka bir uygulama kullanıyor olabilir ya da Windows engelliyor olabilir: Ayarlar → Gizlilik ve güvenlik → Mikrofon → "Masaüstü uygulamalarının mikrofonunuza erişmesine izin verin" açık olmalı.',
       AbortError: 'Mikrofon başlatılamadı. Başka bir uygulama kullanıyor olabilir; onu kapatıp tekrar deneyin.',
@@ -67,6 +68,7 @@ export const tr = {
     } as Record<string, string>,
     micUnavailable: 'Mikrofon kullanılamıyor; yalnızca dinleyebilirsiniz.',
     micRetry: 'Tekrar dene',
+    micInputCount: (n: number) => `Tarayıcının gördüğü mikrofon sayısı: ${n}`,
     unsupported: 'Tarayıcınız Opus ses kodlamayı desteklemiyor; ses çalışmayacak. Güncel Chrome, Edge veya Firefox kullanın.',
   },
 
