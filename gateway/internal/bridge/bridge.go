@@ -2,7 +2,9 @@ package bridge
 
 import (
 	"context"
+	"crypto/sha1"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +12,7 @@ import (
 	"net/http"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -49,6 +52,7 @@ type Config struct {
 
 // Handler accepts browser WebSocket sessions on /ws.
 type Handler struct {
+	names    nameRegistry
 	base     context.Context
 	stop     context.CancelFunc
 	cfg      Config
@@ -157,6 +161,19 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		_ = s.sendJSON(ctx, errorMsg{T: "error", Code: errCodeInvalidCert, Message: "invalid certificate"})
 		return websocket.StatusPolicyViolation, "invalid certificate"
 	}
+
+	// All web users reach Mumble from the gateway's IP. Mumble lets an unregistered
+	// newcomer take over a name in use when the IP matches ("reuse of name from same
+	// IP") and kicks the old session, so any web user could kick another one by
+	// picking their name. Only the same certificate (a reconnect) may take a name
+	// over; anyone else gets UsernameInUse, as from a different IP.
+	release, ok := s.h.names.claim(username, certHash(cert))
+	if !ok {
+		s.log.Info("username in use by another web session")
+		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: "UsernameInUse", Message: "username already in use"})
+		return websocket.StatusNormalClosure, "username in use"
+	}
+	defer release()
 
 	mc, err := mumble.Dial(ctx, mumble.Config{
 		Addr:        s.h.cfg.MumbleAddr,
@@ -527,4 +544,55 @@ func (s *session) write(ctx context.Context, typ websocket.MessageType, data []b
 	ctx, cancel := context.WithTimeout(ctx, wsWriteTimeout)
 	defer cancel()
 	return s.ws.Write(ctx, typ, data)
+}
+
+// certHash is Mumble's certificate hash: hex SHA-1 of the DER leaf certificate.
+func certHash(c *tls.Certificate) string {
+	if c == nil || len(c.Certificate) == 0 {
+		return ""
+	}
+	sum := sha1.Sum(c.Certificate[0])
+	return hex.EncodeToString(sum[:])
+}
+
+// nameRegistry tracks which certificate uses each (lower-cased) name among the
+// gateway's live sessions.
+type nameRegistry struct {
+	mu    sync.Mutex
+	names map[string]*nameClaim
+}
+
+type nameClaim struct {
+	hash string
+	refs int
+}
+
+// claim reserves name for hash. It fails if another certificate holds the name.
+// The returned function releases the claim.
+func (r *nameRegistry) claim(name, hash string) (release func(), ok bool) {
+	key := strings.ToLower(name)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.names == nil {
+		r.names = map[string]*nameClaim{}
+	}
+	c := r.names[key]
+	if c != nil && c.hash != hash {
+		return nil, false
+	}
+	if c == nil {
+		c = &nameClaim{hash: hash}
+		r.names[key] = c
+	}
+	c.refs++
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			r.mu.Lock()
+			defer r.mu.Unlock()
+			if c.refs--; c.refs == 0 && r.names[key] == c {
+				delete(r.names, key)
+			}
+		})
+	}, true
 }

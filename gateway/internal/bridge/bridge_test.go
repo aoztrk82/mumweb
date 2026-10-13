@@ -16,6 +16,7 @@ import (
 
 	"github.com/coder/websocket"
 
+	"github.com/aoztrk82/mumweb/gateway/internal/certs"
 	"github.com/aoztrk82/mumweb/gateway/internal/mumble"
 )
 
@@ -641,4 +642,53 @@ func TestChannelPassword(t *testing.T) {
 	su.send(map[string]any{"t": "setChannelPassword", "channelId": id, "channelPassword": ""})
 	su.until("channelPassword")
 	waitEvent(t, obs, func(e mumble.ChannelEvent) bool { return e.Channel.ID == id && !e.Channel.EnterRestricted })
+}
+
+// TestNameTakeover: Mumble lets a same-IP newcomer take over an unregistered name and
+// kicks the holder; the gateway must only allow that for the same certificate.
+func TestNameTakeover(t *testing.T) {
+	addr := mumbleAddr(t)
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	name := "ayni-" + strconv.FormatInt(time.Now().UnixNano()%1e6, 36)
+
+	obs, err := mumble.Dial(context.Background(), mumble.Config{Addr: addr, Username: "gozcu-" + name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obs.Close()
+
+	a := dialBridge(t, url, map[string]any{"username": name, "cert": nil})
+	defer a.ws.CloseNow()
+	cert := a.until("cert")
+	as := uint32(a.until("ready")["session"].(float64))
+
+	// The gateway's hash must match Mumble's.
+	parsed, err := certs.Load([]byte(cert["pem"].(string)), []byte(cert["key"].(string)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined := waitEvent(t, obs, func(e mumble.UserEvent) bool { return e.User.Session == as })
+	if joined.User.Hash != certHash(parsed) {
+		t.Fatalf("hash mismatch: mumble %q gateway %q", joined.User.Hash, certHash(parsed))
+	}
+
+	// Another certificate, same name (different case): refused, the holder stays.
+	b := dialBridge(t, url, map[string]any{"username": strings.ToUpper(name), "cert": nil})
+	if m := b.until("reject"); m["reason"] != "UsernameInUse" {
+		t.Fatalf("reject %v", m)
+	}
+	b.ws.CloseNow()
+	a.send(map[string]any{"t": "ping", "ts": 1})
+	a.until("pong")
+	if _, ok := obs.State().User(as); !ok {
+		t.Fatal("holder was kicked")
+	}
+
+	// Same certificate (reconnect from another tab/device): allowed, old session replaced.
+	c := dialBridge(t, url, map[string]any{"username": name, "cert": map[string]any{"pem": cert["pem"], "key": cert["key"]}})
+	defer c.ws.CloseNow()
+	c.until("ready")
+	waitEvent(t, obs, func(e mumble.UserRemoveEvent) bool { return e.Session == as })
 }

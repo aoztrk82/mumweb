@@ -428,6 +428,22 @@ Masaüstü 1.5 girerken şifre sormaz (Erişim tokenları penceresi); web'de ist
   penceresi, yanlış şifre → hata satırı, doğru şifre + hatırla → kanalda ve sohbet yazabiliyor, sayfa yenilenince
   şifresiz girdi, Ayarlar'dan şifre silinince yeniden kilitli; yönetici Düzenle'de mevcut şifreyi görüyor.
 
+## Ek — Aynı IP'den gelen web kullanıcıları: takma ad devralma açığı (2026-10-13)
+
+Kaynak (murmur `msgAuthenticate`, "Allow reuse of name from same IP"): kayıtsız bir kullanıcı, kullanımdaki bir adla
+**aynı IP'den** gelirse sunucu UsernameInUse demek yerine eski oturumu atar. Tüm web kullanıcıları gateway IP'sini
+paylaştığı için herhangi bir web kullanıcısı başka bir web kullanıcısının adını yazarak onu düşürebiliyordu.
+- Gateway, açık oturumların adlarını (büyük/küçük harf duyarsız) ve sertifika hash'lerini tutar; aynı adla **farklı
+  sertifikadan** gelen girişi Mumble'a bağlanmadan `reject UsernameInUse` ile reddeder. Aynı sertifika (yeniden
+  bağlanma, ikinci sekme) eskisi gibi kabul edilir ve sunucu eski oturumu kapatır.
+- Hash, Mumble'ınkiyle aynı biçimde hesaplanır (DER sertifikanın SHA-1'i, hex); entegrasyon testinde sunucunun
+  gördüğü hash ile karşılaştırıldı.
+- Doğrulama: `TestNameRegistry` (talep, büyük/küçük harf, aynı sertifikayla ikinci oturum, bırakma) ve
+  `TestNameTakeover` (gerçek sunucu: hash eşleşmesi, başka sertifikayla aynı ad reddedildi ve sahibi bağlı kaldı,
+  aynı sertifikayla yeniden bağlanma eski oturumu değiştirdi).
+- Masaüstü kullanıcıları etkilenmez (farklı IP → sunucu zaten reddeder). IP'nin sunucuda kullanıldığı diğer yerler:
+  ban (açık konu), autoban (çözüldü), UserStats adresi (kozmetik).
+
 ## Faz 9 kararı (2026-10-13)
 WASM Opus yedeği **yapılmayacak** (kullanıcı kararı). Gerekçe: WebKit kaynağına göre Safari 26+ (iOS 26 / macOS)
 WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (`AudioEncoderCocoa.cpp`,
@@ -435,6 +451,9 @@ WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (
 Öncelik Android ve masaüstü web özellikleri. Safari 26+ gerçek cihazda test edilmedi.
 
 ## Açık konular
+- Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
+  (mevcut oturumlar düşmez). Seçenekler kullanıcıya sunuldu: (1) yasaklama yetkili "bekçi" hesabıyla otomatik
+  düzeltme, (2) yalnızca algılama/uyarı, (3) kural. Karar bekleniyor.
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.
 - Plan 5.3'teki `frame_number` "+1 / 20 ms" ifadesi resmî istemciye göre "+2 / 20 ms" (10 ms birim) olarak

@@ -109,3 +109,29 @@ func TestNormalizeOrigin(t *testing.T) {
 		}
 	}
 }
+
+func TestNameRegistry(t *testing.T) {
+	var r nameRegistry
+	rel1, ok := r.claim("Ahmet", "h1")
+	if !ok {
+		t.Fatal("first claim refused")
+	}
+	if _, ok := r.claim("ahmet", "h2"); ok {
+		t.Fatal("other certificate took the name (case-insensitive)")
+	}
+	rel2, ok := r.claim("AHMET", "h1")
+	if !ok {
+		t.Fatal("same certificate (reconnect) refused")
+	}
+	rel1()
+	rel1() // idempotent
+	if _, ok := r.claim("ahmet", "h2"); ok {
+		t.Fatal("name freed while still held by a second session")
+	}
+	rel2()
+	if rel3, ok := r.claim("ahmet", "h2"); !ok {
+		t.Fatal("name not freed")
+	} else {
+		rel3()
+	}
+}
