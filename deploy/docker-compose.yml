@@ -1,6 +1,6 @@
 # Production stack: Mumble server + mumweb gateway + Caddy (automatic HTTPS).
-# Usage: cp .env.example .env  (set MUMWEB_DOMAIN and MUMBLE_SUPERUSER_PASSWORD)
-#        docker compose up -d --build
+# Put MUMWEB_DOMAIN and MUMBLE_SUPERUSER_PASSWORD in a .env file next to this one, then:
+#   docker compose up -d
 name: mumweb
 
 services:
@@ -23,8 +23,7 @@ services:
       MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
 
   mumweb:
-    build: ..
-    image: mumweb:latest
+    image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
     restart: unless-stopped
     environment:
       MUMWEB_MUMBLE_ADDR: mumble:64738

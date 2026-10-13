@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # --- web: build the Svelte SPA into gateway/web/dist ---
-FROM node:24-alpine AS web
+FROM --platform=$BUILDPLATFORM node:24-alpine AS web
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
@@ -9,13 +9,15 @@ COPY web/ ./
 RUN npm run build
 
 # --- gateway: build the Go binary with the SPA embedded ---
-FROM golang:1.27-alpine AS gateway
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS gateway
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /src/gateway
 COPY gateway/go.mod gateway/go.sum ./
 RUN go mod download
 COPY gateway/ ./
 COPY --from=web /src/gateway/web/dist ./web/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/mumweb ./cmd/mumweb
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags="-s -w" -o /out/mumweb ./cmd/mumweb
 
 # --- runtime ---
 FROM alpine:3.24

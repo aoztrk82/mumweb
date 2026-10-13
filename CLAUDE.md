@@ -22,7 +22,8 @@ Browser (Svelte SPA, WebCodecs Opus) ⇄ WSS ⇄ gateway (Go) ⇄ TLS/TCP ⇄ Mu
 | Go integration tests (need a Mumble server, e.g. `make dev`) | `cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge` |
 | Web tests / type check | `cd web && npm test` / `npm run check` |
 | Build gateway + probe (UI embedded) | `make gateway` → `bin/mumweb`, `bin/mumprobe` |
-| Production image | `make docker` |
+| Production image (local) | `make docker` |
+| Publish to Docker Hub (amd64+arm64) | `make publish VERSION=x.y.z` (see [docs/BUILDING.md](docs/BUILDING.md)) |
 | Dev stack (Mumble + gateway, `http://localhost:8080`) | `cp deploy/.env.example deploy/.env && make dev` |
 | UI with hot reload | `cd web && npm run dev` (needs the dev stack) |
 | Regenerate protobuf code | `make proto` (needs `protoc` + `protoc-gen-go`) |
@@ -44,7 +45,7 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
 | `web/src/lib` | WS client (`client.ts`), protocol (`protocol.ts`), audio pipeline (`audio/`), stores (`stores/`) |
 | `web/src/components` | Svelte 5 components (runes) |
 | `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `index.svelte.ts` (reactive `t`, language detection) |
-| `deploy/` | Production compose + Caddyfile, dev compose, `local/` HTTPS test environment |
+| `deploy/` | Production compose (pulls `aoztrk82/mumweb`) + `docker-compose.build.yml` override, Caddyfile, dev compose, `local/` HTTPS test environment |
 | `docs/` | English docs; Turkish mirror in `docs/tr/` |
 
 ## Conventions
@@ -81,7 +82,8 @@ same commit, in **both languages** (English first, then the Turkish mirror):
 
 | If you change… | Update |
 |---|---|
-| a feature, env var, port, default or deployment step | `README.md` + `README.tr.md` (feature table, configuration tables, deployment sections), `deploy/.env.example` |
+| a feature, env var, port, default or deployment step | `README.md` + `README.tr.md` (feature table, configuration tables, deployment sections), `deploy/.env.example`. The compose example in the README quick start is a copy of `deploy/docker-compose.yml`: keep them identical |
+| build, test or release procedure, repository layout | `docs/BUILDING.md` + `docs/tr/BUILDING.md` |
 | local dev / HTTPS setup | `docs/DEVELOPMENT.md` + `docs/tr/DEVELOPMENT.md` |
 | anything verified or discovered (a finding, a protocol detail, a verification result) | append to `docs/PROGRESS.md` + `docs/tr/PROGRESS.md` (newest last, before "Open issues") |
 | priorities, known limits, missing features | `docs/TODO.md` + `docs/tr/TODO.md` (tick items, add new ones) |

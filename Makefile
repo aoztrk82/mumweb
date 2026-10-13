@@ -1,8 +1,11 @@
 GATEWAY_MODULE := github.com/aoztrk82/mumweb/gateway
 COMPOSE_DEV    := docker compose -f deploy/docker-compose.dev.yml
 IMAGE          ?= mumweb:dev
+DOCKER_REPO    ?= aoztrk82/mumweb
+VERSION        ?= 0.1.0
+BUILDER        ?= mumweb-builder
 
-.PHONY: proto web gateway dev docker test
+.PHONY: proto web gateway dev docker publish test
 
 ## proto: regenerate Go code from gateway/proto/*.proto (needs protoc + protoc-gen-go)
 proto:
@@ -24,6 +27,10 @@ dev:
 ## docker: build the production image
 docker:
 	docker build -t $(IMAGE) .
+
+## publish: build amd64+arm64 and push to Docker Hub (needs `docker login` and a docker-container buildx builder, see docs/BUILDING.md)
+publish:
+	docker buildx build --builder $(BUILDER) --platform linux/amd64,linux/arm64 -t $(DOCKER_REPO):latest -t $(DOCKER_REPO):$(VERSION) --push .
 
 ## test: Go tests + vitest
 test:

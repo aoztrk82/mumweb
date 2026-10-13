@@ -1,0 +1,6 @@
+# Override: build the mumweb image from this checkout instead of pulling it from Docker Hub.
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+services:
+  mumweb:
+    build: ..
+    image: mumweb:local

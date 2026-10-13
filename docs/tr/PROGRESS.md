@@ -505,6 +505,22 @@ istemciyle konuşuldu.
   güvenilir bir güvenli kaynak değil). Gerçek sertifikayla tekrar denenecek.
 - Sonuç: "gerçek mikrofonla iki yönde" manuel testi kapandı; yukarıdaki üç sorun TODO'da (B, C, D).
 
+## Ek — yayınlanan Docker imajı (2026-10-13)
+
+- Docker Hub'da `aoztrk82/mumweb` (herkese açık), `latest` ve `0.1.0` etiketleri, `linux/amd64` ve `linux/arm64`
+  platformları (index digest'i `sha256:03ce904f…`). Dockerfile web ve Go aşamalarını derleme platformunda
+  (`--platform=$BUILDPLATFORM`) çalıştırır ve Go'yu `TARGETOS`/`TARGETARCH`'tan gelen `GOOS`/`GOARCH` ile çapraz
+  derler; ağır adımlar için emülasyon gerekmez. `make publish`, `docker buildx build --push` komutunu sarar.
+- `deploy/docker-compose.yml` artık derlemek yerine `aoztrk82/mumweb:${MUMWEB_VERSION:-latest}` imajını çeker;
+  `deploy/docker-compose.build.yml` kaynaktan derleme override'ıdır. README kurulumunda `git clone` gerekmez: üç dosya
+  (compose, Caddyfile, `.env`) listelenir; compose örneği depodaki dosyanın kopyasıdır. Güncelleme
+  `docker compose pull && docker compose up -d`.
+- Derleme, test, depo yapısı ve sürüm yayınlama adımları README'den `docs/tr/BUILDING.md`'ye taşındı.
+- Doğrulama: yayınlanan `0.1.0` imajı Hub'dan çekilip `MUMWEB_ACCESS_PASSWORD` ayarlı çalıştırıldı: `/config` →
+  `{"accessPassword":true}`, `/healthz` → `ok`, uid 100 (`mumweb`) ile çalışıyor. Manifest amd64 ve arm64'ü listeliyor.
+  **arm64 imajı çalıştırılmadı** (derleme makinesinde emülasyon yok); sorunsuz derlendi. Güncellenen production compose
+  yalnızca `docker compose config` ile doğrulandı; yeni README adımlarıyla temiz bir sunucuda tam kurulum henüz yapılmadı.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

@@ -125,4 +125,8 @@ Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim s
 - [ ] Tarayıcı uçtan uca test betikleri (şu an geliştiricinin geçici klasöründe, puppeteer-core + browserless):
       repoya alınması (Playwright vb.) ve CI'da çalıştırılması.
 - [ ] CI: `go vet`/`go test`, `npm run check`/`npm test`, Docker build; dev Mumble ile entegrasyon testleri.
-- [ ] Sürümleme: gateway `release` sabiti (`mumweb 0.1`), etiketler ve CHANGELOG.
+- [x] Docker Hub imajı `aoztrk82/mumweb` (amd64 + arm64), `make publish`, compose onu çeker.
+- [ ] Sürümleme: gateway `release` sabiti (`mumweb 0.1`), git etiketleri ve CHANGELOG; imaj yayınını CI'da otomatikleştir
+      (etiket → derle → gönder).
+- [ ] Docker Hub sayfası: `aoztrk82/mumweb` için açıklama ve kısa README; arm64 imajını gerçek donanımda dene; yeni
+      README kurulum adımlarını temiz bir sunucuda baştan sona çalıştır.

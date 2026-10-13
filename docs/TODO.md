@@ -128,4 +128,8 @@ Goal: no input path may give access outside the container or to the host system.
 - [ ] Browser end-to-end test scripts (currently in the developer's temp folder, puppeteer-core + browserless): move
       them into the repo (Playwright or similar) and run them in CI.
 - [ ] CI: `go vet` / `go test`, `npm run check` / `npm test`, Docker build; integration tests with a dev Mumble.
-- [ ] Versioning: the gateway `release` constant (`mumweb 0.1`), tags and a CHANGELOG.
+- [x] Docker Hub image `aoztrk82/mumweb` (amd64 + arm64), `make publish`, compose pulls it.
+- [ ] Versioning: the gateway `release` constant (`mumweb 0.1`), git tags and a CHANGELOG; automate the image release
+      in CI (tag → build → push).
+- [ ] Docker Hub page: description and a short README for `aoztrk82/mumweb`; test the arm64 image on real hardware;
+      run the new README quick start end to end on a clean server.

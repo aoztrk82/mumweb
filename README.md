@@ -67,27 +67,108 @@ Known limit on Android: when the browser is sent to the background, the session 
 
 ## Quick start (production)
 
-Requirements: a Linux server with Docker and Docker Compose, ports 80 and 443 (TCP) and 64738 (TCP + UDP) open,
-and a domain name.
+Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, ports 80 and 443 (TCP) and 64738
+(TCP + UDP) open, and a domain name. There is nothing to build: the ready-made image is
+[`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82/mumweb) on Docker Hub.
 
 1. **DNS:** point an `A` (and `AAAA`, if you have IPv6) record such as `voice.example.com` at the server. Caddy
    cannot obtain a certificate until it resolves (`dig +short voice.example.com` must show the server IP).
-2. **Get the code and configure it:**
+2. **Create a folder with three files:**
    ```sh
-   git clone https://github.com/aoztrk82/mumweb.git && cd mumweb/deploy
-   cp .env.example .env
-   # edit .env: set MUMWEB_DOMAIN and MUMBLE_SUPERUSER_PASSWORD
+   mkdir mumweb && cd mumweb
+   ```
+   `docker-compose.yml`:
+   ```yaml
+   # Production stack: Mumble server + mumweb gateway + Caddy (automatic HTTPS).
+   # Put MUMWEB_DOMAIN and MUMBLE_SUPERUSER_PASSWORD in a .env file next to this one, then:
+   #   docker compose up -d
+   name: mumweb
+
+   services:
+     mumble:
+       image: mumblevoip/mumble-server:latest
+       restart: unless-stopped
+       ports:
+         # Desktop Mumble clients connect here directly.
+         - "64738:64738/tcp"
+         - "64738:64738/udp"
+       volumes:
+         - mumble-data:/data
+       environment:
+         MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:?set MUMBLE_SUPERUSER_PASSWORD in .env}
+         MUMBLE_CONFIG_WELCOMETEXT: ${MUMBLE_WELCOME_TEXT:-Welcome to our Mumble server!}
+         MUMBLE_CONFIG_USERS: ${MUMBLE_MAX_USERS:-50}
+         # All web users reach Mumble from the gateway's single IP. The default autoban
+         # (10 connections / 120 s, successful ones included) would lock them all out
+         # for 5 minutes after a few logins. Count only failed attempts.
+         MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
+
+     mumweb:
+       image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
+       restart: unless-stopped
+       environment:
+         MUMWEB_MUMBLE_ADDR: mumble:64738
+         MUMWEB_ALLOWED_ORIGINS: https://${MUMWEB_DOMAIN:?set MUMWEB_DOMAIN in .env}
+         # Behind Caddy: take the client IP from X-Forwarded-For for per-IP limits.
+         MUMWEB_TRUST_PROXY: "true"
+         MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
+         MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-info}
+         # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
+         # is reachable by anyone who knows the URL; use the desktop client for admin work.
+         MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
+         # Optional password every web user must enter (independent of the Mumble server password).
+         MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
+       depends_on:
+         - mumble
+
+     caddy:
+       image: caddy:2
+       restart: unless-stopped
+       ports:
+         - "80:80"
+         - "443:443"
+         - "443:443/udp"
+       environment:
+         MUMWEB_DOMAIN: ${MUMWEB_DOMAIN}
+       volumes:
+         - ./Caddyfile:/etc/caddy/Caddyfile:ro
+         - caddy-data:/data
+         - caddy-config:/config
+       depends_on:
+         - mumweb
+
+   volumes:
+     mumble-data:
+     caddy-data:
+     caddy-config:
+   ```
+   `Caddyfile`:
+   ```
+   {$MUMWEB_DOMAIN} {
+   	encode zstd gzip
+   	# Caddy proxies WebSocket upgrades (/ws) transparently.
+   	reverse_proxy mumweb:8080
+   }
+   ```
+   `.env`:
+   ```sh
+   MUMWEB_DOMAIN=voice.example.com
+   MUMBLE_SUPERUSER_PASSWORD=change-me
    ```
 3. **Start it:**
    ```sh
-   docker compose up -d --build
+   docker compose up -d
    docker compose ps               # mumweb should become "healthy"
    docker compose logs -f caddy    # watch the certificate being issued on first start
    ```
 4. Open `https://voice.example.com`. Desktop Mumble clients connect to `voice.example.com:64738`.
 
 The compose file runs three services: `mumble` (the official `mumblevoip/mumble-server`), `mumweb` (gateway plus
-web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through).
+web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through). The same
+files live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`).
+
+Image tags: `latest` follows the newest release; `0.1.0`-style tags are fixed releases. Pin one by setting
+`MUMWEB_VERSION=0.1.0` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
 
 ## Deployment
 
@@ -151,12 +232,12 @@ image `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false`, in `mumble-server.in
 ### Updating
 
 ```sh
-cd mumweb && git pull
-cd deploy && docker compose up -d --build
-docker image prune -f   # optional: remove old images
+docker compose pull          # fetch the newest mumweb (and Mumble) images
+docker compose up -d         # recreate only what changed
+docker image prune -f        # optional: remove old images
 ```
 
-To update the Mumble server: `docker compose pull mumble && docker compose up -d mumble`. User registrations and
+User registrations and
 channels live in the `mumble-data` volume. Back it up with:
 `docker run --rm -v mumweb_mumble-data:/d -v "$PWD":/b alpine tar czf /b/mumble-data.tgz -C /d .`
 
@@ -211,61 +292,8 @@ Set `MUMWEB_ACCESS_PASSWORD` to keep strangers out of the web client. The login 
 
 ## Building from source
 
-Requirements: Go 1.27+, Node 24 LTS, Docker with Compose, GNU Make. `protoc` and `protoc-gen-go` are needed only
-for `make proto`.
-
-```sh
-make gateway   # bin/mumweb and bin/mumprobe, web UI embedded
-make docker    # production image (mumweb:dev)
-make web       # only the web UI, into gateway/web/dist
-make proto     # regenerate Go code from gateway/proto
-```
-
-For day-to-day development:
-
-```sh
-cp deploy/.env.example deploy/.env   # set MUMBLE_SUPERUSER_PASSWORD; MUMBLE_PORT if 64738 is taken
-make dev                             # dev Mumble server + gateway on http://localhost:8080
-cd web && npm run dev                # Vite on http://localhost:5173, /ws proxied to the gateway
-```
-
-`localhost` counts as a secure context, so the microphone works over plain HTTP there. Use HTTPS when testing from
-another machine ([docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)).
-
-## Testing
-
-```sh
-make test                                                           # Go unit tests + Vitest
-cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge   # integration, needs a Mumble server (`make dev`)
-```
-
-- **Go:** message framing, partial `UserState` / `ChannelState` merging, `MumbleUDP.Audio` encoding, a fake TLS
-  Mumble server for the client (handshake, unknown message types, reject, timeouts, fingerprint pinning, shutdown),
-  certificate generation, bridge binary frames, Origin / session / IP limits. Integration: WebSocket ↔ Mumble
-  text, audio, state, certificate persistence, admin actions, channel passwords, name-takeover protection, goroutine leaks.
-- **Vitest:** binary audio frames, jitter buffer, framing and resampling, voice activation, bitrate, PEM handling,
-  reconnect backoff.
-- **Manual acceptance checklist:** [docs/TESTING.md](docs/TESTING.md).
-
-`bin/mumprobe` is a CLI that talks to a Mumble server directly: it prints the channel tree, logs events and audio
-packets, and can send text (`-say`), play an Opus packet file (`-play`), transmit silence (`-tx`) and create a
-channel (`-mkchannel`).
-
-## Repository layout
-
-| Path | Contents |
-|---|---|
-| `gateway/cmd/mumweb` | HTTP / WebSocket gateway (serves the UI, `/ws`, `/healthz`) |
-| `gateway/cmd/mumprobe` | Mumble probing CLI |
-| `gateway/internal/mumble` | Mumble TCP client library (TLS, framing, state, audio tunnel) |
-| `gateway/internal/bridge` | WebSocket session ↔ Mumble client |
-| `gateway/internal/certs` | Client certificate generation |
-| `gateway/proto` | Official `Mumble.proto` / `MumbleUDP.proto` and generated Go code |
-| `web/src/lib` | WebSocket client, audio pipeline (`audio/`), state stores |
-| `web/src/components` | UI components |
-| `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
-| `deploy/local/` | Local HTTPS test environment (mkcert) |
-| `docs/` | Development guide, testing checklist, progress log, TODO |
+Most people should use the Docker Hub image above. To build it yourself, hack on the code or run the tests, see
+**[docs/BUILDING.md](docs/BUILDING.md)**.
 
 ## Troubleshooting
 
@@ -289,6 +317,7 @@ Gateway logs are JSON: `docker compose logs -f mumweb`. Passwords, certificate k
 | | English | Türkçe |
 |---|---|---|
 | Overview and deployment | this file | [README.tr.md](README.tr.md) |
+| Building from source, testing, publishing the image | [docs/BUILDING.md](docs/BUILDING.md) | [docs/tr/BUILDING.md](docs/tr/BUILDING.md) |
 | Local HTTPS test environment | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | [docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md) |
 | Manual acceptance tests | [docs/TESTING.md](docs/TESTING.md) | [docs/tr/TESTING.md](docs/tr/TESTING.md) |
 | Progress log and findings | [docs/PROGRESS.md](docs/PROGRESS.md) | [docs/tr/PROGRESS.md](docs/tr/PROGRESS.md) |

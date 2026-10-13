@@ -46,20 +46,97 @@ alınınca oturum yaklaşık 15–20 sn sonra odadan düşer (ekran kilidi sorun
 
 ## Kurulum (yeni bir sunucuda)
 
-Gereksinimler: Docker + Docker Compose, 80/443 (TCP) ve 64738 (TCP+UDP) portları açık bir Linux sunucu,
-bir alan adı.
+Gereksinimler: Docker + Docker Compose kurulu bir Linux sunucu (x86-64 veya ARM64), 80/443 (TCP) ve 64738 (TCP+UDP)
+portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub'da,
+[`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82/mumweb).
 
 1. **DNS:** `ses.alanadiniz.com` için sunucunun IP'sine işaret eden bir `A` (ve varsa `AAAA`) kaydı ekleyin.
    Kayıt yayılmadan Caddy sertifika alamaz (`dig +short ses.alanadiniz.com` sunucu IP'sini göstermeli).
-2. **Kodu alın ve yapılandırın:**
+2. **Üç dosyalı bir klasör oluşturun:**
    ```sh
-   git clone https://github.com/aoztrk82/mumweb.git && cd mumweb/deploy
-   cp .env.example .env
-   # .env içinde MUMWEB_DOMAIN ve MUMBLE_SUPERUSER_PASSWORD'ü değiştirin
+   mkdir mumweb && cd mumweb
+   ```
+   `docker-compose.yml`:
+   ```yaml
+   # Production stack: Mumble server + mumweb gateway + Caddy (automatic HTTPS).
+   # Put MUMWEB_DOMAIN and MUMBLE_SUPERUSER_PASSWORD in a .env file next to this one, then:
+   #   docker compose up -d
+   name: mumweb
+
+   services:
+     mumble:
+       image: mumblevoip/mumble-server:latest
+       restart: unless-stopped
+       ports:
+         # Desktop Mumble clients connect here directly.
+         - "64738:64738/tcp"
+         - "64738:64738/udp"
+       volumes:
+         - mumble-data:/data
+       environment:
+         MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:?set MUMBLE_SUPERUSER_PASSWORD in .env}
+         MUMBLE_CONFIG_WELCOMETEXT: ${MUMBLE_WELCOME_TEXT:-Welcome to our Mumble server!}
+         MUMBLE_CONFIG_USERS: ${MUMBLE_MAX_USERS:-50}
+         # All web users reach Mumble from the gateway's single IP. The default autoban
+         # (10 connections / 120 s, successful ones included) would lock them all out
+         # for 5 minutes after a few logins. Count only failed attempts.
+         MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
+
+     mumweb:
+       image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
+       restart: unless-stopped
+       environment:
+         MUMWEB_MUMBLE_ADDR: mumble:64738
+         MUMWEB_ALLOWED_ORIGINS: https://${MUMWEB_DOMAIN:?set MUMWEB_DOMAIN in .env}
+         # Behind Caddy: take the client IP from X-Forwarded-For for per-IP limits.
+         MUMWEB_TRUST_PROXY: "true"
+         MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
+         MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-info}
+         # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
+         # is reachable by anyone who knows the URL; use the desktop client for admin work.
+         MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
+         # Optional password every web user must enter (independent of the Mumble server password).
+         MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
+       depends_on:
+         - mumble
+
+     caddy:
+       image: caddy:2
+       restart: unless-stopped
+       ports:
+         - "80:80"
+         - "443:443"
+         - "443:443/udp"
+       environment:
+         MUMWEB_DOMAIN: ${MUMWEB_DOMAIN}
+       volumes:
+         - ./Caddyfile:/etc/caddy/Caddyfile:ro
+         - caddy-data:/data
+         - caddy-config:/config
+       depends_on:
+         - mumweb
+
+   volumes:
+     mumble-data:
+     caddy-data:
+     caddy-config:
+   ```
+   `Caddyfile`:
+   ```
+   {$MUMWEB_DOMAIN} {
+   	encode zstd gzip
+   	# Caddy proxies WebSocket upgrades (/ws) transparently.
+   	reverse_proxy mumweb:8080
+   }
+   ```
+   `.env`:
+   ```sh
+   MUMWEB_DOMAIN=ses.alanadiniz.com
+   MUMBLE_SUPERUSER_PASSWORD=degistir
    ```
 3. **Başlatın:**
    ```sh
-   docker compose up -d --build
+   docker compose up -d
    docker compose ps          # mumweb "healthy" olmalı
    docker compose logs -f caddy   # ilk açılışta sertifika alınmasını izleyin
    ```
@@ -68,6 +145,10 @@ bir alan adı.
 
 Compose dosyası üç servis çalıştırır: `mumble` (resmî `mumblevoip/mumble-server`), `mumweb` (gateway + arayüz,
 root olmayan kullanıcı, `/healthz` sağlık kontrolü) ve `caddy` (otomatik HTTPS, WebSocket'i olduğu gibi aktarır).
+Aynı dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example` ile).
+
+İmaj etiketleri: `latest` en yeni sürümü izler; `0.1.0` gibi etiketler sabit sürümlerdir. `.env` içine
+`MUMWEB_VERSION=0.1.0` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
 
 ### Mumble autoban ayarı (önemli)
 
@@ -163,12 +244,11 @@ Mumble sunucusunun parmak izini `mumprobe` yazdırır (`make gateway` sonrası):
 ## Güncelleme
 
 ```sh
-cd mumweb && git pull
-cd deploy && docker compose up -d --build
-docker image prune -f   # eski imajları temizle (isteğe bağlı)
+docker compose pull          # en yeni mumweb (ve Mumble) imajlarını indir
+docker compose up -d         # yalnızca değişenleri yeniden oluştur
+docker image prune -f        # eski imajları temizle (isteğe bağlı)
 ```
 
-Mumble sunucusunu güncellemek için: `docker compose pull mumble && docker compose up -d mumble`.
 Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde durur; yedek için:
 `docker run --rm -v mumweb_mumble-data:/d -v "$PWD":/b alpine tar czf /b/mumble-data.tgz -C /d .`
 
@@ -189,64 +269,15 @@ Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde durur; yedek içi
 
 Gateway logları JSON'dur: `docker compose logs -f mumweb`. Şifre, sertifika anahtarı ve sohbet içeriği loglanmaz.
 
-## Geliştirme
+## Kaynaktan derleme
 
-**Yerel HTTPS test ortamı** (Caddy + Mumble + mumweb, mkcert sertifikası, `https://mumweb.test`; Windows için adım
-adım anlatım): [docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md) — `deploy/local/` içinde `docker compose up -d --build`.
-
-Aşağıdakiler kaynak koddan geliştirme içindir. Gereksinimler: Go 1.27+, Node 24 LTS, Docker + Compose, GNU Make; `protoc` + `protoc-gen-go` yalnızca `make proto` için.
-
-```sh
-cp deploy/.env.example deploy/.env   # MUMBLE_SUPERUSER_PASSWORD; port doluysa MUMBLE_PORT
-make dev            # dev Mumble sunucusu + gateway (http://localhost:8080)
-cd web && npm run dev   # arayüz için Vite (http://localhost:5173, /ws gateway'e aktarılır)
-make gateway        # bin/mumweb ve bin/mumprobe (arayüz gömülü)
-make test           # Go testleri + Vitest
-make docker         # production imajı (mumweb:dev)
-make proto          # gateway/proto'dan Go kodu üret
-```
-
-Mikrofon ve WebCodecs güvenli bağlam gerektirir: `localhost` sorunsuzdur; başka bir makineden test ederken HTTPS kullanın.
-
-`bin/mumprobe` Mumble sunucusunu doğrudan yoklayan bir CLI'dır: kanal ağacını yazdırır, olayları ve ses paketlerini
-loglar; `-say` metin gönderir, `-play` Opus paket dosyası çalar, `-tx` sessizlik gönderir, `-mkchannel` kanal oluşturur.
-
-Gateway entegrasyon testleri gerçek bir Mumble sunucusu ister:
-`MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge` (dev stack'in portu).
-
-| Yol | İçerik |
-|---|---|
-| `gateway/cmd/mumweb` | HTTP/WebSocket gateway (arayüzü sunar, `/ws`, `/healthz`) |
-| `gateway/cmd/mumprobe` | Mumble yoklama CLI'ı |
-| `gateway/internal/mumble` | Mumble TCP istemci kütüphanesi (TLS, framing, durum, ses tüneli) |
-| `gateway/internal/bridge` | WebSocket oturumu ↔ Mumble istemcisi |
-| `gateway/internal/certs` | İstemci sertifikası üretimi |
-| `gateway/proto` | Resmî `Mumble.proto` / `MumbleUDP.proto` + üretilen Go kodu |
-| `web/src/lib` | WS istemcisi, ses hattı (`audio/`), durum store'ları |
-| `web/src/components` | Arayüz bileşenleri |
-| `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
-| `deploy/local/` | Yerel HTTPS test ortamı (mkcert), bkz. [docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md) |
-
-İlerleme ve doğrulama notları: [docs/tr/PROGRESS.md](docs/tr/PROGRESS.md). Yapılacaklar: [docs/tr/TODO.md](docs/tr/TODO.md).
-
-## Testler
-
-```sh
-make test                                                    # Go birim testleri + Vitest
-MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge   # gerçek sunucuya karşı (gateway/ içinde)
-```
-
-- Go: framing encode/decode ve hatalar, kısmi `UserState`/`ChannelState` birleştirme, `MumbleUDP.Audio` encode/decode,
-  sahte TLS sunucusuyla istemci (handshake, bilinmeyen mesaj tipleri, reject, zaman aşımı, parmak izi, kapanış),
-  sertifika üretimi, köprü ikili çerçeveleri, Origin/oturum/IP sınırları; entegrasyon: WS ↔ Mumble metin, ses,
-  durum, sertifika kalıcılığı, goroutine sızıntısı.
-- Vitest: ikili ses çerçeveleri, jitter buffer, çerçeveleme/yeniden örnekleme, VAD, bitrate, PEM, yeniden bağlanma süresi.
-
-Manuel kabul testleri: [docs/tr/TESTING.md](docs/tr/TESTING.md).
+Çoğu kişi yukarıdaki Docker Hub imajını kullanmalı. Kendiniz derlemek, kodu değiştirmek veya testleri çalıştırmak için
+**[docs/tr/BUILDING.md](docs/tr/BUILDING.md)** sayfasına bakın.
 
 ## Dokümantasyon
 
 Ana sürüm İngilizcedir: [README.md](README.md), [docs/](docs/). Türkçe belgeler `docs/tr/` altındadır.
+Derleme, test ve imaj yayınlama: [docs/tr/BUILDING.md](docs/tr/BUILDING.md).
 
 ## Lisans
 

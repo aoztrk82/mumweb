@@ -527,6 +527,23 @@ desktop client using real microphones.
   not a trusted secure origin for installation). To be retested over a real certificate.
 - Consequences: the "real microphone, both ways" manual test is closed; the three problems above are in TODO (B, C, D).
 
+## Addendum: published Docker image (2026-10-13)
+
+- `aoztrk82/mumweb` on Docker Hub (public), tags `latest` and `0.1.0`, platforms `linux/amd64` and `linux/arm64`
+  (index digest `sha256:03ce904f…`). The Dockerfile builds the web and Go stages on the build platform
+  (`--platform=$BUILDPLATFORM`) and cross-compiles Go with `GOOS`/`GOARCH` from `TARGETOS`/`TARGETARCH`, so no emulation
+  is needed for the heavy steps. `make publish` wraps the `docker buildx build --push` command.
+- `deploy/docker-compose.yml` now pulls `aoztrk82/mumweb:${MUMWEB_VERSION:-latest}` instead of building;
+  `deploy/docker-compose.build.yml` is the override for building from source. The README quick start no longer needs
+  `git clone`: it lists the three files (compose, Caddyfile, `.env`); the compose example is a copy of the repo file.
+  Updating is `docker compose pull && docker compose up -d`.
+- Building, testing, repository layout and the release procedure moved from the README to `docs/BUILDING.md`.
+- Verification: pulled the pushed `0.1.0` image on a clean tag, started it with `MUMWEB_ACCESS_PASSWORD` set:
+  `/config` → `{"accessPassword":true}`, `/healthz` → `ok`, runs as uid 100 (`mumweb`). The manifest lists amd64 and
+  arm64. **The arm64 image was not run** (no emulation on the build machine); it built cleanly. The updated
+  production compose was validated with `docker compose config` only; a full install on a clean server with the new
+  README steps is still to be done.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small
