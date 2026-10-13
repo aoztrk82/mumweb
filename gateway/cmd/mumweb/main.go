@@ -23,7 +23,7 @@ const release = "mumweb 0.1"
 
 const noBuildPage = `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><title>mumweb</title></head>
-<body><h1>mumweb</h1><p>Web arayüzü derlenmemiş (build yok). <code>make web</code> çalıştırıp gateway'i yeniden derleyin.</p></body></html>
+<body><h1>mumweb</h1><p>The web UI has not been built. Run <code>make web</code> and rebuild the gateway.</p></body></html>
 `
 
 func main() {

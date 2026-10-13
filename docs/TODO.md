@@ -1,108 +1,115 @@
-# Yapılacaklar (TODO)
+# TODO
 
-Son güncelleme: 2026-10-13. Ayrıntılı geçmiş ve doğrulama notları: [PROGRESS.md](PROGRESS.md).
+**English** | [Türkçe](tr/TODO.md)
 
-## A. Öncelikli işler (kullanıcının belirlediği sırayla)
+Last updated: 2026-10-13. Detailed history and verification notes: [PROGRESS.md](PROGRESS.md).
 
-### 1. Projenin ana dili İngilizce olacak
-- [ ] `README.md`, `docs/DEVELOPMENT.md`, `docs/PROGRESS.md`, `docs/TODO.md` İngilizce ana sürüm olacak.
-- [ ] Türkçe sürümler ek dil olarak kalacak ve birbirine bağlantı verecek (ör. `README.tr.md`, `docs/tr/DEVELOPMENT.md`;
-      her dosyanın başında "English | Türkçe" bağlantısı).
-- [ ] Deploy dosyalarındaki Türkçe değerler: compose'taki `MUMBLE_CONFIG_WELCOMETEXT` varsayılanları, `.env.example`
-      açıklamaları, `certs` servisindeki hata mesajı.
-- [ ] Commit mesajları ve kod yorumları zaten İngilizce; kontrol edilip eksik kalan Türkçe yorum varsa çevrilecek.
-- [ ] Karar gerekiyor: **arayüz** de İngilizce olacak mı? Öneri: `web/src/i18n/` altına `en.ts` eklenip dil seçimi
-      (tarayıcı diline göre + Ayarlar'dan), Türkçe korunur.
-- [ ] `MUMWEB_PLAN.md` repoya eklenecekse İngilizceye çevrilsin ve `frame_number` ifadesi "+2 / 20 ms" olarak düzeltilsin.
+## A. Priorities (in the order set by the owner)
 
-### 2. Web erişim şifresi (sunucu şifresinden ayrı)
-- [ ] `MUMWEB_ACCESS_PASSWORD` (boşsa kapalı) — web arayüzünü kullanmak için gereken, yalnızca gateway'in bildiği şifre.
-      Mumble sunucu şifresinden bağımsız; `MUMWEB_ALLOW_SUPERUSER` gibi açılıp kapanabilir.
-- [ ] Gateway `hello`'da (Mumble'a bağlanmadan önce) sabit zamanlı karşılaştırma ile kontrol eder; yanlışsa Türkçe/İngilizce
-      anlaşılır `reject`.
-- [ ] Kaba kuvvete karşı IP başına deneme sınırı ve gecikme (mevcut bağlantı sınırına ek).
-- [ ] Giriş ekranında "Erişim şifresi" alanı yalnızca özellik açıksa görünsün (gateway bunu bir `/config` uç noktası ile
-      bildirebilir). İsteğe bağlı "bu tarayıcıda hatırla".
-- [ ] Değerlendirme: şifre yerine/yanında davet bağlantısı (imzalı, süreli token) daha kullanışlı olabilir.
+### 1. English as the project's primary language
+- [x] `README.md`, `docs/DEVELOPMENT.md`, `docs/TESTING.md`, `docs/PROGRESS.md`, `docs/TODO.md` are English; Turkish
+      versions are `README.tr.md` and `docs/tr/*`, each page linking to its counterpart.
+- [x] Turkish values in the deploy files (compose welcome text default, `.env.example`, `certs` service error).
+- [x] Commit messages and code comments are English (checked; the only Turkish left in code is user interface text).
+- [ ] **Interface language.** Add `web/src/i18n/en.ts` next to `tr.ts`, choose the language from the browser
+      language and from Settings, keep Turkish. Strings still outside `i18n/`: `web/index.html` description,
+      `manifest.webmanifest`, aria-labels in `App.svelte` / `Controls.svelte`, key names in `lib/keys.ts`, the
+      gateway's "UI not built" placeholder page. Decision needed: default language (English suggested).
+- [ ] If `MUMWEB_PLAN.md` is added to the repo, translate it to English and correct `frame_number` to "+2 / 20 ms".
+- [ ] README polish before the public announcement: screenshots / a short demo GIF of the web UI, a demo or
+      feature video, release badge, CI badge, a "Why mumweb?" comparison with other Mumble web clients.
 
-### 3. Web yönetim paneli (mümkünse)
-- [ ] Kapsam kararı. Mumble protokolüyle yapılabilenler: ACL ve gruplar, yasak listesi (görüntüle/ekle/kaldır),
-      kayıtlı kullanıcılar (UserList: listele/yeniden adlandır/sil), kanal yönetimi (var), kullanıcı yönetimi (var).
-      Sunucu ayarları (karşılama metni, bant genişliği, kullanıcı sınırı) protokolde yok; Ice/gRPC veya
-      config + yeniden başlatma gerekir.
-- [ ] Kimlik doğrulama: SuperUser veya admin grubundaki kayıtlı kullanıcı; production'da ayrı bir yönetici şifresi ve
-      yalnızca HTTPS.
-- [ ] Ayrı bir sayfa (`/admin`), ana arayüzden bağımsız; tüm işlemler loglanır.
-- [ ] Masaüstü istemcide de olmayan ACL şifre alanı ve kanal şifresi zaten var; panelde de gösterilmeli.
+### 2. Web access password (separate from the server password)
+- [ ] `MUMWEB_ACCESS_PASSWORD` (off if empty): a password only the gateway knows, required to use the web UI. It is
+      independent of the Mumble server password and can be turned on and off like `MUMWEB_ALLOW_SUPERUSER`.
+- [ ] The gateway checks it in `hello` (before connecting to Mumble) with a constant-time comparison; a wrong one
+      gets a clear `reject` message.
+- [ ] Brute-force protection: per-IP attempt limit and delay (in addition to the existing connection limit).
+- [ ] The login screen shows the "Access password" field only when the feature is on (the gateway can report this
+      through a `/config` endpoint). Optional "remember in this browser".
+- [ ] Evaluate an invite link (signed, expiring token) instead of or alongside the password.
 
-### 4. Ayrıntılı güvenlik incelemesi (production'dan ÖNCE, zorunlu)
-Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim sağlanamamalı.
-- [ ] Tehdit modeli: internetten anonim kullanıcı, kötü niyetli web kullanıcısı, kötü niyetli Mumble kullanıcısı
-      (gateway'e zararlı Mumble mesajı), çalınmış tarayıcı verisi.
-- [ ] Container sertleştirme: `read_only: true`, `cap_drop: [ALL]`, `security_opt: no-new-privileges`, tmpfs,
-      kaynak sınırları (`mem_limit`, `pids_limit`, `cpus`), seccomp varsayılan profili, root olmayan kullanıcı (var),
-      imaj sürümlerinin sabitlenmesi (`latest` yerine sürüm + digest), mümkünse distroless/scratch çalışma imajı.
-- [ ] Ağ: gateway yalnızca Mumble'a çıkabilsin (ayrı iç ağ, dışarı çıkış yok); Mumble yönetim (Ice) portu kapalı.
-- [ ] Bağımlılık taraması: `govulncheck`, `npm audit`, imaj taraması (Trivy/Grype); güncelleme politikası.
-- [ ] Statik analiz: `gosec`, `staticcheck`, Semgrep; frontend için ESLint güvenlik kuralları.
-- [ ] Gateway protokol fuzzing: WS JSON ve ikili çerçeveler, Mumble'dan gelen protobuf mesajları (go-fuzz / `testing.F`).
-- [ ] DoS: mesaj boyutu/oranı sınırları (var) gözden geçirilecek, yavaş istemci (slowloris) ve bellek tüketimi,
-      oturum başına kuyruk sınırları, ses paketi flood'u.
-- [ ] Web: Content-Security-Policy, HSTS, `X-Frame-Options`/`frame-ancestors`, Referrer-Policy, Permissions-Policy
-      (Caddy veya gateway); sohbet/açıklama HTML'i (DOMPurify) için XSS testleri.
-- [ ] Tarayıcıda saklanan özel anahtar (IndexedDB) ve kayıtlı kanal şifreleri (localStorage): XSS olursa çalınabilir;
-      non-extractable WebCrypto anahtarı veya şifreleme değerlendirmesi.
-- [ ] Loglarda gizli bilgi olmadığının denetimi (şifre, anahtar, token, sohbet).
-- [ ] TLS: Caddy ayarları, gateway ↔ Mumble için parmak izi sabitleme önerisi.
-- [ ] Bilinen protokol riskleri: masaüstünden yapılan IP ban (bkz. C), SuperUser'ın web'den kullanımı (kapalı),
-      Mumble mesaj hız sınırı.
-- [ ] Bulgular `docs/SECURITY.md`'ye; güvenlik açığı bildirimi yolu (SECURITY policy).
+### 3. Web admin panel (if feasible)
+- [ ] Decide the scope. What the Mumble protocol allows: ACLs and groups, ban list (view/add/remove), registered
+      users (UserList: list/rename/delete), channel management (exists), user management (exists). Server settings
+      (welcome text, bandwidth, user limit) are not in the protocol; they need Ice/gRPC or config + restart.
+- [ ] Authentication: SuperUser or a registered user in an admin group; in production a separate admin password and
+      HTTPS only.
+- [ ] A separate page (`/admin`), independent of the main UI; all actions logged.
+- [ ] The ACL password field and channel password that even the desktop client lacks already exist and should be
+      shown in the panel too.
 
-### 5. Kapasite testi ve kullanıcı sınırı
-- [ ] Yük testi aracı (repoda): N tarayıcı-benzeri oturum, değişen konuşan sayısı (1, 2, 5, hepsi), süre; gateway ve
-      Mumble CPU/RAM/ağ ölçümü. İlk ölçüm (10 oturum, hepsi konuşuyor): gateway ~%45 tek çekirdek, ~15 MiB.
-- [ ] Hedef VPS boyutları için tablo (ör. 1 vCPU/1 GB, 2 vCPU/2 GB) ve önerilen `MUMWEB_MAX_SESSIONS`.
-- [ ] Gerekirse optimizasyon: ses çerçevesi başına `context.WithTimeout` + WS yazımı, JSON yerine ikili kontrol mesajları,
-      tampon havuzu.
-- [ ] Arayüz: sunucu dolu olduğunda (gateway WS'yi 503 ile reddediyor) şu an yeniden bağlanma döngüsüne giriyor;
-      "Web istemcisi dolu (N/N)" gibi anlaşılır mesaj ve döngüyü durdurma. Gateway kapasiteyi `/config`/`/healthz`
-      ile bildirebilir.
-- [ ] Mumble sunucusunun kendi kullanıcı sınırıyla (`MUMBLE_CONFIG_USERS`) uyum.
+### 4. Detailed security review (REQUIRED before production)
+Goal: no input path may give access outside the container or to the host system.
+- [ ] Threat model: anonymous internet user, malicious web user, malicious Mumble user (a harmful Mumble message to
+      the gateway), stolen browser data.
+- [ ] Container hardening: `read_only: true`, `cap_drop: [ALL]`, `security_opt: no-new-privileges`, tmpfs, resource
+      limits (`mem_limit`, `pids_limit`, `cpus`), default seccomp profile, non-root user (exists), pinned image
+      versions (version + digest instead of `latest`), a distroless/scratch runtime image if possible.
+- [ ] Network: the gateway should only be able to reach Mumble (separate internal network, no egress); the Mumble
+      admin (Ice) port closed.
+- [ ] Dependency scanning: `govulncheck`, `npm audit`, image scanning (Trivy/Grype); an update policy.
+- [ ] Static analysis: `gosec`, `staticcheck`, Semgrep; ESLint security rules for the frontend.
+- [ ] Gateway protocol fuzzing: WS JSON and binary frames, protobuf messages from Mumble (go-fuzz / `testing.F`).
+- [ ] DoS: review message size/rate limits (exist), slow clients (slowloris) and memory use, per-session queue
+      limits, audio packet floods.
+- [ ] Web: Content-Security-Policy, HSTS, `X-Frame-Options` / `frame-ancestors`, Referrer-Policy,
+      Permissions-Policy (Caddy or the gateway); XSS tests for chat/description HTML (DOMPurify).
+- [ ] The private key stored in the browser (IndexedDB) and saved channel passwords (localStorage) can be stolen if
+      XSS happens; evaluate a non-extractable WebCrypto key or encryption.
+- [ ] Audit the logs for secrets (passwords, keys, tokens, chat).
+- [ ] TLS: Caddy settings, a recommendation to pin the fingerprint for gateway ↔ Mumble.
+- [ ] Known protocol risks: IP bans made from the desktop (see C), using SuperUser from the web (off), the Mumble
+      message rate limit.
+- [ ] Findings go to `docs/SECURITY.md`; a vulnerability reporting path (a SECURITY policy).
 
-## B. Bekleyen manuel testler (kullanıcı)
-- [ ] Masaüstü Mumble ↔ web arasında **gerçek mikrofonla** konuşma iki yönde (testlerde sentetik ton kullanıldı).
-- [ ] Bas-konuş bırakılınca masaüstündeki konuşma göstergesinin hemen sönmesi.
-- [ ] Android Chrome: ana ekrana ekle → tam ekran, bas-konuş, ekran kilitlenince davranış.
-- [ ] Kulaklıksız kullanımda yankı (tarayıcı AEC'si).
-- [ ] Firefox (Windows) gerçek mikrofon; Safari 26+ (iOS/macOS) — WebKit kaynağına göre WebCodecs Opus var, cihazda denenmedi.
-- [ ] README'deki 12 maddelik manuel kabul listesi.
+### 5. Capacity testing and user limit
+- [ ] A load-test tool (in the repo): N browser-like sessions, a varying number of speakers (1, 2, 5, all), duration;
+      measure gateway and Mumble CPU/RAM/network. First measurement (10 sessions, all speaking): gateway ~45 % of one
+      core, ~15 MiB.
+- [ ] A table for target VPS sizes (e.g. 1 vCPU/1 GB, 2 vCPU/2 GB) and a recommended `MUMWEB_MAX_SESSIONS`.
+- [ ] Optimise if needed: per-audio-frame `context.WithTimeout` + WS write, binary control messages instead of JSON,
+      a buffer pool.
+- [ ] UI: when the server is full (the gateway rejects the WS with 503) the client goes into a reconnect loop; show a
+      clear message such as "Web client is full (N/N)" and stop the loop. The gateway can report capacity through
+      `/config` / `/healthz`.
+- [ ] Consistency with the Mumble server's own user limit (`MUMBLE_CONFIG_USERS`).
 
-## C. Bilinen sınırlar ve ertelenen kararlar
-- Masaüstünden yasaklanan web kullanıcısı gateway IP'sini de yasaklatır (yeni web girişleri engellenir). Karar:
-  şimdilik önlem yok (küçük gruplar). Gerekirse "bekçi hesabı" ile otomatik düzeltme.
-- Tarayıcı odakta değilken global bas-konuş tuşu mümkün değil (tarayıcı sınırı); oyun sırasında ses algılama veya
-  masaüstü istemci önerilir.
-- Mumble sunucusu kullanıcı başına mesaj hızını sınırlar (1/sn, 5 burst) ve fazlasını sessizce düşürür.
-- SuperUser Mumble'da konuşamaz (tasarım gereği).
-- WASM Opus yedeği (eski Safari/iOS) yapılmayacak.
-- Production kurulumu (kullanıcının sunucusundaki mevcut Caddy + mumble-server) uygulama tamamlanınca; o sunucuda
-  `autobanSuccessfulConnections=false` ayarı gerekecek.
+## B. Pending manual tests (owner)
+- [ ] Two-way conversation between desktop Mumble and web with a **real microphone** (the tests used a synthetic tone).
+- [ ] The desktop speaking indicator going out immediately when push-to-talk is released.
+- [ ] Android Chrome: add to home screen → full screen, push-to-talk, behaviour when the screen locks.
+- [ ] Echo without headphones (browser AEC).
+- [ ] Firefox (Windows) with a real microphone; Safari 26+ (iOS/macOS): per the WebKit source WebCodecs Opus exists,
+      untested on a device.
+- [ ] The 12-item manual acceptance list in [TESTING.md](TESTING.md).
 
-## D. Eksik özellikler (masaüstü istemciye göre)
-- [ ] Kendi açıklamasını düzenleme; avatar gösterme/yükleme.
-- [ ] Kanal açıklamasını görüntüleme (düzenleme var).
-- [ ] Fısıltı/bağırma (whisper/shout, VoiceTarget).
-- [ ] Kayıtlı kullanıcılar listesi, yasak listesi yönetimi, ACL/grup düzenleyici (bkz. A3).
-- [ ] Masaüstünden `.p12` sertifika içe aktarma (şu an yalnızca PEM).
-- [ ] Tarayıcı bildirimleri (sekme arka plandayken mesaj/katılım), sekme başlığında okunmamış sayısı.
-- [ ] Mobilde Screen Wake Lock (ekran kapanınca ses kesilmesini azaltmak için).
-- [ ] Sohbete resim yapıştırma (Mumble data: URI resimleri; `ImageMessageLength` sınırı).
-- [ ] Davet bağlantısı: kanal + önerilen takma ad (ve A2 erişim şifresi açıksa token).
-- [ ] Gelişmiş ses ayarları: bitrate, jitter buffer, gürültü bastırma seçenekleri; kanal dinleyici ses ayarı.
-- [ ] Kanal dinleyicilerine yerel ses ayarı (`listening_volume_adjustment`).
+## C. Known limits and deferred decisions
+- A web user banned from the desktop also gets the gateway IP banned (new web logins are blocked). Decision: no
+  mitigation for now (small groups). If needed, an automatic fix with a "guard account".
+- A global push-to-talk key while the browser is not focused is impossible (browser limit); voice activation or the
+  desktop client is recommended while gaming.
+- The Mumble server rate-limits messages per user (1/s, burst 5) and silently drops the excess.
+- SuperUser cannot speak in Mumble (by design).
+- A WASM Opus fallback (old Safari/iOS) will not be built.
+- The production setup (the owner's existing Caddy + mumble-server) comes once the application is finished; that
+  server will need `autobanSuccessfulConnections=false`.
 
-## E. Teknik borç
-- [ ] Tarayıcı uçtan uca test betikleri (şu an geliştiricinin geçici klasöründe, puppeteer-core + browserless):
-      repoya alınması (Playwright vb.) ve CI'da çalıştırılması.
-- [ ] CI: `go vet`/`go test`, `npm run check`/`npm test`, Docker build; dev Mumble ile entegrasyon testleri.
-- [ ] Sürümleme: gateway `release` sabiti (`mumweb 0.1`), etiketler ve CHANGELOG.
+## D. Missing features (compared with the desktop client)
+- [ ] Editing your own comment; showing/uploading avatars.
+- [ ] Viewing the channel description (editing exists).
+- [ ] Whisper/shout (VoiceTarget).
+- [ ] Registered user list, ban list management, ACL/group editor (see A3).
+- [ ] Importing `.p12` certificates from the desktop (currently PEM only).
+- [ ] Browser notifications (messages/joins while the tab is in the background), unread count in the tab title.
+- [ ] Screen Wake Lock on mobile (to reduce audio cut-outs when the screen turns off).
+- [ ] Pasting images into the chat (Mumble `data:` URI images; `ImageMessageLength` limit).
+- [ ] Invite link: channel + suggested nickname (and a token if the A2 access password is on).
+- [ ] Advanced audio settings: bitrate, jitter buffer, noise suppression options; per-listener volume for channel listeners.
+- [ ] Local volume for channel listeners (`listening_volume_adjustment`).
+
+## E. Technical debt
+- [ ] Browser end-to-end test scripts (currently in the developer's temp folder, puppeteer-core + browserless): move
+      them into the repo (Playwright or similar) and run them in CI.
+- [ ] CI: `go vet` / `go test`, `npm run check` / `npm test`, Docker build; integration tests with a dev Mumble.
+- [ ] Versioning: the gateway `release` constant (`mumweb 0.1`), tags and a CHANGELOG.

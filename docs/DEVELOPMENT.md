@@ -1,64 +1,66 @@
-# Yerel test ortamı (Windows için adım adım)
+# Local test environment (step by step, Windows first)
 
-Bu rehber mumweb'i kendi bilgisayarınızda **gerçek HTTPS ile** çalıştırmayı anlatır. Sonuçta tarayıcıdan
-`https://mumweb.test` adresini açıp sesli sohbeti deneyebilir, aynı sunucuya masaüstü Mumble istemcisiyle de
-bağlanabilirsiniz. Windows için yazıldı; macOS/Linux farkları en sonda.
+**English** | [Türkçe](tr/DEVELOPMENT.md)
+
+This guide runs mumweb on your own computer **with real HTTPS**. At the end you can open `https://mumweb.test` in a
+browser, try voice chat, and connect to the same server with the desktop Mumble client. It is written for Windows;
+macOS and Linux differences are at the end.
 
 ```
- Tarayıcı ──► https://mumweb.test ──► Caddy (mkcert sertifikası) ──► mumweb ──► Mumble sunucusu
+ Browser ──► https://mumweb.test ──► Caddy (mkcert certificate) ──► mumweb ──► Mumble server
                                                                                     ▲
- Masaüstü Mumble istemcisi ──────────────► mumweb.test:64738 ───────────────────────┘
+ Desktop Mumble client ──────────────────► mumweb.test:64738 ───────────────────────┘
 ```
 
-`deploy/local/compose.yaml` üç container çalıştırır:
+`deploy/local/compose.yaml` runs four containers:
 
-| Servis | Görevi |
+| Service | Purpose |
 |---|---|
-| `certs` | Tek seferlik: mkcert dosyalarını Mumble'ın okuyabileceği izinlerle bir volume'e kopyalar, sonra kapanır. |
-| `mumble` | Resmî Mumble sunucusu (`mumblevoip/mumble-server`), mkcert sertifikasıyla. 64738 portu masaüstü istemciler için açık. |
-| `mumweb` | Bu depodan derlenen gateway + web arayüzü. |
-| `caddy` | `https://mumweb.test`'i mkcert ile ürettiğiniz sertifikayla sunar, isteği mumweb'e aktarır. |
+| `certs` | One-shot: copies the mkcert files into a volume with permissions the Mumble server can read, then exits. |
+| `mumble` | The official Mumble server (`mumblevoip/mumble-server`) using the mkcert certificate. Port 64738 is open for desktop clients. |
+| `mumweb` | Gateway + web UI built from this repository. |
+| `caddy` | Serves `https://mumweb.test` with the mkcert certificate and proxies requests to mumweb. |
 
-> **Neden HTTPS?** Tarayıcılar mikrofon erişimine ve WebCodecs ses kodlamasına yalnızca güvenli bağlamda
-> (HTTPS veya `localhost`) izin verir. mkcert, bilgisayarınızın güvendiği yerel bir sertifika otoritesi
-> oluşturur; böylece tarayıcı uyarı vermeden HTTPS kullanır.
+> **Why HTTPS?** Browsers only allow microphone access and WebCodecs audio encoding in a secure context (HTTPS or
+> `localhost`). mkcert creates a local certificate authority that your computer trusts, so the browser shows no
+> warning.
 
-## Hızlı başlangıç
+## Quick start
 
-Araçlar kuruluysa beş adımda çalışır. Ayrıntılar aşağıda.
+With the tools installed it takes five steps. Details below.
 
 ```powershell
-# 1) Bir kez: mkcert'in yerel sertifika otoritesini kur
+# 1) Once: install mkcert's local certificate authority
 mkcert -install
 
-# 2) Sertifikayı üret
+# 2) Generate the certificate
 cd mumweb\deploy\local
 mkcert -cert-file certs\cert.pem -key-file certs\key.pem mumweb.test localhost 127.0.0.1 ::1
 
-# 3) hosts dosyasına ekle (Yönetici PowerShell'de)
+# 3) Add to the hosts file (in an Administrator PowerShell)
 Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1 mumweb.test`n::1 mumweb.test"
 
-# 4) Başlat
+# 4) Start
 docker compose up -d --build
 
-# 5) Aç: https://mumweb.test
+# 5) Open: https://mumweb.test
 ```
 
 ---
 
-## 1. Gereksinimler
+## 1. Requirements
 
-| Araç | Neden | Kurulum |
+| Tool | Why | Install |
 |---|---|---|
-| **Docker Desktop** (WSL 2 altyapısı) | Container'ları çalıştırır | <https://www.docker.com/products/docker-desktop/> veya `winget install Docker.DockerDesktop` |
-| **Git** | Kodu almak için | `winget install Git.Git` |
-| **mkcert** | Yerel, güvenilir HTTPS sertifikası | `winget install FiloSottile.mkcert` (alternatif: `choco install mkcert` / `scoop install mkcert`) |
-| Mumble masaüstü istemcisi (isteğe bağlı) | Web ↔ masaüstü testleri | <https://www.mumble.info/downloads/> |
+| **Docker Desktop** (WSL 2 backend) | Runs the containers | <https://www.docker.com/products/docker-desktop/> or `winget install Docker.DockerDesktop` |
+| **Git** | To get the code | `winget install Git.Git` |
+| **mkcert** | Local, trusted HTTPS certificate | `winget install FiloSottile.mkcert` (alternatively `choco install mkcert` / `scoop install mkcert`) |
+| Mumble desktop client (optional) | Web ↔ desktop tests | <https://www.mumble.info/downloads/> |
 
-Go, Node veya başka bir derleme aracı **gerekmez**; her şey Docker içinde derlenir.
+You do **not** need Go, Node or any other build tool; everything is built inside Docker.
 
-`winget` ile kurulumdan sonra yeni bir PowerShell penceresi açın ki komutlar `PATH`'e girsin. Docker Desktop'ın
-çalıştığını kontrol edin:
+After installing with `winget`, open a new PowerShell window so the commands are on your `PATH`. Check that Docker
+Desktop is running:
 
 ```powershell
 docker version
@@ -66,284 +68,285 @@ docker compose version
 mkcert -version
 ```
 
-## 2. Kodu alın
+## 2. Get the code
 
 ```powershell
-git clone <repo-adresi> mumweb
+git clone https://github.com/aoztrk82/mumweb.git
 cd mumweb
 ```
 
-Depodaki `.gitattributes`, container içinde okunan dosyaların (Caddyfile, compose, Dockerfile) Windows'ta da LF satır
-sonuyla gelmesini sağlar; ek bir Git ayarı gerekmez.
+The repository's `.gitattributes` makes files that are read inside containers (Caddyfile, compose, Dockerfile) keep
+LF line endings on Windows; no extra Git setting is needed.
 
-## 3. mkcert ile sertifika
+## 3. Certificate with mkcert
 
-### 3.1 Yerel sertifika otoritesini kurun (bir kez)
+### 3.1 Install the local certificate authority (once)
 
 ```powershell
 mkcert -install
 ```
 
-Windows bir güvenlik uyarısı gösterir ("Bu sertifikayı yüklemek istiyor musunuz?"); **Evet** deyin. Bu adım
-mkcert'in kök sertifikasını Windows sertifika deposuna ekler. Chrome ve Edge bu depoyu kullanır.
+Windows shows a security prompt ("Do you want to install this certificate?"); answer **Yes**. This adds mkcert's root
+certificate to the Windows certificate store, which Chrome and Edge use.
 
-> **Firefox:** Güncel Firefox sürümleri Windows deposundaki kök sertifikalara güvenir. Yine de sertifika uyarısı
-> görürseniz `about:config` → `security.enterprise_roots.enabled` = `true` yapıp Firefox'u yeniden başlatın.
+> **Firefox:** Current Firefox versions trust root certificates in the Windows store. If you still get a certificate
+> warning, set `security.enterprise_roots.enabled` to `true` in `about:config` and restart Firefox.
 
-### 3.2 `mumweb.test` için sertifika üretin
+### 3.2 Generate a certificate for `mumweb.test`
 
 ```powershell
 cd deploy\local
 mkcert -cert-file certs\cert.pem -key-file certs\key.pem mumweb.test localhost 127.0.0.1 ::1
 ```
 
-Dosya adları önemli: Caddy `certs\cert.pem` ve `certs\key.pem` dosyalarını okur. `certs` klasörünün içeriği git'e
-eklenmez (özel anahtar sizde kalır).
+The file names matter: Caddy reads `certs\cert.pem` and `certs\key.pem`. The contents of `certs` are not added to git
+(the private key stays with you).
 
-> Farklı bir alan adı kullanmak isterseniz (ör. `ses.test`) sertifikayı o adla üretin, hosts dosyasına onu yazın
-> ve `.env` içinde `MUMWEB_DOMAIN=ses.test` ayarlayın (bkz. [Ayarlar](#7-ayarlar-env)).
-> `.local` uzantılı adlardan kaçının; Windows bunları ağda (mDNS) arar ve gecikme olur. `.test` bu iş için ayrılmıştır.
+> To use a different domain (for example `voice.test`), generate the certificate for that name, put it in the hosts
+> file, and set `MUMWEB_DOMAIN=voice.test` in `.env` (see [Settings](#7-settings-env)). Avoid `.local` names: Windows
+> looks them up over mDNS and it is slow. `.test` is reserved for this purpose.
 
-## 4. hosts dosyası
+## 4. hosts file
 
-`mumweb.test` adının bilgisayarınızı göstermesi gerekir.
+The name `mumweb.test` must point to your computer.
 
-**Yöntem A — Not Defteri:** Başlat menüsünde *Not Defteri*'ne sağ tıklayın → **Yönetici olarak çalıştır** →
-`C:\Windows\System32\drivers\etc\hosts` dosyasını açın (dosya türü: *Tüm Dosyalar*) ve en alta ekleyin:
+**Option A: Notepad.** Right-click *Notepad* in the Start menu → **Run as administrator** → open
+`C:\Windows\System32\drivers\etc\hosts` (file type: *All Files*) and append:
 
 ```
 127.0.0.1 mumweb.test
 ::1 mumweb.test
 ```
 
-**Yöntem B — PowerShell (Yönetici olarak):**
+**Option B: PowerShell (as Administrator):**
 
 ```powershell
 Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1 mumweb.test`n::1 mumweb.test"
 ```
 
-Ardından DNS önbelleğini temizleyip kontrol edin:
+Then flush the DNS cache and check:
 
 ```powershell
 ipconfig /flushdns
-ping mumweb.test     # "127.0.0.1" veya "::1" yanıt vermeli
+ping mumweb.test     # should answer from 127.0.0.1 or ::1
 ```
 
-## 5. Başlatın
+## 5. Start
 
 ```powershell
-cd deploy\local        # depo kökünden
+cd deploy\local        # from the repository root
 docker compose up -d --build
 ```
 
-İlk çalıştırmada imajlar indirilir ve web arayüzü ile gateway derlenir; birkaç dakika sürebilir. Sonraki
-başlatmalar saniyeler sürer.
+The first run downloads images and builds the web UI and gateway, which can take a few minutes. Later starts take
+seconds.
 
-Durumu kontrol edin:
+Check the status:
 
 ```powershell
 docker compose ps
 ```
 
-`mumweb` satırı `healthy` olmalı, `caddy` ve `mumble` `Up` görünmeli. `certs` servisinin
-`Exited (0)` görünmesi normaldir (işini yapıp kapanır; `docker compose ps -a` ile görünür).
+`mumweb` should be `healthy`, `caddy` and `mumble` should be `Up`. It is normal for `certs` to show `Exited (0)` (it
+does its job and exits; visible with `docker compose ps -a`).
 
-## 6. Kullanın
+## 6. Use it
 
-### 6.1 Tarayıcıdan
+### 6.1 From the browser
 
-1. Chrome, Edge veya Firefox'ta **<https://mumweb.test>** adresini açın. Adres çubuğunda kilit simgesi görünmeli,
-   uyarı çıkmamalı.
-2. Bir takma ad yazıp **Bağlan**'a tıklayın. Tarayıcı mikrofon izni ister; izin verin.
-3. Kanal ağacı, sohbet ve altta kontrol çubuğu gelir. Bir kullanıcıya **sağ tıklayarak** onun sesini sadece kendiniz
-   için kısabilir/susturabilir, bir kanala sağ tıklayıp (veya çift tıklayıp) o kanala geçebilirsiniz. Konuşma modu varsayılan olarak **Ses algılama**'dır;
-   konuşurken seviye çubuğu sarı çizgiyi geçmeli. **Bas-konuş** modunda varsayılan tuş `V`'dir (Ayarlar'dan değişir).
+> The interface is currently Turkish; button names below are given in English (for example **Connect** is "Bağlan").
 
-**Tek bilgisayarda iki kullanıcı:** Normal pencerede bir kullanıcıyla, **gizli/InPrivate pencerede** başka bir
-takma adla girin. Gizli pencere ayrı bir sertifika (kimlik) kullanır. Yankı ve geri besleme olmaması için
-**kulaklık takın** veya birini sessize alın.
+1. In Chrome, Edge or Firefox open **<https://mumweb.test>**. The address bar should show a lock and no warning.
+2. Type a nickname and click **Connect**. The browser asks for microphone permission; allow it.
+3. The channel tree, chat and the control bar at the bottom appear. **Right-click** a user to lower or mute them just
+   for yourself; right-click (or double-click) a channel to join it. The default talk mode is **voice activation**;
+   the level bar should cross the yellow line while you speak. In **push-to-talk** mode the default key is `V`
+   (changeable in Settings).
 
-### 6.2 SuperUser ile yönetim (kanal oluşturma)
+**Two users on one computer:** log in as one user in a normal window and as another nickname in a **private /
+incognito window**. The private window uses a separate certificate (identity). **Wear headphones** or mute one side
+to avoid echo and feedback.
 
-Yerel ortamda Mumble'ın yönetici hesabı **SuperUser** web'den de kullanılabilir:
+### 6.2 Administering with SuperUser (creating channels)
 
-1. Giriş ekranında takma ad: `SuperUser`, **Sunucu şifresi**: `superuser` (`.env`'deki `MUMBLE_SUPERUSER_PASSWORD`).
-2. Bir kanala **sağ tıklayın → Alt kanal oluştur…** → adı yazıp **Oluştur**. "Geçici kanal" seçilirse kanal
-   herkes çıkınca silinir.
-3. Kanala geçmek için çift tıklayın veya **sağ tık → Kanala katıl**.
+In the local environment Mumble's admin account **SuperUser** can also be used from the web:
 
-4. Kullanıcılara **sağ tıklayarak** masaüstü Mumble'daki yönetim menüsünü kullanabilirsiniz: kov, yasakla
-   (yalnızca sertifika), sustur/sağır et, imtiyazlı konuşmacı, kendi kanalına taşı, kaydet, açıklamayı sıfırla,
-   bilgi, özel mesaj. Rumuz, arkadaş ve "mesajları görmezden gel" yalnızca sizin tarayıcınızda saklanır.
-5. Kanallara **sağ tıklayarak**: dinle, ekle, düzenle, kaldır, bağla/bağlantıyı kaldır, URL kopyala, mesaj gönder,
-   filtrelerken gizle/iğnele. Kanal listesinin üstündeki huni düğmesi boş kanalları gizler. Kopyalanan URL
-   (`https://mumweb.test/#kanal=/Oyun`) ile giriş yapan kişi doğrudan o kanala katılır.
-6. **Şifreli kanal:** SuperUser ile kanala sağ tık → **Düzenle…** → "Kanal şifresi". Normal kullanıcı kanalı kırmızı
-   kilitle görür; çift tıklayınca şifre sorulur ("Bu tarayıcıda hatırla" seçilirse sonraki girişlerde sorulmaz,
-   Ayarlar → Kanal şifreleri'nden silinebilir). Masaüstü Mumble'da aynı şifre *Sunucu → Erişim tokenları*'na
-   eklenerek kullanılır.
+1. On the login screen use nickname `SuperUser` and **Server password** `superuser` (`MUMBLE_SUPERUSER_PASSWORD`
+   in `.env`).
+2. **Right-click a channel → Create sub-channel…** → type a name and click **Create**. With "Temporary channel" the
+   channel is deleted when everyone leaves.
+3. Double-click a channel or use **right-click → Join channel** to enter it.
+4. **Right-click users** for the desktop Mumble admin menu: kick, ban (certificate only), mute/deafen, priority
+   speaker, move to your channel, register, reset comment, info, private message. Nickname, friend and "ignore
+   messages" are stored only in your own browser.
+5. **Right-click channels**: listen, add, edit, remove, link/unlink, copy URL, send message, hide/pin when
+   filtering. The funnel button above the channel list hides empty channels. A copied URL
+   (`https://mumweb.test/#kanal=/Oyun`) takes whoever logs in with it straight to that channel.
+6. **Password-protected channel:** as SuperUser right-click a channel → **Edit…** → "Channel password". A normal
+   user sees the channel with a red lock and is asked for the password on double-click ("Remember in this browser"
+   skips the prompt next time; remove it under Settings → Channel passwords). In the desktop Mumble the same
+   password is used by adding it under *Server → Access tokens*.
 
-SuperUser Mumble'da **konuşamaz** (tasarım gereği); ses testi için normal bir takma adla, yönetim için SuperUser ile
-(ör. gizli pencerede) girin. Normal (kayıtsız) kullanıcılar Mumble'ın varsayılan izinleriyle kanal oluşturamaz; denerlerse sohbette
-"Bu işlem için yetkiniz yok." görürler. Bu davranış sunucunun ACL ayarlarından gelir.
+SuperUser **cannot speak** in Mumble (by design): use a normal nickname for audio tests and SuperUser (for example in
+a private window) for administration. Normal (unregistered) users cannot create channels with Mumble's default
+permissions; if they try they see "You don't have permission for this action." in the chat. This comes from the
+server's ACL settings.
 
-> Web'den SuperUser girişi `MUMWEB_ALLOW_SUPERUSER` ile açılıp kapanır. Yerel ortamda **açık**, production
-> compose'ta **kapalı** gelir; web giriş sayfası adresi bilen herkese açık olduğundan gerçek sunucuda yönetim için
-> masaüstü istemci önerilir.
+> Web SuperUser login is controlled by `MUMWEB_ALLOW_SUPERUSER`. It is **on** in the local environment and **off**
+> in the production compose file; the web login page is open to anyone who knows the URL, so use the desktop client
+> for administration on a real server.
 
-### 6.3 Masaüstü Mumble istemcisiyle
+### 6.3 With the desktop Mumble client
 
-1. Mumble'da **Sunucu → Bağlan → Sunucu ekle**:
-   - Adres: `mumweb.test`
+1. In Mumble choose **Server → Connect → Add new…**:
+   - Address: `mumweb.test`
    - Port: `64738`
-   - Kullanıcı adı: istediğiniz bir ad
-2. Mumble sunucusu da `certs\` klasöründeki mkcert sertifikasını kullanır; mkcert'in kök sertifikası Windows'a
-   kurulu olduğu için istemci **sertifika sormadan** bağlanır. (`localhost` veya IP ile bağlanırsanız ad
-   uyuşmadığı için sorabilir; `mumweb.test` kullanın.)
-3. Web'deki kullanıcıları görürsünüz; konuşma, sohbet ve kanal değiştirme iki yönde çalışmalı.
+   - Username: any name
+2. The Mumble server also uses the mkcert certificate from `certs\`, and mkcert's root is installed in Windows, so
+   the client connects **without a certificate prompt**. (Connecting via `localhost` or an IP may prompt because the
+   name does not match; use `mumweb.test`.)
+3. You see the web users; speaking, chat and channel switching should work both ways.
 
-Masaüstünden yönetim için aynı şekilde `SuperUser` / `superuser` ile bağlanıp kanala sağ tık → **Ekle** diyebilirsiniz.
+For administration from the desktop connect as `SuperUser` / `superuser` and right-click a channel → **Add**.
 
-Denenecek senaryoların listesi için README'deki
-[Manuel kabul testleri](../README.md#manuel-kabul-testleri) bölümüne bakın.
+For scenarios worth testing see the [manual acceptance tests](TESTING.md).
 
-## 7. Ayarlar (.env)
+## 7. Settings (.env)
 
-Varsayılanlarla `.env` dosyası gerekmez. Değiştirmek isterseniz:
+No `.env` file is needed with the defaults. To change something:
 
 ```powershell
 copy .env.example .env
 notepad .env
-docker compose up -d       # değişiklikleri uygular
+docker compose up -d       # applies the changes
 ```
 
-| Değişken | Varsayılan | Açıklama |
+| Variable | Default | Description |
 |---|---|---|
-| `MUMWEB_DOMAIN` | `mumweb.test` | hosts dosyasına ve sertifikaya yazdığınız ad |
-| `HTTPS_PORT` | `443` | Tarayıcının bağlanacağı port |
-| `HTTP_PORT` | `80` | HTTP → HTTPS yönlendirmesi |
-| `MUMBLE_PORT` | `64738` | Masaüstü Mumble istemcisinin bağlanacağı port |
-| `MUMBLE_SUPERUSER_PASSWORD` | `superuser` | Mumble SuperUser şifresi (ilk çalıştırmada ayarlanır) |
-| `MUMWEB_ALLOW_SUPERUSER` | `true` | Web'den `SuperUser` girişine izin ver |
-| `MUMWEB_LOG_LEVEL` | `debug` | Gateway log seviyesi |
+| `MUMWEB_DOMAIN` | `mumweb.test` | The name in your hosts file and certificate |
+| `HTTPS_PORT` | `443` | Port the browser connects to |
+| `HTTP_PORT` | `80` | HTTP → HTTPS redirect |
+| `MUMBLE_PORT` | `64738` | Port the desktop Mumble client connects to |
+| `MUMBLE_SUPERUSER_PASSWORD` | `superuser` | Mumble SuperUser password (set on first run) |
+| `MUMWEB_ALLOW_SUPERUSER` | `true` | Allow `SuperUser` login from the web |
+| `MUMWEB_LOG_LEVEL` | `debug` | Gateway log level |
 
-### Port çakışması (80/443 dolu)
+### Port conflicts (80/443 in use)
 
-IIS, Skype, VMware veya başka bir proxy 80/443'ü kullanıyorsa Caddy başlamaz ("port is already allocated").
-Hangi programın kullandığını görmek için:
+If IIS, Skype, VMware or another proxy uses 80/443, Caddy will not start ("port is already allocated"). To see which
+program uses a port:
 
 ```powershell
 netstat -ano | findstr ":443"
-Get-Process -Id <PID>          # son sütundaki numara
+Get-Process -Id <PID>          # the number in the last column
 ```
 
-`netstat` boş döndüğü hâlde port kullanılamıyorsa Windows (Hyper-V/WSL) o aralığı ayırmış olabilir:
+If `netstat` shows nothing but the port is still unavailable, Windows (Hyper-V/WSL) may have reserved the range:
 
 ```powershell
 netsh interface ipv4 show excludedportrange protocol=tcp
 ```
 
-Programı kapatabilir veya `.env` içinde listede olmayan başka bir port seçebilirsiniz:
+You can stop the program or choose other ports in `.env`:
 
 ```
 HTTPS_PORT=8443
 HTTP_PORT=8080
 ```
 
-Bu durumda adres **<https://mumweb.test:8443>** olur (gateway'in izin verdiği adres de buna göre otomatik ayarlanır).
-Not: HTTP portundan gelen yönlendirme portu bilmez; doğrudan `https://…:8443` adresini kullanın.
+The address then becomes **<https://mumweb.test:8443>** (the origin the gateway allows is adjusted automatically).
+Note that the redirect from the HTTP port does not know the port; use `https://…:8443` directly.
 
-## 8. Kodu değiştirdikten sonra
+## 8. After changing the code
 
-Arayüz ve gateway imajın içinde derlenir. Değişiklikten sonra yalnızca mumweb'i yeniden derleyin:
+The UI and gateway are built into the image. After a change just rebuild mumweb:
 
 ```powershell
 docker compose up -d --build mumweb
 ```
 
-Tarayıcıda sayfayı yenileyin. Uygulama ana ekrana eklenebilir olduğu için bir service worker statik dosyaları
-önbelleğe alır. Sayfanın kendisi her zaman ağdan yüklendiği için normal yenileme yeterlidir. Eski arayüz görünürse
-**Ctrl+F5** yapın; o da olmazsa geliştirici araçlarında *Application → Service workers → Unregister* seçin.
+Reload the page. Because the app can be added to the home screen, a service worker caches static files. The page
+itself is always loaded from the network, so a normal reload is enough. If you still see the old UI press
+**Ctrl+F5**; if that fails, use *Application → Service workers → Unregister* in the developer tools.
 
-Sık arayüz değişikliği yapıyorsanız ve Node kuruluysa, `web` klasöründe `npm run dev` ile anlık yenilemeli
-(Vite) geliştirme de mümkündür. Bunun için gateway'in `localhost:8080`'de çalışması gerekir (README → Geliştirme,
-`make dev`).
+If you change the UI often and have Node installed, `npm run dev` in `web` gives live reload (Vite). The gateway
+must be running on `localhost:8080` for that (see the [README](../README.md#building-from-source), `make dev`).
 
-## 9. Loglar, durdurma, sıfırlama
+## 9. Logs, stopping, resetting
 
 ```powershell
-docker compose logs -f mumweb        # gateway (JSON) — bağlantılar, hatalar
-docker compose logs -f mumble        # Mumble sunucusu
+docker compose logs -f mumweb        # gateway (JSON): connections, errors
+docker compose logs -f mumble        # Mumble server
 docker compose logs -f caddy         # HTTPS / proxy
 
-docker compose stop                  # durdur (veriler kalır)
-docker compose start                 # tekrar başlat
-docker compose down                  # container'ları kaldır (Mumble kanalları/kayıtları volume'de kalır)
-docker compose down -v               # her şeyi sıfırla: kanallar, kayıtlı kullanıcılar, SuperUser şifresi
+docker compose stop                  # stop (data stays)
+docker compose start                 # start again
+docker compose down                  # remove containers (Mumble channels/registrations stay in the volume)
+docker compose down -v               # reset everything: channels, registered users, SuperUser password
 ```
 
-## 10. Aynı ağdaki başka bir cihazdan test
+## 10. Testing from another device on the same network
 
-Telefondan veya başka bir bilgisayardan denemek için o cihazın da (a) `mumweb.test`'i sizin bilgisayarınıza
-çözmesi ve (b) mkcert sertifikasına güvenmesi gerekir.
+To try from a phone or another computer, that device must (a) resolve `mumweb.test` to your computer and (b) trust
+the mkcert certificate.
 
-1. **Bilgisayarınızın yerel IP'si:** `ipconfig` → *IPv4 Address* (ör. `192.168.1.20`).
-2. **Sertifikayı bu IP için de üretin** (isteğe bağlı ama önerilir):
+1. **Your computer's local IP:** `ipconfig` → *IPv4 Address* (for example `192.168.1.20`).
+2. **Generate the certificate for this IP too** (optional but recommended):
    ```powershell
    mkcert -cert-file certs\cert.pem -key-file certs\key.pem mumweb.test localhost 127.0.0.1 ::1 192.168.1.20
    docker compose up -d --force-recreate certs mumble caddy
    ```
-3. **Güvenlik duvarı:** Yönetici PowerShell'de:
+3. **Firewall:** in an Administrator PowerShell:
    ```powershell
    New-NetFirewallRule -DisplayName "mumweb local" -Direction Inbound -Protocol TCP -LocalPort 80,443,64738 -Action Allow
    ```
-4. **Kök sertifikayı diğer cihaza kurun:** Kök sertifika `mkcert -CAROOT` komutunun gösterdiği klasördeki
-   `rootCA.pem` dosyasıdır (**`rootCA-key.pem`'i asla paylaşmayın**).
-   - Başka bir Windows PC: dosyayı `rootCA.crt` olarak kopyalayıp çift tıklayın → *Sertifika yükle* →
-     *Yerel Makine* → *Güvenilen Kök Sertifika Yetkilileri*.
-   - Android: dosyayı telefona atın → *Ayarlar → Güvenlik → Şifreleme ve kimlik bilgileri → Sertifika yükle →
-     CA sertifikası*. (Menü adları üreticiye göre değişir.)
-5. **Ad çözümleme:**
-   - Başka bir PC: onun hosts dosyasına `192.168.1.20 mumweb.test` ekleyin.
-   - Android'de hosts dosyası düzenlenemez. Ağınızda bir yerel DNS varsa (ör. AdGuard Home / Pi-hole
-     "DNS rewrite", bazı modemlerin yerel DNS kaydı) `mumweb.test → 192.168.1.20` kaydı ekleyin.
-6. Diğer cihazda `https://mumweb.test` adresini açın.
+4. **Install the root certificate on the other device:** the root certificate is `rootCA.pem` in the folder shown
+   by `mkcert -CAROOT` (**never share `rootCA-key.pem`**).
+   - Another Windows PC: copy it as `rootCA.crt` and double-click → *Install certificate* → *Local Machine* →
+     *Trusted Root Certification Authorities*.
+   - Android: copy the file to the phone → *Settings → Security → Encryption & credentials → Install a certificate
+     → CA certificate*. (Menu names vary by manufacturer.)
+5. **Name resolution:**
+   - Another PC: add `192.168.1.20 mumweb.test` to its hosts file.
+   - On Android the hosts file cannot be edited. If your network has a local DNS (for example AdGuard Home /
+     Pi-hole "DNS rewrite", or a local DNS entry on some modems) add a `mumweb.test → 192.168.1.20` record.
+6. Open `https://mumweb.test` on the other device.
 
-> iOS/Safari henüz desteklenmiyor (Safari'de WebCodecs Opus yok).
+> iOS / Safari is not supported yet (older Safari has no WebCodecs Opus).
 
-## 11. Sorun giderme
+## 11. Troubleshooting
 
-| Belirti | Çözüm |
+| Symptom | Fix |
 |---|---|
-| `docker compose up` "service certs didn't complete successfully" ile duruyor / `caddy` logunda `open /certs/cert.pem: no such file` | Sertifika üretilmemiş veya adı farklı: [3.2](#32-mumwebtest-için-sertifika-üretin)'deki komutu `deploy\local` içinde çalıştırın, sonra `docker compose up -d` |
-| Masaüstü Mumble yine de sertifika soruyor | `mumweb.test` adıyla bağlanın; sertifikayı sonradan yenilediyseniz `docker compose up -d --force-recreate certs mumble` |
-| `NET::ERR_CERT_AUTHORITY_INVALID` / "Bağlantınız gizli değil" | `mkcert -install` çalıştırılmamış ya da tarayıcı açıkken kurulmuş: tarayıcıyı tamamen kapatıp açın. Firefox için [3.1](#31-yerel-sertifika-otoritesini-kurun-bir-kez)'deki ayar |
-| `NET::ERR_CERT_COMMON_NAME_INVALID` | Sertifika başka bir ad için üretilmiş; açtığınız adı (`mumweb.test`) içerecek şekilde yeniden üretin |
-| "Bu siteye ulaşılamıyor" / `DNS_PROBE_FINISHED_NXDOMAIN` | hosts satırı eksik veya yanlış; `ping mumweb.test` ile kontrol edin, `ipconfig /flushdns`. Tarayıcıda VPN veya kurumsal proxy varsa kapatın |
-| `port is already allocated` | 80/443/64738 dolu: [Port çakışması](#port-çakışması-80443-dolu) |
-| Sayfa açılıyor ama hep "Yeniden bağlanılıyor"; `docker compose logs mumweb`'de `ws origin rejected` | Adres çubuğundaki adres ile `.env`'deki `MUMWEB_DOMAIN`/`HTTPS_PORT` uyuşmuyor. `localhost` yerine `https://mumweb.test` kullanın |
-| "Mumble sunucusuna ulaşılamıyor" | `docker compose ps` ile `mumble`'ın çalıştığını kontrol edin; `docker compose logs mumble` |
-| "Mikrofon kullanılamıyor" / "Mikrofon açılamadı" | Uyarının altındaki parantezde gerçek hata yazar. `NotReadableError`/`AbortError`: mikrofonu başka bir uygulama kullanıyor (Teams, Discord, OBS…) veya Windows engelliyor → *Ayarlar → Gizlilik ve güvenlik → Mikrofon* altında hem "Mikrofon erişimi" hem "Masaüstü uygulamalarının mikrofonunuza erişmesine izin verin" açık olmalı. `NotFoundError` ("Requested device not found", izin penceresi hiç çıkmaz): tarayıcı hiç mikrofon görmüyor; uyarıdaki "gördüğü mikrofon sayısı" 0 olur → *Ayarlar → Sistem → Ses → Giriş*'te cihaz var mı, gizlilikteki iki anahtar açık mı, Uzak Masaüstü/VM'de mikrofon yönlendirmesi açık mı kontrol edin, tarayıcıyı tamamen kapatıp açın. Düzelttikten sonra **Tekrar dene**'ye basın |
-| Mikrofon izni istenmiyor / "izin verilmedi" | Adres çubuğundaki mikrofon/kilit simgesinden siteye izin verin (Firefox: kilit → *Bağlantı güvenli* yanındaki izinler), sonra **Tekrar dene** |
-| Karşı taraf kendi sesini yankı olarak duyuyor | Hoparlör sesi mikrofona giriyor: kulaklık kullanın veya Bas-konuş moduna geçin |
-| Sesler kesik kesik | Docker Desktop'a yeterli CPU/RAM verildiğini kontrol edin (*Settings → Resources*); arka planda ağır işler varsa kapatın; mümkünse iki farklı cihazla deneyin |
-| Caddy logunda Caddyfile ayrıştırma hatası veya derlemede `\r` hatası | Dosyalar CRLF ile çekilmiş (`.gitattributes` eklenmeden önceki bir klon). En kolayı depoyu yeniden klonlamak. Yerinde düzeltmek için `git rm --cached -r . ; git reset --hard` (**commit edilmemiş değişiklikler silinir**) |
-| Değişikliklerim görünmüyor | `docker compose up -d --build mumweb`, ardından tarayıcıda Ctrl+F5 ([8](#8-kodu-değiştirdikten-sonra)) |
+| `docker compose up` stops with "service certs didn't complete successfully" / the `caddy` log shows `open /certs/cert.pem: no such file` | The certificate was not generated or has a different name: run the command in [3.2](#32-generate-a-certificate-for-mumwebtest) inside `deploy\local`, then `docker compose up -d` |
+| The desktop Mumble still asks about the certificate | Connect using the name `mumweb.test`; if you renewed the certificate later run `docker compose up -d --force-recreate certs mumble` |
+| `NET::ERR_CERT_AUTHORITY_INVALID` / "Your connection is not private" | `mkcert -install` was not run, or was run while the browser was open: fully close and reopen the browser. For Firefox see the setting in [3.1](#31-install-the-local-certificate-authority-once) |
+| `NET::ERR_CERT_COMMON_NAME_INVALID` | The certificate was generated for another name; regenerate it including the name you open (`mumweb.test`) |
+| "This site can't be reached" / `DNS_PROBE_FINISHED_NXDOMAIN` | The hosts line is missing or wrong; check with `ping mumweb.test`, `ipconfig /flushdns`. Turn off any VPN or corporate proxy in the browser |
+| `port is already allocated` | 80/443/64738 in use: see [Port conflicts](#port-conflicts-80443-in-use) |
+| The page opens but always says "Reconnecting"; `docker compose logs mumweb` shows `ws origin rejected` | The address in the address bar does not match `MUMWEB_DOMAIN` / `HTTPS_PORT` in `.env`. Use `https://mumweb.test` instead of `localhost` |
+| "Cannot reach the Mumble server" | Check that `mumble` is running with `docker compose ps`; `docker compose logs mumble` |
+| "Microphone unavailable" / "Could not open the microphone" | The real error is in the parentheses under the warning. `NotReadableError` / `AbortError`: another app (Teams, Discord, OBS…) is using the microphone, or Windows blocks it → under *Settings → Privacy & security → Microphone* both "Microphone access" and "Let desktop apps access your microphone" must be on. `NotFoundError` ("Requested device not found", no permission prompt at all): the browser sees no microphone; the warning shows a device count of 0 → check that the device exists under *Settings → System → Sound → Input*, that both privacy switches are on, that microphone redirection is enabled in Remote Desktop / VMs, and fully restart the browser. After fixing it press **Try again** |
+| No microphone prompt / "permission denied" | Allow the site from the microphone / lock icon in the address bar (Firefox: the lock → permissions next to *Connection secure*), then **Try again** |
+| The other side hears their own voice as an echo | Their speaker sound is going into their microphone: use headphones or switch to push-to-talk |
+| Choppy audio | Check that Docker Desktop has enough CPU/RAM (*Settings → Resources*); close heavy background work; test with two different devices if possible |
+| Caddyfile parse error in the Caddy log, or a `\r` error while building | Files were checked out with CRLF (a clone from before `.gitattributes` was added). Easiest is to clone again. To fix in place: `git rm --cached -r . ; git reset --hard` (**uncommitted changes are lost**) |
+| My changes do not show up | `docker compose up -d --build mumweb`, then Ctrl+F5 in the browser ([8](#8-after-changing-the-code)) |
 
-## 12. macOS / Linux farkları
+## 12. macOS / Linux differences
 
-Adımlar aynı. Değişenler:
+The steps are the same. What changes:
 
-- mkcert kurulumu: macOS `brew install mkcert nss` · Debian/Ubuntu `sudo apt install mkcert libnss3-tools`
-- hosts dosyası: `/etc/hosts`, örneğin
+- Installing mkcert: macOS `brew install mkcert nss` · Debian/Ubuntu `sudo apt install mkcert libnss3-tools`
+- hosts file: `/etc/hosts`, for example
   `echo "127.0.0.1 mumweb.test" | sudo tee -a /etc/hosts`
-- Komutlarda `\` yerine `/`: `mkcert -cert-file certs/cert.pem -key-file certs/key.pem mumweb.test localhost 127.0.0.1 ::1`
-- Linux'ta 1024 altı portlar Docker ile sorunsuz yayınlanır; yalnızca başka bir web sunucusunun kullanmadığından emin olun.
+- Use `/` instead of `\` in commands: `mkcert -cert-file certs/cert.pem -key-file certs/key.pem mumweb.test localhost 127.0.0.1 ::1`
+- On Linux, ports below 1024 publish fine with Docker; just make sure no other web server uses them.
 
-## Diğer geliştirme ortamları
+## Other environments
 
-| Dosya | Ne zaman |
+| File | When |
 |---|---|
-| `deploy/local/compose.yaml` | **Bu rehber:** HTTPS ile uçtan uca deneme, masaüstü istemciyle karşılaştırma |
-| `deploy/docker-compose.dev.yml` (`make dev`) | Gateway geliştirme ve Go entegrasyon testleri; HTTPS yok, `http://localhost:8080` (localhost güvenli bağlam sayılır) |
-| `deploy/docker-compose.yml` | Gerçek sunucuya kurulum (Let's Encrypt), bkz. README |
+| `deploy/local/compose.yaml` | **This guide:** end-to-end trial over HTTPS, comparing with the desktop client |
+| `deploy/docker-compose.dev.yml` (`make dev`) | Gateway development and Go integration tests; no HTTPS, `http://localhost:8080` (localhost counts as a secure context) |
+| `deploy/docker-compose.yml` | Installing on a real server (Let's Encrypt), see the [README](../README.md#quick-start-production) |

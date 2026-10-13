@@ -24,7 +24,7 @@ services:
       - -c
       - |
         if [ ! -f /src/cert.pem ] || [ ! -f /src/key.pem ]; then
-          echo "HATA: deploy/local/certs/cert.pem ve key.pem bulunamadi. mkcert adimi icin docs/DEVELOPMENT.md (3.2)." >&2
+          echo "ERROR: deploy/local/certs/cert.pem and key.pem not found. See the mkcert step in docs/DEVELOPMENT.md (3.2)." >&2
           exit 1
         fi
         cp /src/cert.pem /src/key.pem /out/ && chown 10000:10000 /out/*.pem && chmod 644 /out/cert.pem && chmod 600 /out/key.pem
@@ -44,7 +44,7 @@ services:
       - mumble-certs:/certs:ro
     environment:
       MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:-superuser}
-      MUMBLE_CONFIG_WELCOMETEXT: "mumweb yerel test sunucusu"
+      MUMBLE_CONFIG_WELCOMETEXT: "mumweb local test server"
       MUMBLE_CONFIG_SSLCERT: /certs/cert.pem
       MUMBLE_CONFIG_SSLKEY: /certs/key.pem
       # All web users share the gateway's IP; don't autoban successful logins.

@@ -15,7 +15,7 @@ services:
       - mumble-data:/data
     environment:
       MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:?set MUMBLE_SUPERUSER_PASSWORD in .env}
-      MUMBLE_CONFIG_WELCOMETEXT: ${MUMBLE_WELCOME_TEXT:-Mumble sunucumuza hoş geldiniz!}
+      MUMBLE_CONFIG_WELCOMETEXT: ${MUMBLE_WELCOME_TEXT:-Welcome to our Mumble server!}
       MUMBLE_CONFIG_USERS: ${MUMBLE_MAX_USERS:-50}
       # All web users reach Mumble from the gateway's single IP. The default autoban
       # (10 connections / 120 s, successful ones included) would lock them all out

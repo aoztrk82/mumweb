@@ -1,10 +1,13 @@
 # mumweb
 
-Tarayıcıdan [Mumble](https://www.mumble.info/) sunucusuna bağlanan web istemcisi. Mumble yüklü olmayan
-arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
+**English** | [Türkçe](README.tr.md)
+
+A self-hosted web client for [Mumble](https://www.mumble.info/) voice chat. Your friends open a link, pick a
+nickname and talk: no Mumble install, no plugins. Desktop Mumble clients and browser users share the same
+server, channels and voice.
 
 ```
- Tarayıcı (Svelte SPA)            Docker ağı
+ Browser (Svelte SPA)             Docker network
  ┌──────────────────────┐  WSS  ┌──────────────┐  TLS/TCP  ┌───────────────┐
  │ UI + AudioWorklet    │ ────► │ mumweb       │ ────────► │ mumble-server │
  │ WebCodecs Opus       │ ◄──── │ gateway (Go) │ ◄──────── │ :64738        │
@@ -13,90 +16,107 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
             └──── HTTPS ── Caddy ──────┘
 ```
 
-- Gateway her tarayıcı oturumu için Mumble'a **ayrı, normal bir istemci bağlantısı** açar; sunucu web
-  kullanıcılarını masaüstü kullanıcılarından ayırt etmez. Ses Mumble TCP bağlantısındaki `UDPTunnel` ile taşınır.
-- Opus kodlama/çözme tarayıcıda (WebCodecs) yapılır; gateway sesi çözmez, CPU açısından hafiftir.
-- Gateway yalnızca yapılandırılmış tek Mumble sunucusuna bağlanır (tarayıcı adres seçemez).
-- Her tarayıcı kalıcı bir istemci sertifikası (IndexedDB) kullanır; böylece kullanıcılar Mumble'da kendini
-  kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
+## Highlights
 
-**Özellikler:** takma ad + isteğe bağlı sunucu şifresi, kanal ağacı ve kanal değiştirme (çift tık), konuşan göstergesi,
-şifreli kanallar (kilit ikonu; girerken şifre sorulur, "hatırla" ile sonraki girişlerde otomatik; yönetici
-"Düzenle"den şifre koyar/kaldırır), boş kanalları gizleyen filtre, masaüstü Mumble'daki gibi sağ tık menüleri — kullanıcı: kanalına katıl, kendi kanalına taşı, kov, yasakla,
-sustur, sağır et, imtiyazlı konuşmacı, yerel sustur, mesajları görmezden gel, yerel ses seviyesi (%0–200), rumuz,
-açıklamayı görüntüle/sıfırla, avatarı kaldır, özel mesaj, bilgi, kaydet, arkadaş ekle (yönetim öğeleri sunucudaki
-yetkinize göre etkin olur); kanal: katıl, kanalı dinle, ekle, düzenle (ad, açıklama, sıra, kullanıcı sınırı), kaldır,
-bağla / bağlantıyı kaldır / tümünün bağlantısını kaldır, URL kopyala (giriş sonrası o kanala götüren web bağlantısı),
-mesaj gönder (alt kanallar dahil seçeneğiyle), filtrelerken gizle/iğnele; kendin: mute/deafen —
-bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
-sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
+- **Zero install for guests.** Chrome, Edge, Firefox (desktop) and Chrome on Android. Installable as a PWA.
+- **A real Mumble client, not a lookalike.** The gateway opens a normal Mumble connection for every browser
+  session, so the server cannot tell web users from desktop users. Voice travels over Mumble's `UDPTunnel`.
+- **Lightweight gateway.** Opus is encoded and decoded in the browser (WebCodecs); the gateway never touches the
+  audio. Ten simultaneous speakers use roughly 45 % of one CPU core and 15 MiB of RAM.
+- **Desktop-grade controls.** Channel tree, push-to-talk or voice activation, per-user volume, the same
+  right-click menus as the desktop client, channel passwords, chat, and more (see below).
+- **Safe by default.** One fixed Mumble target (browsers cannot pick an address), Origin checks, per-IP and
+  per-session limits, HTML-sanitised chat, SuperUser login from the web disabled unless you enable it.
+- **Persistent identity.** Each browser keeps a client certificate (IndexedDB), so users can register on Mumble and
+  keep their permissions. The gateway stores no certificates on disk.
 
-**Tarayıcılar:** Chrome/Edge ve Firefox (masaüstü), Chrome (Android). Safari/iOS henüz desteklenmiyor
-(WebCodecs Opus eksik; bkz. plan Faz 9).
+### Features
 
-> **Kendi bilgisayarınızda denemek mi istiyorsunuz?** Windows (ve macOS/Linux) için mkcert sertifikası ve hosts
-> dosyasıyla `https://mumweb.test` üzerinde çalışan hazır ortam: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
+| Area | What you get |
+|---|---|
+| Voice | Push-to-talk (rebindable key, big button on mobile) and voice activation with an adjustable threshold, mute / deafen, speaking indicators, join/leave sounds, mic and speaker selection, noise suppression toggle |
+| Channels | Tree with switching (double-click), password-protected channels (lock icons, "remember in this browser"), listen to a channel, link/unlink, filter that hides empty channels, shareable `#kanal=/Path` links |
+| User menu | Move, kick, ban, mute, deafen, priority speaker, local mute, ignore messages, local volume (0–200 %), nickname, view/reset comment, remove avatar, private message, info, register, friends. Admin items follow your server permissions |
+| Channel menu | Join, create, edit (name, description, position, user limit, password), remove, link tools, copy URL, send message (optionally to sub-channels), pin/hide when filtering |
+| Chat | Channel and private messages, HTML sanitised with DOMPurify, ignore list |
+| Identity | Export / import PEM certificates, reset identity, auto-reconnect |
+| UI | Dark and light themes, responsive layout with tabs on phones, installable PWA |
 
-## Kurulum (yeni bir sunucuda)
+> The web interface is currently in Turkish. Multi-language support is on the [roadmap](docs/TODO.md).
 
-Gereksinimler: Docker + Docker Compose, 80/443 (TCP) ve 64738 (TCP+UDP) portları açık bir Linux sunucu,
-bir alan adı.
+### Browser support
 
-1. **DNS:** `ses.alanadiniz.com` için sunucunun IP'sine işaret eden bir `A` (ve varsa `AAAA`) kaydı ekleyin.
-   Kayıt yayılmadan Caddy sertifika alamaz (`dig +short ses.alanadiniz.com` sunucu IP'sini göstermeli).
-2. **Kodu alın ve yapılandırın:**
+| Browser | Status |
+|---|---|
+| Chrome / Edge (desktop) | Supported |
+| Firefox (desktop) | Supported |
+| Chrome (Android) | Supported |
+| Safari 26+ (macOS / iOS) | Should work (WebCodecs Opus), not yet tested on a device |
+| Older Safari / iOS | Not supported (no WebCodecs Opus; a WASM fallback is not planned) |
+
+Microphone access and WebCodecs require a secure context, so the page must be served over HTTPS (or `localhost`).
+
+> **Just want to try it on your own computer?** Follow [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): a ready-made
+> `https://mumweb.test` setup with mkcert for Windows, macOS and Linux.
+
+## Quick start (production)
+
+Requirements: a Linux server with Docker and Docker Compose, ports 80 and 443 (TCP) and 64738 (TCP + UDP) open,
+and a domain name.
+
+1. **DNS:** point an `A` (and `AAAA`, if you have IPv6) record such as `voice.example.com` at the server. Caddy
+   cannot obtain a certificate until it resolves (`dig +short voice.example.com` must show the server IP).
+2. **Get the code and configure it:**
    ```sh
-   git clone <repo-adresi> mumweb && cd mumweb/deploy
+   git clone https://github.com/aoztrk82/mumweb.git && cd mumweb/deploy
    cp .env.example .env
-   # .env içinde MUMWEB_DOMAIN ve MUMBLE_SUPERUSER_PASSWORD'ü değiştirin
+   # edit .env: set MUMWEB_DOMAIN and MUMBLE_SUPERUSER_PASSWORD
    ```
-3. **Başlatın:**
+3. **Start it:**
    ```sh
    docker compose up -d --build
-   docker compose ps          # mumweb "healthy" olmalı
-   docker compose logs -f caddy   # ilk açılışta sertifika alınmasını izleyin
+   docker compose ps               # mumweb should become "healthy"
+   docker compose logs -f caddy    # watch the certificate being issued on first start
    ```
-4. `https://ses.alanadiniz.com` adresini açın. Masaüstü Mumble istemcileri aynı sunucuya
-   `ses.alanadiniz.com:64738` ile bağlanabilir.
+4. Open `https://voice.example.com`. Desktop Mumble clients connect to `voice.example.com:64738`.
 
-Compose dosyası üç servis çalıştırır: `mumble` (resmî `mumblevoip/mumble-server`), `mumweb` (gateway + arayüz,
-root olmayan kullanıcı, `/healthz` sağlık kontrolü) ve `caddy` (otomatik HTTPS, WebSocket'i olduğu gibi aktarır).
+The compose file runs three services: `mumble` (the official `mumblevoip/mumble-server`), `mumweb` (gateway plus
+web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through).
 
-### Mumble autoban ayarı (önemli)
+## Deployment
 
-Tüm web kullanıcıları Mumble'a gateway'in **tek IP'sinden** bağlanır. Mumble'ın varsayılan autoban'ı
-(120 sn içinde 10 bağlantı denemesi → 5 dk ban, başarılı bağlantılar dahil) birkaç web girişinden sonra **tüm web
-kullanıcılarını** 5 dakika kilitler. Compose dosyası bu yüzden `autobanSuccessfulConnections=false` ayarlar
-(yalnızca başarısız denemeler sayılır). Başarısız denemeler (yanlış şifre) yine gateway IP'si adına sayılır;
-gateway kendi tarafında IP başına dakikada 10 yeni bağlantıya izin verir.
+### Mumble autoban (important)
 
-### Yasaklama (ban) ve web kullanıcıları (önemli)
+All web users reach Mumble from the gateway's **single IP**. Mumble's default autoban (10 connection attempts in
+120 s, successful ones included, then a 5-minute ban) would lock out *every* web user after a few logins. The
+compose files therefore set `autobanSuccessfulConnections=false`, so only failed attempts count. Failed attempts
+(wrong password) are still counted against the gateway's IP, and the gateway itself allows 10 new connections per
+IP per minute.
 
-Mumble'ın kendi "Yasakla" işlemi kullanıcının sertifikasıyla birlikte **IP adresini** de yasaklar. Web kullanıcıları
-sunucuya gateway'in IP'sinden bağlandığı için **masaüstü istemciden bir web kullanıcısını yasaklamak tüm web
-kullanıcılarını yasaklar.** mumweb arayüzündeki "Yasakla…" bu yüzden yalnızca sertifikayı yasaklar (ban listesine
-`100::/128` adresli, hiçbir istemciyle eşleşmeyen bir kayıtla). Masaüstünden yanlışlıkla gateway IP'si yasaklanırsa
-masaüstü istemcide *Sunucu → Yasak listesi* üzerinden o kaydı silin. Not: sertifika yasağı, kişi yeni bir sertifika
-oluşturursa (tarayıcı verisini silerse) aşılabilir.
+### Banning and web users (important)
 
-Mumble sunucusu kullanıcı başına mesaj hızını sınırlar (`messagelimit`=1/sn, `messageburst`=5; kanala katılma,
-mute, kanal oluşturma/ACL, sohbet mesajı) ve fazlasını **sessizce düşürür**. Çok hızlı art arda yapılan işlemlerden
-biri olmazsa birkaç saniye sonra tekrar deneyin; masaüstü istemci için de aynı sınır geçerlidir.
+Mumble's own "Ban" also bans the user's **IP address**. Web users connect from the gateway's IP, so **banning a
+web user from the desktop client bans all web users.** The "Ban…" action in the mumweb UI avoids this: it bans
+only the certificate (a ban entry with the placeholder address `100::/128`, which matches no client). If a desktop
+ban hits the gateway IP by mistake, delete that entry under *Server → Ban list* in the desktop client. A
+certificate ban can be evaded by creating a new certificate (clearing the browser data).
 
-`SuperUser` hesabı Mumble'da tasarım gereği konuşamaz (yalnızca yönetim içindir). Web'den SuperUser girişi
-`MUMWEB_ALLOW_SUPERUSER` ile açılır; production'da kapalıdır.
+Mumble also rate-limits each user (`messagelimit` = 1/s, `messageburst` = 5; covers channel joins, mute, channel
+creation/ACL edits and chat) and **silently drops** the excess. If a rapid series of actions did not all happen,
+wait a few seconds and retry; the desktop client has the same limit.
 
-## Mevcut bir kurulumla kullanım
+The `SuperUser` account cannot speak in Mumble (by design; it is for administration). SuperUser login from the web
+is controlled by `MUMWEB_ALLOW_SUPERUSER` and is off in production.
 
-### 80/443'te zaten bir ters proxy (Caddy, nginx, Traefik…) varsa
+### Behind an existing reverse proxy (Caddy, nginx, Traefik…)
 
-`caddy` servisini kaldırın, `mumweb` servisini proxy'nin erişebileceği ağa bağlayın ve proxy'ye bir site ekleyin.
-WebSocket yükseltmesinin (`/ws`) aktarılması gerekir. `MUMWEB_TRUST_PROXY=true` kalsın (proxy `X-Forwarded-For`
-eklemelidir) ve `MUMWEB_ALLOWED_ORIGINS` sitenin tam adresi olsun.
+Remove the `caddy` service, attach `mumweb` to a network the proxy can reach, and add a site to the proxy. It must
+pass WebSocket upgrades on `/ws`. Keep `MUMWEB_TRUST_PROXY=true` (the proxy must add `X-Forwarded-For`) and set
+`MUMWEB_ALLOWED_ORIGINS` to the exact site address.
 
 Caddy:
 ```
-ses.alanadiniz.com {
+voice.example.com {
 	encode zstd gzip
 	reverse_proxy mumweb:8080
 }
@@ -115,131 +135,145 @@ location / {
 }
 ```
 
-### Zaten çalışan bir Mumble sunucusu varsa
+### With an existing Mumble server
 
-`mumble` servisini kaldırın ve `MUMWEB_MUMBLE_ADDR`'i mevcut sunucuya yönlendirin (ör. aynı Docker ağındaysa
-`mumble-server:64738`). O sunucuda da autoban ayarını yapın: resmî Docker imajında
-`MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false`, `mumble-server.ini`'de `autobanSuccessfulConnections=false`.
+Remove the `mumble` service and point `MUMWEB_MUMBLE_ADDR` at the existing server (for example
+`mumble-server:64738` on the same Docker network). Apply the autoban setting there too: in the official Docker
+image `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false`, in `mumble-server.ini`
+`autobanSuccessfulConnections=false`.
 
-## Yapılandırma (gateway ortam değişkenleri)
-
-| Değişken | Varsayılan | Açıklama |
-|---|---|---|
-| `MUMWEB_LISTEN` | `:8080` | HTTP dinleme adresi |
-| `MUMWEB_MUMBLE_ADDR` | `mumble:64738` | Hedef Mumble sunucusu (tek ve sabit) |
-| `MUMWEB_TLS_VERIFY` | `false` | Mumble sunucu sertifikasını doğrula (kendinden imzalıysa kapalı kalmalı) |
-| `MUMWEB_TLS_FINGERPRINT` | boş | Doluysa sunucu sertifikasının SHA-256 parmak izi sabitlenir |
-| `MUMWEB_MAX_SESSIONS` | `50` | Eşzamanlı web oturumu sınırı |
-| `MUMWEB_ALLOWED_ORIGINS` | boş | Virgülle ayrılmış izinli `Origin`'ler (ör. `https://ses.alanadi.com`; varsayılan port yazılsa da olur); boşsa yalnızca aynı host |
-| `MUMWEB_CONN_RATE` | `10` | IP başına dakikada yeni bağlantı sınırı (`0` = kapalı) |
-| `MUMWEB_TRUST_PROXY` | `false` | İstemci IP'sini `X-Forwarded-For`'dan al (ters proxy arkasında `true`) |
-| `MUMWEB_ALLOW_SUPERUSER` | `false` | Web'den Mumble `SuperUser` hesabıyla girişe izin ver (kapalıyken bu ad reddedilir; yönetim masaüstü istemciden) |
-| `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
-
-Mumble sunucusunun parmak izini `mumprobe` yazdırır (`make gateway` sonrası):
-`./bin/mumprobe -addr <sunucu>:64738 -exit` → `server certificate SHA-256: AB:CD:…`. Bu değer
-`MUMWEB_TLS_FINGERPRINT`'e olduğu gibi yazılabilir. Not: sunucu sertifikası yenilenirse parmak izi değişir.
-
-## Güncelleme
+### Updating
 
 ```sh
 cd mumweb && git pull
 cd deploy && docker compose up -d --build
-docker image prune -f   # eski imajları temizle (isteğe bağlı)
+docker image prune -f   # optional: remove old images
 ```
 
-Mumble sunucusunu güncellemek için: `docker compose pull mumble && docker compose up -d mumble`.
-Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde durur; yedek için:
+To update the Mumble server: `docker compose pull mumble && docker compose up -d mumble`. User registrations and
+channels live in the `mumble-data` volume. Back it up with:
 `docker run --rm -v mumweb_mumble-data:/d -v "$PWD":/b alpine tar czf /b/mumble-data.tgz -C /d .`
 
-## Sorun giderme
+## Configuration
 
-| Belirti | Olası sebep / çözüm |
-|---|---|
-| Site açılmıyor, Caddy loglarında ACME hatası | DNS kaydı henüz sunucuyu göstermiyor veya 80/443 kapalı/dolu. `docker compose logs caddy` |
-| "Mumble sunucusuna ulaşılamıyor" | `docker compose logs mumble mumweb`; Mumble ayakta mı, `MUMWEB_MUMBLE_ADDR` doğru mu |
-| Birkaç girişten sonra herkes bağlanamıyor | Mumble autoban gateway IP'sini banlamış: yukarıdaki autoban ayarını yapın, banı kaldırmak için Mumble'ı yeniden başlatın |
-| Sürekli "Yeniden bağlanılıyor" ve gateway logunda `ws origin rejected` | `MUMWEB_ALLOWED_ORIGINS` tarayıcıdaki adresle birebir aynı olmalı (`https://` dahil, sonda `/` yok) |
-| Herkes aynı IP'den geliyor gibi görünüyor / hızlıca "too many connections" | Ters proxy arkasında `MUMWEB_TRUST_PROXY=true` olmalı ve proxy `X-Forwarded-For` eklemeli |
-| Mikrofon izni istenmiyor | Sayfa HTTPS üzerinden açılmalı (mikrofon ve WebCodecs güvenli bağlam ister) |
-| "Tarayıcınız Opus ses kodlamayı desteklemiyor" | Safari/iOS veya eski tarayıcı; güncel Chrome/Edge/Firefox kullanın |
-| Kulaklıksız konuşunca karşı taraf yankı duyuyor | Tarayıcının yankı engellemesi her platformda WebAudio çıkışını yakalayamayabilir; kulaklık veya bas-konuş kullanın |
-| "Bu takma ad kayıtlı; şifre veya sertifika yanlış" | Ad Mumble'da başka bir sertifikayla kayıtlı. Doğru tarayıcıdan girin veya sertifikayı Ayarlar → Kimlik'ten içe aktarın |
-| Sertifika kayboldu (tarayıcı verisi silindi) | Daha önce dışa aktarılan PEM'i Ayarlar → Kimlik → İçe aktar ile yükleyin; yoksa yönetici kaydı yeni sertifikaya taşımalı |
+### Gateway environment variables
 
-Gateway logları JSON'dur: `docker compose logs -f mumweb`. Şifre, sertifika anahtarı ve sohbet içeriği loglanmaz.
+| Variable | Default | Description |
+|---|---|---|
+| `MUMWEB_LISTEN` | `:8080` | HTTP listen address |
+| `MUMWEB_MUMBLE_ADDR` | `mumble:64738` | Target Mumble server (single and fixed) |
+| `MUMWEB_TLS_VERIFY` | `false` | Verify the Mumble server certificate (leave off for self-signed) |
+| `MUMWEB_TLS_FINGERPRINT` | empty | If set, pin the server certificate's SHA-256 fingerprint |
+| `MUMWEB_MAX_SESSIONS` | `50` | Maximum concurrent web sessions |
+| `MUMWEB_ALLOWED_ORIGINS` | empty | Comma-separated allowed `Origin`s (e.g. `https://voice.example.com`; the default port may be included). Empty means same host only |
+| `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
+| `MUMWEB_TRUST_PROXY` | `false` | Take the client IP from `X-Forwarded-For` (set `true` behind a reverse proxy) |
+| `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web (when off the name is rejected; administer from the desktop client) |
+| `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
-## Geliştirme
+### Compose variables (`deploy/.env`)
 
-**Yerel HTTPS test ortamı** (Caddy + Mumble + mumweb, mkcert sertifikası, `https://mumweb.test`; Windows için adım
-adım anlatım): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — `deploy/local/` içinde `docker compose up -d --build`.
+| Variable | Default | Description |
+|---|---|---|
+| `MUMWEB_DOMAIN` | required | Public domain served by Caddy |
+| `MUMBLE_SUPERUSER_PASSWORD` | required | Password of Mumble's `SuperUser` |
+| `MUMBLE_WELCOME_TEXT` | `Welcome to our Mumble server!` | Welcome message shown on connect |
+| `MUMBLE_MAX_USERS` | `50` | Mumble's own user limit |
+| `MUMWEB_MAX_SESSIONS` | `50` | See above |
+| `MUMWEB_LOG_LEVEL` | `info` | See above |
+| `MUMWEB_ALLOW_SUPERUSER` | `false` | See above |
 
-Aşağıdakiler kaynak koddan geliştirme içindir. Gereksinimler: Go 1.27+, Node 24 LTS, Docker + Compose, GNU Make; `protoc` + `protoc-gen-go` yalnızca `make proto` için.
+### Pinning the Mumble certificate
+
+`mumprobe` prints the server fingerprint (after `make gateway`):
+`./bin/mumprobe -addr <server>:64738 -exit` → `server certificate SHA-256: AB:CD:…`. Paste that value into
+`MUMWEB_TLS_FINGERPRINT` as is. The fingerprint changes when the server certificate is renewed.
+
+## Building from source
+
+Requirements: Go 1.27+, Node 24 LTS, Docker with Compose, GNU Make. `protoc` and `protoc-gen-go` are needed only
+for `make proto`.
 
 ```sh
-cp deploy/.env.example deploy/.env   # MUMBLE_SUPERUSER_PASSWORD; port doluysa MUMBLE_PORT
-make dev            # dev Mumble sunucusu + gateway (http://localhost:8080)
-cd web && npm run dev   # arayüz için Vite (http://localhost:5173, /ws gateway'e aktarılır)
-make gateway        # bin/mumweb ve bin/mumprobe (arayüz gömülü)
-make test           # Go testleri + Vitest
-make docker         # production imajı (mumweb:dev)
-make proto          # gateway/proto'dan Go kodu üret
+make gateway   # bin/mumweb and bin/mumprobe, web UI embedded
+make docker    # production image (mumweb:dev)
+make web       # only the web UI, into gateway/web/dist
+make proto     # regenerate Go code from gateway/proto
 ```
 
-Mikrofon ve WebCodecs güvenli bağlam gerektirir: `localhost` sorunsuzdur; başka bir makineden test ederken HTTPS kullanın.
+For day-to-day development:
 
-`bin/mumprobe` Mumble sunucusunu doğrudan yoklayan bir CLI'dır: kanal ağacını yazdırır, olayları ve ses paketlerini
-loglar; `-say` metin gönderir, `-play` Opus paket dosyası çalar, `-tx` sessizlik gönderir, `-mkchannel` kanal oluşturur.
+```sh
+cp deploy/.env.example deploy/.env   # set MUMBLE_SUPERUSER_PASSWORD; MUMBLE_PORT if 64738 is taken
+make dev                             # dev Mumble server + gateway on http://localhost:8080
+cd web && npm run dev                # Vite on http://localhost:5173, /ws proxied to the gateway
+```
 
-Gateway entegrasyon testleri gerçek bir Mumble sunucusu ister:
-`MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge` (dev stack'in portu).
+`localhost` counts as a secure context, so the microphone works over plain HTTP there. Use HTTPS when testing from
+another machine ([docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)).
 
-| Yol | İçerik |
+## Testing
+
+```sh
+make test                                                           # Go unit tests + Vitest
+cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge   # integration, needs a Mumble server (`make dev`)
+```
+
+- **Go:** message framing, partial `UserState` / `ChannelState` merging, `MumbleUDP.Audio` encoding, a fake TLS
+  Mumble server for the client (handshake, unknown message types, reject, timeouts, fingerprint pinning, shutdown),
+  certificate generation, bridge binary frames, Origin / session / IP limits. Integration: WebSocket ↔ Mumble
+  text, audio, state, certificate persistence, admin actions, channel passwords, name-takeover protection, goroutine leaks.
+- **Vitest:** binary audio frames, jitter buffer, framing and resampling, voice activation, bitrate, PEM handling,
+  reconnect backoff.
+- **Manual acceptance checklist:** [docs/TESTING.md](docs/TESTING.md).
+
+`bin/mumprobe` is a CLI that talks to a Mumble server directly: it prints the channel tree, logs events and audio
+packets, and can send text (`-say`), play an Opus packet file (`-play`), transmit silence (`-tx`) and create a
+channel (`-mkchannel`).
+
+## Repository layout
+
+| Path | Contents |
 |---|---|
-| `gateway/cmd/mumweb` | HTTP/WebSocket gateway (arayüzü sunar, `/ws`, `/healthz`) |
-| `gateway/cmd/mumprobe` | Mumble yoklama CLI'ı |
-| `gateway/internal/mumble` | Mumble TCP istemci kütüphanesi (TLS, framing, durum, ses tüneli) |
-| `gateway/internal/bridge` | WebSocket oturumu ↔ Mumble istemcisi |
-| `gateway/internal/certs` | İstemci sertifikası üretimi |
-| `gateway/proto` | Resmî `Mumble.proto` / `MumbleUDP.proto` + üretilen Go kodu |
-| `web/src/lib` | WS istemcisi, ses hattı (`audio/`), durum store'ları |
-| `web/src/components` | Arayüz bileşenleri |
+| `gateway/cmd/mumweb` | HTTP / WebSocket gateway (serves the UI, `/ws`, `/healthz`) |
+| `gateway/cmd/mumprobe` | Mumble probing CLI |
+| `gateway/internal/mumble` | Mumble TCP client library (TLS, framing, state, audio tunnel) |
+| `gateway/internal/bridge` | WebSocket session ↔ Mumble client |
+| `gateway/internal/certs` | Client certificate generation |
+| `gateway/proto` | Official `Mumble.proto` / `MumbleUDP.proto` and generated Go code |
+| `web/src/lib` | WebSocket client, audio pipeline (`audio/`), state stores |
+| `web/src/components` | UI components |
 | `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
-| `deploy/local/` | Yerel HTTPS test ortamı (mkcert), bkz. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
+| `deploy/local/` | Local HTTPS test environment (mkcert) |
+| `docs/` | Development guide, testing checklist, progress log, TODO |
 
-İlerleme ve doğrulama notları: [docs/PROGRESS.md](docs/PROGRESS.md). Yapılacaklar: [docs/TODO.md](docs/TODO.md).
+## Troubleshooting
 
-## Testler
+| Symptom | Likely cause / fix |
+|---|---|
+| Site does not open; ACME errors in the Caddy log | DNS does not point to the server yet, or ports 80/443 are closed or in use. `docker compose logs caddy` |
+| "Cannot reach the Mumble server" | `docker compose logs mumble mumweb`; is Mumble running, is `MUMWEB_MUMBLE_ADDR` correct? |
+| After a few logins nobody can connect | Mumble autoban banned the gateway IP: apply the autoban setting above, restart Mumble to clear the ban |
+| Endless "Reconnecting" and `ws origin rejected` in the gateway log | `MUMWEB_ALLOWED_ORIGINS` must match the address in the browser exactly (with `https://`, no trailing `/`) |
+| Everyone appears to come from the same IP / quick "too many connections" | Behind a reverse proxy set `MUMWEB_TRUST_PROXY=true`, and make the proxy send `X-Forwarded-For` |
+| No microphone prompt | The page must be served over HTTPS (microphone and WebCodecs need a secure context) |
+| "Your browser does not support Opus encoding" | Safari / iOS or an old browser: use a current Chrome, Edge or Firefox |
+| The other side hears an echo without headphones | Browser echo cancellation cannot always capture WebAudio output on every platform: use headphones or push-to-talk |
+| "This nickname is registered; wrong password or certificate" | The name is registered in Mumble with another certificate. Use the right browser or import the certificate in Settings → Identity |
+| Certificate lost (browser data cleared) | Import the previously exported PEM in Settings → Identity → Import; otherwise an admin must move the registration to the new certificate |
 
-```sh
-make test                                                    # Go birim testleri + Vitest
-MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge   # gerçek sunucuya karşı (gateway/ içinde)
-```
+Gateway logs are JSON: `docker compose logs -f mumweb`. Passwords, certificate keys and chat content are never logged.
 
-- Go: framing encode/decode ve hatalar, kısmi `UserState`/`ChannelState` birleştirme, `MumbleUDP.Audio` encode/decode,
-  sahte TLS sunucusuyla istemci (handshake, bilinmeyen mesaj tipleri, reject, zaman aşımı, parmak izi, kapanış),
-  sertifika üretimi, köprü ikili çerçeveleri, Origin/oturum/IP sınırları; entegrasyon: WS ↔ Mumble metin, ses,
-  durum, sertifika kalıcılığı, goroutine sızıntısı.
-- Vitest: ikili ses çerçeveleri, jitter buffer, çerçeveleme/yeniden örnekleme, VAD, bitrate, PEM, yeniden bağlanma süresi.
+## Documentation
 
-### Manuel kabul testleri
+| | English | Türkçe |
+|---|---|---|
+| Overview and deployment | this file | [README.tr.md](README.tr.md) |
+| Local HTTPS test environment | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | [docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md) |
+| Manual acceptance tests | [docs/TESTING.md](docs/TESTING.md) | [docs/tr/TESTING.md](docs/tr/TESTING.md) |
+| Progress log and findings | [docs/PROGRESS.md](docs/PROGRESS.md) | [docs/tr/PROGRESS.md](docs/tr/PROGRESS.md) |
+| Roadmap / TODO | [docs/TODO.md](docs/TODO.md) | [docs/tr/TODO.md](docs/tr/TODO.md) |
 
-Masaüstü Mumble istemcisi aynı sunucuya bağlıyken:
+## License
 
-1. Chrome masaüstü: giriş → masaüstü Mumble'da kullanıcı görünüyor.
-2. Sayfayı yenile → aynı kimlikle (kayıtlıysa kayıtlı ikonu ile) dönüyor.
-3. Kanal değiştir, masaüstünde de değişiyor; masaüstünden taşınınca tarayıcıda da güncelleniyor.
-4. Sohbet iki yönde; `<script>` içeren mesaj çalışmıyor.
-5. Masaüstünden konuş → tarayıcıda duyuluyor; tarayıcıdan PTT ile konuş → masaüstünde duyuluyor,
-   bırakınca masaüstündeki konuşma göstergesi hemen sönüyor.
-6. VAD modunda sessiz ortamda paket gitmiyor (masaüstünde konuşma göstergesi yanmıyor).
-7. Mute/deafen iki tarafta da doğru ikonlarla görünüyor.
-8. Kişi bazlı ses seviyesi sadece yerelde etkili.
-9. Wi-Fi'yi 10 sn kapat/aç → otomatik yeniden bağlanıyor.
-10. Yanlış sunucu şifresi → anlaşılır Türkçe hata.
-11. Firefox masaüstü ve Android Chrome'da 1–5 tekrarlanıyor; Android'de ana ekrana ekle → tam ekran açılıyor, bas-konuş çalışıyor.
-12. 10 eşzamanlı tarayıcı oturumunda gateway CPU/RAM makul (ölçüm: `docker stats`).
-
-## Lisans
-
-MIT
+[MIT](LICENSE)

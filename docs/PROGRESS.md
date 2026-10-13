@@ -1,12 +1,17 @@
-# Progress
+# Progress log
 
-## Faz 0 tamamlandı (2026-10-13)
+**English** | [Türkçe](tr/PROGRESS.md)
 
-Repo iskeleti kuruldu; uygulama kodu yok.
+A chronological record of what was built, how it was verified, and what was found along the way. Newest work goes at
+the end (before "Open issues"). See [TODO.md](TODO.md) for what is next.
 
-### Araç sürümleri
+## Phase 0: done (2026-10-13)
 
-| Araç | Sürüm |
+Repository skeleton; no application code yet.
+
+### Tool versions
+
+| Tool | Version |
 |---|---|
 | Go | 1.27.2 (linux/amd64) |
 | Node / npm | 24.21.0 (LTS, nvm) / 11.19.0 |
@@ -16,447 +21,473 @@ Repo iskeleti kuruldu; uygulama kodu yok.
 | gh | 2.102.0 |
 | GNU Make | 4.4.1 |
 
-Bağımlılıklar: Go `google.golang.org/protobuf` v1.36.12, `github.com/coder/websocket` v1.8.15
-(henüz import edilmiyor; `go mod tidy` Faz 1'den önce çalıştırılırsa go.mod'dan düşer).
-Web: Svelte 5.57, Vite 8.3, TypeScript 6.0, `dompurify` 3.4.17, `vitest` 5.0.
-`@types/dompurify` eklenmedi: DOMPurify 3.x kendi tiplerini içeriyor, `@types` paketi deprecated stub.
+Dependencies: Go `google.golang.org/protobuf` v1.36.12, `github.com/coder/websocket` v1.8.15 (not imported yet;
+`go mod tidy` run before Phase 1 would drop it from go.mod). Web: Svelte 5.57, Vite 8.3, TypeScript 6.0,
+`dompurify` 3.4.17, `vitest` 5.0. `@types/dompurify` was not added: DOMPurify 3.x ships its own types and the
+`@types` package is a deprecated stub.
 
 ### Mumble proto
 
-- Kaynak: `mumble-voip/mumble` etiketi **v1.5.939** (en güncel kararlı 1.5.x), `src/Mumble.proto` ve `src/MumbleUDP.proto`.
-- Yerel değişiklik: başa kaynak yorumu ve `option go_package` eklendi
-  (`gateway/proto/mumbleproto`, `gateway/proto/mumbleudp`). Yeniden üretim: `make proto`.
-- Not: `mumblevoip/mumble-server:latest` imajı şu an sunucu sürümü **1.5.915** çalıştırıyor.
+- Source: `mumble-voip/mumble` tag **v1.5.939** (latest stable 1.5.x), `src/Mumble.proto` and `src/MumbleUDP.proto`.
+- Local changes: a source comment and `option go_package` were added at the top
+  (`gateway/proto/mumbleproto`, `gateway/proto/mumbleudp`). Regenerate with `make proto`.
+- Note: the `mumblevoip/mumble-server:latest` image currently runs server version **1.5.915**.
 
-### Doğrulama
+### Verification
 
-- `go build ./...` ve `go vet ./...` temiz.
-- `npm run check`: 0 hata / 0 uyarı; `npm run build` çıktısı `gateway/web/dist`.
-- `make gateway` → `bin/mumweb`, `bin/mumprobe`; binary embed edilmiş SPA'yı sunuyor.
-  `dist` boşken "build yok" yer tutucu sayfası döndüğü ayrıca test edildi.
-- `make test`: go test (test yok) + vitest (`--passWithNoTests`) geçti.
-- `make dev`: iki container ayağa kalktı; gateway healthcheck `healthy`,
-  `curl localhost:8080/healthz` → 200, `/` "mumweb" başlıklı sayfa ve JS asset'i 200,
-  gateway container'ı root olmayan `mumweb` (uid 100) kullanıcısıyla çalışıyor,
-  mumble-server TCP portu erişilebilir ve superuser şifresi ayarlandı.
-- Yerelde 64738 başka bir Mumble sunucusu tarafından kullanıldığı için doğrulama
-  `MUMBLE_PORT=64739` ile yapıldı (compose'ta host portu `MUMBLE_PORT` ile ayarlanabilir).
+- `go build ./...` and `go vet ./...` clean.
+- `npm run check`: 0 errors / 0 warnings; `npm run build` outputs to `gateway/web/dist`.
+- `make gateway` → `bin/mumweb`, `bin/mumprobe`; the binary serves the embedded SPA. A "not built" placeholder page
+  is returned when `dist` is empty (also tested).
+- `make test`: go test (no tests) and vitest (`--passWithNoTests`) passed.
+- `make dev`: both containers came up; gateway healthcheck `healthy`, `curl localhost:8080/healthz` → 200, `/` serves
+  a page titled "mumweb" and its JS asset with 200, the gateway container runs as the non-root `mumweb` (uid 100)
+  user, the mumble-server TCP port is reachable and the superuser password is set.
+- 64738 was in use by another Mumble server locally, so verification used `MUMBLE_PORT=64739` (the host port in the
+  compose file is configurable with `MUMBLE_PORT`).
 
-## Faz 1 — Mumble TCP istemci kütüphanesi + mumprobe (2026-10-13)
+## Phase 1: Mumble TCP client library + mumprobe (2026-10-13)
 
 `gateway/internal/mumble`:
-- `messages.go`: tip numaraları (Mumble.proto sırası, 0–26), `[uint16 BE tip][uint32 BE uzunluk]` framing,
-  sunucuyla aynı boyut sınırı (0x7fffff). Bilinmeyen tipler debug loglanıp atlanıyor.
-- `conn.go`: TLS (varsayılan doğrulama kapalı; `TLSVerify` ve SHA-256 parmak izi sabitleme destekli),
-  `Version` (v1 + v2 = 1.5.0, release/os), `Authenticate` (opus=true), `ServerSync`'e kadar senkron handshake,
-  `Reject` → `*RejectError`. Sonrasında okuma döngüsü + 15 sn ping, 60 sn okuma zaman aşımı,
-  `context` ile iptal (Close tüm goroutine'leri bekliyor). Olaylar tamponlu Go kanalı ile yayınlanıyor.
-- `state.go`: kanal/kullanıcı haritaları, kısmi `ChannelState`/`UserState` birleştirme (links_add/remove dahil),
-  `user_id` alanı varsa kayıtlı kullanıcı.
-- `audio.go`: `MumbleUDP.Audio` ↔ tünel yükü (`0x00` başlığı); legacy biçim `ErrLegacyAudio` ile atlanıyor.
-- `events.go`: olay tipleri.
+- `messages.go`: type numbers (Mumble.proto order, 0–26), `[uint16 BE type][uint32 BE length]` framing, the same size
+  limit as the server (0x7fffff). Unknown types are logged at debug level and skipped.
+- `conn.go`: TLS (verification off by default; `TLSVerify` and SHA-256 fingerprint pinning supported), `Version`
+  (v1 + v2 = 1.5.0, release/os), `Authenticate` (opus=true), synchronous handshake up to `ServerSync`,
+  `Reject` → `*RejectError`. Afterwards a read loop with a 15 s ping, 60 s read timeout and `context`
+  cancellation (Close waits for all goroutines). Events are published on a buffered Go channel.
+- `state.go`: channel/user maps, partial `ChannelState`/`UserState` merging (including links_add/remove), a registered
+  user when a `user_id` field is present.
+- `audio.go`: `MumbleUDP.Audio` ↔ tunnel payload (`0x00` header); the legacy format is skipped with `ErrLegacyAudio`.
+- `events.go`: event types.
 
-`cmd/mumprobe`: kanal ağacı + kullanıcıları yazdırır, olayları loglar (ses: ilk paket, her 50. paket ve terminator).
-Bayraklar: `-addr -user -password -cert -key -verify -fingerprint -say -join -tx <süre> -exit -debug`.
-`-tx` 20 ms'lik geçerli Opus sessizlik paketleri (`f8 ff fe`) gönderir; masaüstü istemcisi olmadan ses yolunu sınamak için.
+`cmd/mumprobe`: prints the channel tree and users, logs events (audio: first packet, every 50th and the
+terminator). Flags: `-addr -user -password -cert -key -verify -fingerprint -say -join -tx <duration> -exit -debug`.
+`-tx` sends valid 20 ms Opus silence packets (`f8 ff fe`) to exercise the audio path without a desktop client.
 
-### Doğrulama (dev sunucu 1.5.915, `localhost:64739`)
-- `go vet`, `go test ./...` temiz: framing encode/decode ve hata durumları, kısmi UserState/ChannelState birleştirme,
-  ses encode/decode (target=0 oneof'un kablo üzerinde bulunması, legacy tespiti).
-- İki mumprobe: `listener` ve `talker -say 'merhaba <b>dünya</b>' -tx 1s`. Listener; talker'ın girişini,
-  metni ve **protobuf formatlı** ses paketlerini (frame 0 … 49, son pakette `term=true`) TCP tüneli üzerinden aldı;
-  legacy paket görülmedi. Talker çıkınca `userRemove` geldi.
-- Yanlış SuperUser şifresi → `rejected (WrongUserPW)`; doğru şifreyle SuperUser `[registered]` görünüyor.
-- **Bekleyen manuel doğrulama:** masaüstü Mumble istemcisiyle kanal listesi, masaüstünden konuşma ve `-say`
-  mesajının masaüstünde görünmesi (kullanıcı tarafından yapılacak).
+### Verification (dev server 1.5.915, `localhost:64739`)
+- `go vet`, `go test ./...` clean: framing encode/decode and errors, partial UserState/ChannelState merging, audio
+  encode/decode (target=0 oneof present on the wire, legacy detection).
+- Two mumprobes: `listener` and `talker -say 'merhaba <b>dünya</b>' -tx 1s`. The listener received the talker's
+  join, the text and **protobuf-format** audio packets (frame 0 … 49, `term=true` on the last) over the TCP tunnel;
+  no legacy packets seen. `userRemove` arrived when the talker left.
+- Wrong SuperUser password → `rejected (WrongUserPW)`; with the right password SuperUser appears as `[registered]`.
+- **Pending manual check:** channel list in the desktop Mumble client, talking from the desktop, and the `-say`
+  message appearing on the desktop (to be done by the user).
 
-## Faz 2 — WebSocket köprüsü (2026-10-13)
+## Phase 2: WebSocket bridge (2026-10-13)
 
-- `internal/certs`: RSA 2048 kendinden imzalı istemci sertifikası (CN = kullanıcı adı, 20 yıl, PKCS#8 anahtar),
-  `Load` PEM çiftini doğrular. Diskte hiçbir şey saklanmaz.
-- `internal/bridge`: `GET /ws`. WS oturumu başına bir `mumble.Client`. Bölüm 6 protokolü.
-  - Akış: `hello` (10 sn içinde) → sertifika yoksa üret + `cert` → Mumble'a bağlan →
-    `channel`*, `user`* → `ready`. (Plan sırasından farkı: `ready` başlangıç durumundan **sonra** gelir;
-    tarayıcı `ready` aldığında ağaç tamdır.)
-  - `user`/`channel` her zaman birleştirilmiş tam kayıt olarak gönderilir; kök kanalın `parent`'ı `null`.
-  - Eklenen alanlar: `ready.allowHtml`, `ready.messageLength`; `denied.type`; `text.private` (doğrudan mesaj);
-    ağaç (tree) mesajları `channelIds`'e eklenir.
-  - Hata/kapanış: `reject` (WS 1000), Mumble'a ulaşılamazsa/bağlantı koparsa `error` (WS 1013),
-    protokol ihlali 1008. WS kapanınca Mumble bağlantısı kapanır ve tersi; `Shutdown()` tüm oturumları bitirir.
-  - Sınırlar: Origin listesi (boşsa kütüphanenin aynı-host kontrolü), `MUMWEB_MAX_SESSIONS`,
-    IP başına dakikada `MUMWEB_CONN_RATE` (10) yeni bağlantı, JSON 16 KB, ses çerçevesi 4 KB,
-    oturum başına saniyede 100 ses paketi (fazlası düşürülür).
-  - Loglarda şifre, anahtar ve sohbet içeriği yok.
-- `cmd/mumweb`: Bölüm 10 ortam değişkenleri. Plana ek: `MUMWEB_CONN_RATE` (varsayılan 10) ve
-  `MUMWEB_TRUST_PROXY` (varsayılan false; true ise istemci IP'si `X-Forwarded-For`'un en sağındaki değer —
-  Caddy arkasında açılmalı, yoksa IP sınırı herkesi tek IP sayar).
-- `mumble.Dial` artık `ServerSync`'ten sonra gelen `ServerConfig`'i de bekliyor (önceden `ready` içinde eksik kalıyordu).
+- `internal/certs`: RSA 2048 self-signed client certificate (CN = username, 20 years, PKCS#8 key); `Load` validates a
+  PEM pair. Nothing is stored on disk.
+- `internal/bridge`: `GET /ws`. One `mumble.Client` per WS session. The protocol of plan section 6.
+  - Flow: `hello` (within 10 s) → generate a certificate if none + `cert` → connect to Mumble → `channel`*, `user`*
+    → `ready`. (Difference from the plan order: `ready` comes **after** the initial state; when the browser gets
+    `ready` the tree is complete.)
+  - `user`/`channel` are always sent as full merged records; the root channel's `parent` is `null`.
+  - Added fields: `ready.allowHtml`, `ready.messageLength`; `denied.type`; `text.private` (direct message); tree
+    messages are added to `channelIds`.
+  - Errors/closing: `reject` (WS 1000); `error` (WS 1013) when Mumble is unreachable or the connection drops;
+    protocol violation 1008. Closing the WS closes the Mumble connection and vice versa; `Shutdown()` ends all sessions.
+  - Limits: Origin list (library same-host check when empty), `MUMWEB_MAX_SESSIONS`, `MUMWEB_CONN_RATE` (10) new
+    connections per IP per minute, JSON 16 KB, audio frame 4 KB, 100 audio packets per second per session
+    (excess dropped).
+  - No passwords, keys or chat content in the logs.
+- `cmd/mumweb`: the environment variables of plan section 10. Additions to the plan: `MUMWEB_CONN_RATE` (default 10)
+  and `MUMWEB_TRUST_PROXY` (default false; when true the client IP is the rightmost `X-Forwarded-For` value; must be
+  enabled behind Caddy, otherwise the IP limit counts everyone as one IP).
+- `mumble.Dial` now also waits for the `ServerConfig` that follows `ServerSync` (it used to be missing from `ready`).
 
-### Önemli bulgu: Mumble autoban
-Tüm web kullanıcıları Mumble'a gateway'in tek IP'sinden bağlanır. Mumble varsayılanı (120 sn'de 10 bağlantı →
-300 sn global ban, **başarılı bağlantılar dahil**) testlerde gateway'i banladı (`Ignoring connection ... (Global ban)`).
-Dev compose'a `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` eklendi. Production compose için karar Faz 7'de
-(bkz. "Açık konular").
+### Important finding: Mumble autoban
+All web users connect to Mumble from the gateway's single IP. Mumble's default (10 connections in 120 s → 300 s
+global ban, **successful connections included**) banned the gateway during tests (`Ignoring connection ... (Global
+ban)`). `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` was added to the dev compose. The decision for the
+production compose was left to Phase 7 (see "Open issues").
 
-### Doğrulama
-- Birim: ikili çerçeve encode/decode, kök kanal `parent:null`, token bucket, IP sınırı, Origin reddi (403),
-  oturum sınırı (503), `hello` olmadan mesaj → 1008.
-- Entegrasyon (`MUMWEB_TEST_MUMBLE_ADDR=localhost:64739 go test ./internal/bridge`, 5 tekrar): Go WS istemcisi
-  `hello` → `cert`, `channel`, `user`, `ready`; ping/pong; metin iki yönde; `setSelf` gözlemcide görünüyor;
-  ses iki yönde (frame no + terminator korunuyor); WS kapanınca gözlemci `UserRemove` alıyor;
-  aynı sertifikayla ikinci girişte sertifika hash'i aynı; yanlış SuperUser şifresi → `reject WrongUserPW`;
-  tüm oturumlar bitince goroutine sayısı başlangıca dönüyor.
-- Docker dev stack'teki gerçek gateway'e Node (yerleşik WebSocket) istemcisi bağlandı; mumprobe gözlemci kullanıcıyı,
-  metni ve çıkışı gördü.
-- **Bekleyen manuel doğrulama:** WS kapanınca kullanıcının masaüstü istemcide düşmesi.
+### Verification
+- Unit: binary frame encode/decode, root channel `parent:null`, token bucket, IP limit, Origin rejection (403),
+  session limit (503), message without `hello` → 1008.
+- Integration (`MUMWEB_TEST_MUMBLE_ADDR=localhost:64739 go test ./internal/bridge`, 5 repetitions): a Go WS client:
+  `hello` → `cert`, `channel`, `user`, `ready`; ping/pong; text both ways; `setSelf` visible to an observer; audio
+  both ways (frame number + terminator preserved); closing the WS makes the observer receive `UserRemove`; a second
+  login with the same certificate yields the same certificate hash; wrong SuperUser password → `reject
+  WrongUserPW`; goroutine count returns to its starting value once all sessions end.
+- A Node (built-in WebSocket) client connected to the real gateway in the Docker dev stack; mumprobe as observer
+  saw the user, the text and the exit.
+- **Pending manual check:** the user dropping from the desktop client when the WS closes.
 
-## Faz 3 — Arayüz iskeleti (2026-10-13)
+## Phase 3: UI skeleton (2026-10-13)
 
-- `web/src/lib/ws.ts`: `ReconnectingSocket` — 1, 2, 4, 8 … 30 sn backoff (`ready` sonrası sıfırlanır),
-  `online` olayında bekleme atlanır, 20 sn'de bir `ping`; 10 sn `pong` gelmezse bağlantı ölü sayılıp yeniden kurulur.
-  1008 (protokol ihlali) sonrası yeniden denenmez.
-- `lib/client.ts`: eylemler (connect/disconnect/joinChannel/setSelf/sendText) ve sunucu mesajlarının işlenmesi.
-  `reject`, kick/ban (`userRemove` kendi oturumumuz) ve geçersiz sertifika → yeniden bağlanma durur, giriş ekranında
-  Türkçe hata. Diğer kopmalarda yeniden bağlanılır; sohbet geçmişi korunur, sunucu durumu her bağlantıda sıfırlanır.
+- `web/src/lib/ws.ts`: `ReconnectingSocket`: 1, 2, 4, 8 … 30 s backoff (reset after `ready`), the wait is skipped
+  on the `online` event, `ping` every 20 s; if no `pong` arrives within 10 s the connection is considered dead and
+  re-established. No retry after 1008 (protocol violation).
+- `lib/client.ts`: actions (connect/disconnect/joinChannel/setSelf/sendText) and handling of server messages.
+  `reject`, kick/ban (`userRemove` for our own session) and an invalid certificate stop reconnecting and show an
+  error on the login screen. Other disconnects reconnect; chat history is kept, server state is reset on each
+  connection.
 - `lib/stores/session.svelte.ts` (Svelte 5 runes, `SvelteMap`), `lib/certStore.ts` (IndexedDB),
-  `lib/settings.ts` (localStorage, takma ad), `lib/sanitize.ts` (DOMPurify: `b i u s strong em a br p img span`;
-  link yalnız http/https/mailto ve yeni sekmede; img yalnız `data:image/*;base64`). Giden metin HTML-escape edilir.
-- Bileşenler: `Login`, `ChannelTree` (özyinelemeli; sıralama position → ad; çift tık/Enter ile kanala geç),
-  `Chat` (Enter gönderir, Shift+Enter yeni satır; kanala giriş/çıkış satırları), `Controls` (mute/deaf/çıkış),
-  `StatusBar`. ≤640 px'de Kanallar/Sohbet sekmeleri. Koyu tema varsayılan, açık tema için `data-theme="light"` hazır.
-- Gateway: `error` mesajlarına `code` alanı (`invalid_certificate`, `mumble_unavailable`, `disconnected`);
-  tarayıcıdan 60 sn hiçbir şey gelmezse oturum kapanır.
-- mumprobe: `-mkchannel` (test kanalı oluşturmak için) ve kullanıcı logunda sertifika hash'i.
+  `lib/settings.ts` (localStorage, nickname), `lib/sanitize.ts` (DOMPurify: `b i u s strong em a br p img span`;
+  links only http/https/mailto and in a new tab; img only `data:image/*;base64`). Outgoing text is HTML-escaped.
+- Components: `Login`, `ChannelTree` (recursive; sorted by position → name; double-click/Enter switches channel),
+  `Chat` (Enter sends, Shift+Enter newline; channel join/leave lines), `Controls` (mute/deaf/exit), `StatusBar`.
+  Channels/Chat tabs at ≤640 px. Dark theme by default; `data-theme="light"` ready for the light theme.
+- Gateway: a `code` field on `error` messages (`invalid_certificate`, `mumble_unavailable`, `disconnected`); the
+  session closes if nothing arrives from the browser for 60 s.
+- mumprobe: `-mkchannel` (to create test channels) and the certificate hash in the user log.
 
-### Doğrulama
-- `npm run check` 0 hata; Vitest: ikili çerçeve (Go testiyle aynı baytlar), backoff, `textToHtml`.
-- Docker dev stack + geçici headless Chromium (browserless imajı, dev ağına bağlı) + puppeteer-core betiği
-  (scratchpad'de, repoya eklenmedi), mumprobe gözlemci ile:
-  giriş → kullanıcı Mumble'da görünüyor, ağaçta gözlemci görünüyor; sohbet iki yönde; `<script>`, `onerror`'lu img ve
-  `javascript:` link etkisiz; giriş/çıkış satırları; çift tıkla iki kez kanal değişimi Mumble'a yansıyor;
-  mute/deaf Mumble'a yansıyor ve ikonlar görünüyor; sayfa yenilenince takma ad hatırlanıyor ve **sertifika hash'i aynı**;
-  çıkış kullanıcıyı düşürüyor; yanlış SuperUser şifresi → "Bu takma ad kayıtlı; şifre veya sertifika yanlış.";
-  390 px mobil düzen.
-- Gateway container'ı yeniden başlatıldı → arayüz "Yeniden bağlanılıyor (1. deneme, 1 sn)" gösterip kendiliğinden
-  bağlandı, sohbet geçmişi korundu.
-- Hayalet oturum: aynı ad + aynı sertifikayla ikinci bağlantı `ready` alıyor, Mumble eski oturumu düşürüyor
-  (Wi-Fi kopması sonrası yeniden bağlanma `UsernameInUse`'a takılmaz).
-- **Bekleyen manuel doğrulama:** masaüstü Mumble'da tarayıcı kullanıcısının görünmesi, iki yönlü kanal değişimi ve sohbet,
-  masaüstünden taşınınca tarayıcıda güncellenmesi, kayıtlı kullanıcı olarak kalma (kendini kaydetme masaüstünden/yönetici).
+### Verification
+- `npm run check` 0 errors; Vitest: binary frame (same bytes as the Go test), backoff, `textToHtml`.
+- Docker dev stack + temporary headless Chromium (browserless image on the dev network) + a puppeteer-core script
+  (in the scratchpad, not added to the repo), with a mumprobe observer:
+  login → user visible in Mumble, observer visible in the tree; chat both ways; `<script>`, an `onerror` img and a
+  `javascript:` link have no effect; join/leave lines; double-click channel switching twice is reflected in Mumble;
+  mute/deaf reflected in Mumble and icons shown; the nickname is remembered after a reload and the **certificate
+  hash is the same**; logout drops the user; wrong SuperUser password → "This nickname is registered; wrong
+  password or certificate."; 390 px mobile layout.
+- Restarting the gateway container → the UI showed "Reconnecting (attempt 1, 1 s)" and reconnected on its own, chat
+  history kept.
+- Ghost session: a second connection with the same name + same certificate gets `ready`, Mumble drops the old
+  session (reconnecting after a Wi-Fi drop does not hit `UsernameInUse`).
+- **Pending manual check:** the browser user appearing in desktop Mumble, two-way channel switching and chat, the
+  browser updating when moved from the desktop, staying a registered user (self-registration from the desktop/admin).
 
-## Faz 4 — Ses alma (2026-10-13)
+## Phase 4: receiving audio (2026-10-13)
 
-- `web/src/lib/audio/context.ts`: tek `AudioContext` (48 kHz, `interactive`), giriş tıklamasında açılıyor.
-- `audio/receiver.ts`: konuşmacı başına WebCodecs `AudioDecoder` (opus, 48 kHz, mono); geride kalan/yinelenen
-  paket (`frameNumber` ≤ son) atılır; terminator'ün PCM'i gidince worklet'e `end`; 300 ms paket gelmezse
-  "konuşmuyor"; 30 sn boşta kalan decoder kapatılır; decoder hatasında yeniden oluşturulur.
-  Kazanç = yerel ses seviyesi (0–200 %, yerel susturma) × `volume_adjustment` (0 ise 1).
-  `AudioDecoder` opus desteklemiyorsa üstte uyarı bandı (Faz 9).
-- `audio/playback-worklet.ts` + `audio/jitter.ts`: kullanıcı başına jitter buffer (60 ms ön dolum, en fazla 200 ms,
-  taşarsa en eski atılır, eksikse sessizlik + yeniden ön dolum, terminator'de kalan çalınıp akış biter),
-  bağlam 48 kHz değilse doğrusal yeniden örnekleme, tüm kullanıcılar karıştırılıp [-1, 1]'e kırpılır.
-- Sağırlaştırınca worklet anında temizlenir, paketler alınır ama çalınmaz (konuşma göstergesi çalışmaya devam eder).
-- Arayüz: konuşan kullanıcının avatarında yeşil halka; başka kullanıcıya tıklayınca ses seviyesi kaydırıcısı,
-  "Benim için sustur", "Sıfırla" (kullanıcı adına göre localStorage'da).
-- mumprobe: `-play <dosya>` (uzunluk önekli Opus paketleri, TOC'tan süre hesaplanıp gerçek zamanlı gönderilir).
+- `web/src/lib/audio/context.ts`: a single `AudioContext` (48 kHz, `interactive`), opened on the login click.
+- `audio/receiver.ts`: a WebCodecs `AudioDecoder` per speaker (opus, 48 kHz, mono); late/duplicate packets
+  (`frameNumber` ≤ last) are dropped; once the terminator's PCM is out the worklet gets `end`; "not speaking" after
+  300 ms without packets; a decoder idle for 30 s is closed; recreated on a decoder error. Gain = local volume
+  (0–200 %, local mute) × `volume_adjustment` (1 if 0). A warning banner appears if `AudioDecoder` does not support
+  opus (Phase 9).
+- `audio/playback-worklet.ts` + `audio/jitter.ts`: a jitter buffer per user (60 ms prefill, at most 200 ms, the
+  oldest is dropped on overflow, silence + re-prefill when empty, the terminator plays what is left and ends the
+  stream), linear resampling if the context is not 48 kHz, all users mixed and clipped to [-1, 1].
+- On deafen the worklet is cleared immediately; packets are received but not played (the speaking indicator keeps
+  working).
+- UI: a green ring on the speaking user's avatar; clicking another user shows a volume slider, "Mute for me" and
+  "Reset" (stored in localStorage by user name).
+- mumprobe: `-play <file>` (length-prefixed Opus packets, duration computed from the TOC and sent in real time).
 
-### Protokol düzeltmesi: `frame_number` birimi
-Plan 5.3 "20 ms çerçeve başına +1" diyor. Resmî istemci (v1.5.939 `AudioInput.cpp`/`AudioOutputSpeech.cpp`):
-`iFrameSize = sampleRate / 100` (10 ms), gönderilen `frameNumber = iFrameCounter - iBufferedFrames` 10 ms'lik
-çerçeve sayar; alıcı jitter buffer'ı `timestamp = iFrameSize * frameNumber`, `span = paketteki örnek sayısı` kullanır.
-Yani 20 ms'lik pakette sayaç **+2** artmalı (+1 olursa masaüstü alıcıda zaman damgaları çakışır).
-mumprobe `-tx`/`-play` buna göre düzeltildi; Faz 5'te tarayıcı da `örnek sayısı / 480` kadar artıracak.
+### Protocol correction: the unit of `frame_number`
+Plan 5.3 says "+1 per 20 ms frame". The official client (v1.5.939 `AudioInput.cpp`/`AudioOutputSpeech.cpp`):
+`iFrameSize = sampleRate / 100` (10 ms); the sent `frameNumber = iFrameCounter - iBufferedFrames` counts 10 ms
+frames, and the receiver's jitter buffer uses `timestamp = iFrameSize * frameNumber` and `span = samples in the
+packet`. So for a 20 ms packet the counter must increase by **2** (with +1 the timestamps overlap in the desktop
+receiver). mumprobe `-tx`/`-play` were fixed accordingly; in Phase 5 the browser increases it by `samples / 480`.
 
-### Doğrulama
-- Vitest: jitter buffer (ön dolum, kazanç/karıştırma, 200 ms sınırı, terminator sonrası kısa patlama, underrun,
-  44.1 kHz yeniden örnekleme). `npm run check` temiz.
-- Uçtan uca (headless Chromium, `--unsafely-treat-insecure-origin-as-secure=http://gateway:8080`): test sayfasında
-  tarayıcının `AudioEncoder`'ı ile 440 Hz ve 660 Hz (genlik 0.3) Opus paketleri üretildi, `mumprobe -play` ile
-  Mumble'a gönderildi; tarayıcı çıkışı AnalyserNode ile ölçüldü:
-  - tek konuşmacı: RMS 0.212 (= 0.3/√2, kayıpsız seviye), 440 Hz -24 dB, diğer tüm bölmeler < -84 dB; konuşma göstergesi 1.
-  - bitince RMS 0, gösterge 0.
-  - iki konuşmacı aynı anda: 440 Hz -24 dB ve 660 Hz -25 dB, RMS 0.301 (√2 kat), iki gösterge birlikte.
-  - Ton660 yerelde susturulunca 660 Hz -112 dB, 440 Hz korunuyor.
-  - sağırlaştırılmışken RMS 0.
-- **Bekleyen manuel doğrulama:** masaüstünden gerçek konuşmanın tarayıcıda temiz duyulması (ve 2–3 kişi aynı anda).
+### Verification
+- Vitest: jitter buffer (prefill, gain/mixing, 200 ms limit, short burst after terminator, underrun, 44.1 kHz
+  resampling). `npm run check` clean.
+- End to end (headless Chromium, `--unsafely-treat-insecure-origin-as-secure=http://gateway:8080`): 440 Hz and
+  660 Hz (amplitude 0.3) Opus packets were produced with the browser's `AudioEncoder` on a test page, sent to
+  Mumble with `mumprobe -play`, and the browser output was measured with an AnalyserNode:
+  - one speaker: RMS 0.212 (= 0.3/√2, level preserved), 440 Hz at -24 dB, every other bin < -84 dB; speaking indicator 1.
+  - when it ends RMS 0, indicator 0.
+  - two speakers at once: 440 Hz at -24 dB and 660 Hz at -25 dB, RMS 0.301 (√2 times), both indicators together.
+  - with the 660 Hz speaker locally muted 660 Hz at -112 dB, 440 Hz preserved.
+  - deafened: RMS 0.
+- **Pending manual check:** clean audio of real desktop speech in the browser (and 2–3 people at once).
 
-## Faz 5 — Ses gönderme (2026-10-13)
+## Phase 5: sending audio (2026-10-13)
 
-- `audio/capture-worklet.ts` + `audio/frames.ts`: mikrofon → 20 ms / 960 örnek 48 kHz mono çerçeve + RMS;
-  bağlam 48 kHz değilse doğrusal yeniden örnekleme. Firefox'ta akış/bağlam örnekleme hızı uyuşmazsa ayrı bir
-  yakalama bağlamı açılır.
-- `audio/transmitter.ts`: `getUserMedia` (AEC, NS [ayarlanabilir], AGC, mono; kayıtlı cihaz yoksa varsayılana düşer),
-  `AudioEncoder` (opus, 48 kHz, mono, 20 ms, complexity 9, DTX kapalı). Bitrate = min(40 000, maxBandwidth − 19 600):
-  resmî `getNetworkBandwidth` TCP-modu ek yükü. Mute/deaf/sunucu mute/suppress iken gönderilmez (seviye göstergesi çalışır).
-  - **Terminator:** konuşma bitince son çerçeve de kodlanır, `flush()` tamamlanana kadar çıktılar tutulur ve
-    **en son paket** terminator olarak işaretlenir. (İlk sürümde flush'ın ürettiği lookahead kuyruğu terminator'den
-    sonra ayrı bir paket olarak gidiyordu; testte yakalandı ve düzeltildi.)
-  - Frame numarası paket başına +2 (10 ms birim, bkz. Faz 4 notu).
-- PTT: ayarlanabilir tuş (varsayılan `V`; metin alanında yazarken tetiklenmez; pencere odağı kaybolunca bırakılır)
-  ve kontrol çubuğunda basılı tutulan buton. VAD: anında açılış, 300 ms bekleme; eşik seviye çubuğunun üstündeki
-  kaydırıcıyla (-60…0 dBFS ölçeği) ayarlanır. Ayarlar localStorage'da (`mumweb.audio`).
-- Ayarlar penceresi (Faz 6'da genişleyecek): mikrofon seçimi, PTT tuşu atama. Mikrofon izni yoksa
-  "yalnızca dinleyebilirsiniz" uyarısı, oturum devam eder.
+- `audio/capture-worklet.ts` + `audio/frames.ts`: microphone → 20 ms / 960 sample 48 kHz mono frames + RMS; linear
+  resampling if the context is not 48 kHz. If the stream/context sample rates differ in Firefox a separate capture
+  context is opened.
+- `audio/transmitter.ts`: `getUserMedia` (AEC, NS [adjustable], AGC, mono; falls back to the default device if the
+  saved one is missing), `AudioEncoder` (opus, 48 kHz, mono, 20 ms, complexity 9, DTX off). Bitrate = min(40 000,
+  maxBandwidth − 19 600): the TCP-mode overhead of the official `getNetworkBandwidth`. Nothing is sent while
+  muted/deafened/server-muted/suppressed (the level meter keeps working).
+  - **Terminator:** when speech ends the last frame is encoded too, outputs are held until `flush()` completes and
+    the **last packet** is marked as the terminator. (In the first version the lookahead queue produced by flush was
+    sent as a separate packet after the terminator; caught in testing and fixed.)
+  - Frame number +2 per packet (10 ms unit, see the Phase 4 note).
+- PTT: a configurable key (default `V`; not triggered while typing in a text field; released when the window loses
+  focus) and a hold-down button on the control bar. VAD: instant open, 300 ms hold; the threshold is set with the
+  slider above the level bar (-60…0 dBFS scale). Settings are in localStorage (`mumweb.audio`).
+- Settings window (expanded in Phase 6): microphone choice, PTT key assignment. Without microphone permission a
+  "you can only listen" warning appears and the session continues.
 
-### Doğrulama
-- Vitest: FrameAssembler (48 kHz bölme, 44.1→48 kHz), VAD bekleme süresi, bitrate sınırı, seviye ölçeği.
-- Uçtan uca: Chromium'a sahte mikrofon olarak WAV (1,5 sn 1 kHz + 1,5 sn sessizlik, döngü); A konuşur, B (mute) dinler
-  ve çıkışı FFT ile ölçülür, mumprobe paketleri loglar:
-  - VAD: konuşma blokları 0→180, 182→364 … (90 paket = 1,5 sn + 300 ms), sonda `term=true`;
-    sessiz bölümde **paket yok**; terminator sonrası başıboş paket yok.
-  - B'de 1 kHz duyuluyor (-16 dB; tarayıcı AGC'si +8 dB yükseltiyor). Tarayıcı ses işlemesi kapalıyken:
-    RMS 0.212 (birebir) ve diğer frekanslar < -88 dB, yani hat temiz.
-  - PTT: tuşsuz 3 sn → 0 paket; 2 sn basılı → 52 paket (506…712, +2 adım); terminator bırakıştan 22 ms sonra.
-  - Sohbete "vvv" yazmak paket göndermiyor; VAD + mute → 0 paket.
-  - Eşik 1.0 → ton varken 0 paket; 0.3 → paket gidiyor; ayar kalıcı.
-- **Bekleyen manuel doğrulama:** tarayıcıdan konuşmanın masaüstünde net duyulması ve PTT bırakılınca masaüstündeki
-  konuşma göstergesinin hemen sönmesi; gerçek mikrofonla yankı engelleme (Chrome'un AEC'si WebAudio çıkışını
-  her platformda referans almayabilir; kulaklıksız kullanımda yankı olursa not edilmeli).
+### Verification
+- Vitest: FrameAssembler (48 kHz split, 44.1→48 kHz), VAD hold time, bitrate limit, level scale.
+- End to end: a WAV as the fake microphone in Chromium (1.5 s of 1 kHz + 1.5 s silence, looped); A speaks, B (muted)
+  listens and the output is measured with an FFT, mumprobe logs the packets:
+  - VAD: speech blocks 0→180, 182→364 … (90 packets = 1.5 s + 300 ms), `term=true` at the end; **no packets** in
+    the silent part; no stray packets after the terminator.
+  - 1 kHz heard at B (-16 dB; the browser AGC boosts it by +8 dB). With browser audio processing off: RMS 0.212
+    (exact) and other frequencies < -88 dB, i.e. the pipeline is clean.
+  - PTT: 3 s without the key → 0 packets; 2 s held → 52 packets (506…712, steps of +2); terminator 22 ms after release.
+  - Typing "vvv" in the chat sends no packets; VAD + mute → 0 packets.
+  - Threshold 1.0 → 0 packets while the tone plays; 0.3 → packets flow; the setting persists.
+- **Pending manual check:** speech from the browser heard clearly on the desktop and the desktop speaking indicator
+  going out immediately when PTT is released; echo cancellation with a real microphone (Chrome's AEC may not use
+  WebAudio output as a reference on every platform; note any echo when used without headphones).
 
-## Faz 6 — Cilalama (2026-10-13)
+## Phase 6: polish (2026-10-13)
 
-- Ayarlar ekranı: mikrofon, hoparlör/kulaklık (`AudioContext.setSinkId`; desteklemeyen tarayıcıda açıklama),
-  gürültü engelleme (mikrofonu yeniden açar), konuşma modu, PTT tuşu atama, VAD eşiği (canlı seviye çubuğu ile),
-  tema (koyu varsayılan / açık), giriş-çıkış sesleri, sertifika: dışa aktar (PEM: sertifika + anahtar),
-  içe aktar (PEM), sıfırla (uyarı ile); değişiklik sonrası "Şimdi yeniden bağlan".
-  Not: masaüstü Mumble'ın `.p12` dışa aktarımı desteklenmiyor (PEM'e çevrilmesi gerekir, ör. `openssl pkcs12 -nodes`).
-- Mobil (≤ 640 px): sekmeli düzen + PTT modunda kontrol çubuğunun üstünde tam genişlikte 72 px bas-konuş butonu
-  (dokunmatik, pointer capture, uzun basma menüsü kapalı); kontrol çubuğu ikonlara iner, yatay taşma yok.
-  641–900 px'de buton etiketleri gizlenir, çubuk tek satır.
-- Bildirim sesleri: kanalımıza biri girince yükselen, çıkınca alçalan kısa iki ton (WebAudio ile sentez,
-  sağırken çalmaz, kapatılabilir).
-- PWA: `manifest.webmanifest` (standalone, tr), ikonlar (192, 512, maskable 512, apple-touch 180; SVG'den üretildi),
-  `sw.js` yalnızca statik dosyaları önbelleğe alır (gezinme: önce ağ; `/assets/*`: önce önbellek; `/ws`, `/healthz` hariç).
-  Gateway: `.webmanifest` MIME tipi, `/assets/*` için 1 yıl `immutable`, diğerleri `no-cache`, `nosniff`.
-- Bağlantı durumu çubuğu ve Türkçe hata/reject metinleri Faz 3'te yapılmıştı.
+- Settings screen: microphone, speaker/headphones (`AudioContext.setSinkId`; explanation in browsers that lack it),
+  noise suppression (reopens the microphone), talk mode, PTT key assignment, VAD threshold (with a live level bar),
+  theme (dark default / light), join/leave sounds, certificate: export (PEM: certificate + key), import (PEM), reset
+  (with a warning); "Reconnect now" after changes.
+  Note: the desktop Mumble's `.p12` export is not supported (convert to PEM, e.g. `openssl pkcs12 -nodes`).
+- Mobile (≤ 640 px): tabbed layout, and in PTT mode a full-width 72 px push-to-talk button above the control bar
+  (touch, pointer capture, long-press menu disabled); the control bar shrinks to icons, no horizontal overflow.
+  Between 641 and 900 px the button labels are hidden and the bar is a single row.
+- Notification sounds: a short rising two-tone when someone joins our channel and a falling one when they leave
+  (synthesised with WebAudio, silent while deafened, can be turned off).
+- PWA: `manifest.webmanifest` (standalone), icons (192, 512, maskable 512, apple-touch 180; generated from the
+  SVG), `sw.js` caches only static files (navigation: network first; `/assets/*`: cache first; `/ws`, `/healthz`
+  excluded). Gateway: `.webmanifest` MIME type, 1 year `immutable` for `/assets/*`, `no-cache` for the rest,
+  `nosniff`.
+- The connection status bar and the error/reject texts were done in Phase 3.
 
-### Doğrulama
-- Vitest: PEM paketi ayrıştırma (gidiş-dönüş, RSA anahtar, eksik parça).
-- Uçtan uca (headless Chromium):
-  - Chrome `Page.getInstallabilityErrors` → boş, manifest hatası yok, service worker aktif.
-  - Biri kanala girip çıkınca 4 osilatör (2 ton × 2); "sesler" kapalıyken 0.
-  - Tema açık → `data-theme="light"`, arka plan değişiyor.
-  - Sertifika: dışa aktarılan PEM'de sertifika + anahtar var; sıfırla → yeni kimlik (hash değişti);
-    içe aktar → yeniden bağlanınca **orijinal hash geri geldi**.
-  - Android Chrome emülasyonu (390×800, dokunmatik): büyük PTT butonuna 1,2 sn dokunma → 66 paket + terminator.
-  - 800 px ve 390 px'de kontrol çubuğu tek satır, sayfa yatay taşmıyor (PTT ve VAD modlarında).
-- **Bekleyen manuel doğrulama:** gerçek Android Chrome'da "Ana ekrana ekle" → tam ekran açılış ve bas-konuş
-  (HTTPS gerekir; Faz 7 dağıtımından sonra).
+### Verification
+- Vitest: PEM bundle parsing (round trip, RSA key, missing part).
+- End to end (headless Chromium):
+  - Chrome `Page.getInstallabilityErrors` → empty, no manifest errors, service worker active.
+  - When someone joined and left the channel: 4 oscillators (2 tones × 2); 0 with "sounds" off.
+  - Light theme → `data-theme="light"`, the background changes.
+  - Certificate: the exported PEM contains certificate + key; reset → new identity (hash changed); import → after
+    reconnecting the **original hash came back**.
+  - Android Chrome emulation (390×800, touch): touching the big PTT button for 1.2 s → 66 packets + terminator.
+  - At 800 px and 390 px the control bar is a single row and the page does not overflow horizontally (PTT and VAD modes).
+- **Pending manual check:** on a real Android Chrome, "Add to home screen" → full-screen launch and push-to-talk
+  (needs HTTPS; after the Phase 7 deployment).
 
-## Faz 7 — Dağıtım (2026-10-13)
+## Phase 7: deployment (2026-10-13)
 
-- `Dockerfile` (Faz 0'dan): Node ile web build → Go build (embed) → alpine, root olmayan `mumweb` kullanıcısı,
+- `Dockerfile` (from Phase 0): web build with Node → Go build (embed) → alpine, non-root `mumweb` user,
   `HEALTHCHECK /healthz`.
-- `deploy/docker-compose.yml` (Bölüm 13'e göre) + `deploy/Caddyfile` + `deploy/.env.example`. Plandan farklar:
-  - `container_name`'ler kaldırıldı (gereksiz; aynı sunucudaki mevcut `mumble-server`/`caddy` container'larıyla çakışıyordu).
-  - Mumble: `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` (bkz. Faz 2 bulgusu); karşılama metni ve kullanıcı
-    sınırı `.env`'den değiştirilebilir.
-  - mumweb: `MUMWEB_TRUST_PROXY=true` (Caddy arkasında gerçek istemci IP'si), `MUMWEB_ALLOWED_ORIGINS=https://${MUMWEB_DOMAIN}`.
-  - Caddy: HTTP/3 için `443/udp` da açık.
-- README (Türkçe): kurulum, DNS, autoban açıklaması, mevcut ters proxy (Caddy/nginx örnekleri) veya mevcut Mumble
-  sunucusuyla kullanım, yapılandırma tablosu, güncelleme/yedekleme, sorun giderme, geliştirme.
-- mumprobe ve `mumble.Client.ServerFingerprint()`: sunucu sertifikasının SHA-256 parmak izini
-  `MUMWEB_TLS_FINGERPRINT` biçiminde yazdırır.
+- `deploy/docker-compose.yml` (per plan section 13) + `deploy/Caddyfile` + `deploy/.env.example`. Differences from
+  the plan:
+  - `container_name`s removed (unnecessary; they clashed with existing `mumble-server`/`caddy` containers on the same server).
+  - Mumble: `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` (see the Phase 2 finding); the welcome text and
+    user limit can be changed from `.env`.
+  - mumweb: `MUMWEB_TRUST_PROXY=true` (real client IP behind Caddy), `MUMWEB_ALLOWED_ORIGINS=https://${MUMWEB_DOMAIN}`.
+  - Caddy: `443/udp` is also open for HTTP/3.
+- README: installation, DNS, the autoban explanation, using an existing reverse proxy (Caddy/nginx examples) or an
+  existing Mumble server, configuration table, updating/backup, troubleshooting, development.
+- mumprobe and `mumble.Client.ServerFingerprint()`: print the server certificate's SHA-256 fingerprint in the
+  `MUMWEB_TLS_FINGERPRINT` format.
 
-### Doğrulama
-- Production compose, ayrı proje adıyla (`mumweb-prodtest`) yerelde ayağa kaldırıldı; override ile yalnızca portlar
-  değiştirildi ve gerçek alan adı olmadığı için Caddy'ye `tls internal` verildi (alan adı `ses.test`):
-  - 3 servis ayakta, mumweb `healthy`, uid 100 (`mumweb`); Mumble ini'sinde autoban/karşılama/kullanıcı ayarları uygulanmış.
-  - `https://ses.test/healthz` → 200 (HTTP/2). `/ws` yanlış Origin → 403, doğru Origin → 101.
-  - Headless Chromium (bayraksız, gerçek HTTPS güvenli bağlam): iki tarayıcı oturumu Caddy/TLS üzerinden bağlandı,
-    konuşan sayfanın 1 kHz tonu dinleyen sayfada duyuldu (-16 dB), service worker `activated`,
-    mumprobe gözlemci kullanıcıları ve sesi gördü. Gateway logundaki IP tarayıcının IP'si (Caddy'ninki değil).
-  - Test stack'i volume'leriyle kaldırıldı.
-- Parmak izi sabitleme: doğru değerle bağlanıyor, bir baytı değiştirilmiş değerle `fingerprint mismatch`.
-- **Bekleyen manuel doğrulama:** temiz bir VPS'te gerçek alan adıyla `docker compose up -d` → `https://ses.<alanadi>`
-  ve uçtan uca konuşma (Let's Encrypt sertifikası dahil).
+### Verification
+- The production compose was brought up locally under a separate project name (`mumweb-prodtest`); only the ports
+  were changed with an override and, with no real domain, Caddy got `tls internal` (domain `ses.test`):
+  - 3 services up, mumweb `healthy`, uid 100 (`mumweb`); the autoban/welcome/user settings applied in the Mumble ini.
+  - `https://ses.test/healthz` → 200 (HTTP/2). `/ws` with a wrong Origin → 403, with the right Origin → 101.
+  - Headless Chromium (no flags, real HTTPS secure context): two browser sessions connected through Caddy/TLS, the
+    1 kHz tone of the speaking page was heard in the listening page (-16 dB), service worker `activated`, the
+    mumprobe observer saw the users and audio. The IP in the gateway log is the browser's, not Caddy's.
+  - The test stack was removed with its volumes.
+- Fingerprint pinning: connects with the right value, `fingerprint mismatch` with a value changed by one byte.
+- **Pending manual check:** on a clean VPS with a real domain, `docker compose up -d` → `https://voice.<domain>` and
+  end-to-end speech (including the Let's Encrypt certificate).
 
-## Faz 8 — Test ve doğrulama (2026-10-13)
+## Phase 8: tests and verification (2026-10-13)
 
-- Go: `internal/mumble/conn_test.go` eklendi — sahte TLS Mumble sunucusuyla (sunucu gerektirmez): Version/Authenticate
-  içeriği, handshake öncesi ve sonrası **bilinmeyen mesaj tiplerinin atlanması**, `ServerSync` + `ServerConfig` sonrası
-  `Info()`/durum, olaylar, giden `UserState`/`UDPTunnel` çerçeveleri, deaf ⇒ mute, sunucu kapatınca olay akışının
-  hatayla bitmesi, `Reject`, handshake zaman aşımı, parmak izi uyuşmazlığı, `Close` sonrası goroutine'lerin bitmesi.
-  (İlk sürümde parmak izi testi sahte sunucu TLS el sıkışmasını sürmediği için yanlış sebeple — zaman aşımıyla —
-  geçiyordu; düzeltildi ve hata metni de doğrulanıyor.)
-- Mevcut testler: framing, birleştirme, ses encode/decode, sertifika, köprü ikili çerçeveleri ve sınırlar,
-  gerçek sunucuya karşı entegrasyon; Vitest 19 test (ikili çerçeve, jitter buffer, çerçeveleme/yeniden örnekleme,
-  VAD, bitrate, PEM, backoff).
-- README'ye test komutları ve Bölüm 14 manuel kabul listesi eklendi.
+- Go: `internal/mumble/conn_test.go` added: with a fake TLS Mumble server (no server needed) Version/Authenticate
+  content, **skipping of unknown message types** before and after the handshake, state/`Info()` after `ServerSync`
+  + `ServerConfig`, events, outgoing `UserState`/`UDPTunnel` frames, deaf ⇒ mute, the event stream ending with an
+  error when the server closes, `Reject`, handshake timeout, fingerprint mismatch, goroutines finishing after
+  `Close`. (In the first version the fingerprint test passed for the wrong reason (a timeout) because the fake
+  server did not drive the TLS handshake; fixed, and the error text is now checked too.)
+- Existing tests: framing, merging, audio encode/decode, certificates, bridge binary frames and limits,
+  integration against a real server; 19 Vitest tests (binary frame, jitter buffer, framing/resampling, VAD,
+  bitrate, PEM, backoff).
+- Test commands and the section 14 manual acceptance list were added to the README.
 
-### Kaynak kullanımı (manuel test 12'nin otomatik karşılığı)
-Dev stack, 8 çekirdekli makine. 10 WebSocket istemcisi aynı kanalda, **hepsi aynı anda sürekli konuşuyor**
-(her biri 50 paket/s; en kötü durum): gateway'e 496 paket/s giriş, 4460 paket/s çıkış (beklenen 4461/s, kayıp yok).
+### Resource usage (automated counterpart of manual test 12)
+Dev stack, 8-core machine. 10 WebSocket clients in the same channel, **all talking continuously at once** (50
+packets/s each; worst case): 496 packets/s into the gateway, 4460 packets/s out (4461/s expected, no loss).
 
-| | Boşta | 10 oturum, 10 konuşan |
+| | Idle | 10 sessions, 10 speakers |
 |---|---|---|
-| gateway CPU | %0 | tek çekirdeğin %40–46'sı |
+| gateway CPU | 0 % | 40–46 % of one core |
 | gateway RAM | 4.9 MiB | ~15 MiB |
-| mumble-server CPU / RAM | – | ~%15 / 6.7 MiB |
+| mumble-server CPU / RAM | – | ~15 % / 6.7 MiB |
 
-Gerçekte aynı anda 1–2 kişi konuşur; yük konuşan sayısı × dinleyen sayısıyla doğru orantılıdır.
-Gerekirse ilk optimizasyon adayı: ses çerçevesi başına `context.WithTimeout` + WS yazımı.
+In reality 1–2 people speak at a time; the load is proportional to speakers × listeners. If needed the first
+optimisation candidate is the per-audio-frame `context.WithTimeout` + WS write.
 
-## Ek — Yerel HTTPS test ortamı (2026-10-13)
+## Addendum: local HTTPS test environment (2026-10-13)
 
-- `deploy/local/compose.yaml` (Caddy + Mumble + mumweb), `deploy/local/Caddyfile` (mkcert sertifikası `certs/`,
-  `auto_https disable_certs`), `.env.example` (alan adı, portlar, SuperUser şifresi); `.env` olmadan da çalışır.
-  `certs/` içeriği git'e ve Docker build context'ine girmez. Windows checkout'larında LF için `.gitattributes`.
-- Gateway: izinli Origin karşılaştırması normalize edildi (küçük harf, sondaki `/`, varsayılan `:443`/`:80`
-  yok sayılır); böylece compose `https://<alan>:<HTTPS_PORT>` yazar ve hem 443'te hem başka portta çalışır.
-- `docs/DEVELOPMENT.md`: Windows için adım adım rehber (mkcert, hosts, başlatma, masaüstü istemci, port çakışması,
-  LAN/Android, sorun giderme); README'den bağlantı verildi.
+- `deploy/local/compose.yaml` (Caddy + Mumble + mumweb), `deploy/local/Caddyfile` (mkcert certificate in `certs/`,
+  `auto_https disable_certs`), `.env.example` (domain, ports, SuperUser password); works without a `.env`. The
+  contents of `certs/` stay out of git and the Docker build context. `.gitattributes` for LF in Windows checkouts.
+- Gateway: allowed-Origin comparison normalised (lower case, trailing `/`, default `:443`/`:80` ignored); so compose
+  writes `https://<domain>:<HTTPS_PORT>` and it works on 443 as well as on other ports.
+- `docs/DEVELOPMENT.md`: step-by-step guide for Windows (mkcert, hosts, start, desktop client, port conflicts,
+  LAN/Android, troubleshooting); linked from the README.
 
-### Doğrulama (Linux, mkcert yerine openssl ile aynı yapıda CA + sertifika)
-- 80/443/64738 bu makinede dolu olduğu için `.env` ile 8444/8082/64741 kullanıldı (port değiştirme yolu da sınandı).
-- Caddy ACME'ye gitmeden dosya sertifikasını sundu; `curl --cacert rootCA.pem https://mumweb.test:8444/healthz` → 200.
-- Headless Chromium (`mumweb.test` → host IP): güvenli bağlam, iki oturum arası ses (1 kHz, -16 dB), service worker,
-  Origin `https://mumweb.test:8444` kabul edildi; mumprobe `localhost:64741` üzerinden kullanıcıları ve sesi gördü.
-- Ortam `down -v` ile kaldırıldı, sahte sertifikalar silindi.
-- **Bekleyen:** gerçek Windows + Docker Desktop + mkcert üzerinde deneme.
+### Verification (Linux, a CA + certificate with the same structure made with openssl instead of mkcert)
+- 80/443/64738 were taken on this machine so 8444/8082/64741 were used via `.env` (the port-change path was tested too).
+- Caddy served the file certificate without going to ACME; `curl --cacert rootCA.pem
+  https://mumweb.test:8444/healthz` → 200.
+- Headless Chromium (`mumweb.test` → host IP): secure context, audio between two sessions (1 kHz, -16 dB), service
+  worker, Origin `https://mumweb.test:8444` accepted; mumprobe saw the users and audio via `localhost:64741`.
+- The environment was removed with `down -v`, the fake certificates deleted.
+- **Pending:** a trial on real Windows + Docker Desktop + mkcert.
 
-## Ek — Kullanıcı geri bildirimi: sağ tık menüsü ve mikrofon hataları (2026-10-13)
+## Addendum: user feedback: context menu and microphone errors (2026-10-13)
 
-Windows + Firefox'ta yerel testte: "mikrofon kullanılamıyor" uyarısı ve sağ tıkta Firefox menüsünün açılması.
-- **Sağ tık menüsü** (`ContextMenu.svelte`): kullanıcı → yerel ses seviyesi (0–200 %), "Benim için sustur", "Sıfırla";
-  kendi satırı → mikrofon/ses kapat-aç; kanal → "Kanala katıl" (çift tık da çalışır). Ekran kenarına sığdırılır;
-  Esc, dışarı tıklama, kaydırma, pencere değişimi ile kapanır; klavye menü tuşu/Shift+F10 ve Android uzun basma ile açılır.
-  Sol tıkla açılan ses paneli kaldırıldı.
-- **Mikrofon:** işlemeli (AEC/NS/AGC, mono) `getUserMedia` izin dışı bir hatayla reddedilirse `{audio: true}` ile bir kez
-  daha denenir (bazı Windows sürücüleri işlemeli açılışı reddediyor). Uyarı artık hata türüne göre Türkçe açıklama
-  (Windows gizlilik ayarı, başka uygulama, cihaz yok…) ve teknik hata adını gösterir; "Tekrar dene" butonu eklendi.
-- Doğrulama: geçici Firefox 156 container'ı (Selenium) — sahte mikrofonla normal açılış; Firefox'u farklı örnekleme
-  hızına zorlayınca da sorun yok (kullanıcıdaki hata buna bağlı değil); işlemeli istek `NotReadableError` ile
-  reddedilince sade istekle mikrofon açıldı; iki istek de reddedilince Türkçe açıklama + `(NotReadableError: …)`,
-  "Tekrar dene" sonrası mikrofon açıldı. Menü: `contextmenu` olayı `defaultPrevented` (Firefox menüsü açılmıyor),
-  WebDriver sağ tıklama ile kullanıcı/kanal/kendi menüleri, %50 → rozet "50%", yerel susturma → "0%" ve kalıcı,
-  menüden kanala katılma Mumble'a yansıdı, menüden mute Mumble'a yansıdı, Esc/dışarı tıklama kapatıyor, sol tık açmıyor.
-- **Bekleyen:** kullanıcının Windows makinesinde gerçek hata adının görülmesi (yeni uyarı gösterecek).
+From a local test on Windows + Firefox: a "microphone unavailable" warning and the Firefox menu opening on right-click.
+- **Context menu** (`ContextMenu.svelte`): user → local volume (0–200 %), "Mute for me", "Reset"; own row →
+  microphone/audio on-off; channel → "Join channel" (double-click still works). Fits within the screen edges;
+  closes on Esc, outside click, scroll and window change; opens with the keyboard menu key/Shift+F10 and
+  long-press on Android. The volume panel opened by left click was removed.
+- **Microphone:** if the processed (AEC/NS/AGC, mono) `getUserMedia` is rejected with a non-permission error it is
+  retried once with `{audio: true}` (some Windows drivers reject the processed open). The warning now explains by
+  error type (Windows privacy setting, another app, no device…) and shows the technical error name; a "Try again"
+  button was added.
+- Verification: a temporary Firefox 156 container (Selenium): normal open with a fake microphone; forcing Firefox to a
+  different sample rate also works (the user's error was not due to that); when the processed request was rejected
+  with `NotReadableError` the plain request opened the microphone; when both were rejected the explanation +
+  `(NotReadableError: …)` appeared and the microphone opened after "Try again". Menu: the `contextmenu` event is
+  `defaultPrevented` (the Firefox menu does not open); with WebDriver right-click the user/channel/own menus work,
+  50 % → badge "50%", local mute → "0%" and persistent, joining a channel from the menu is reflected in Mumble,
+  mute from the menu is reflected in Mumble, Esc/outside click closes, left click does not open it.
+- **Pending:** seeing the real error name on the user's Windows machine (the new warning will show it).
 
-## Ek — SuperUser anahtarı, web'den kanal oluşturma, yerel Mumble sertifikası (2026-10-13)
+## Addendum: SuperUser switch, creating channels from the web, local Mumble certificate (2026-10-13)
 
-- Gateway `MUMWEB_ALLOW_SUPERUSER` (varsayılan **false**): kapalıyken `SuperUser` adı (büyük/küçük harf duyarsız)
-  Mumble'a bağlanılmadan `reject SuperUserDisabled` ile reddedilir. Yerel ve dev compose'ta açık, production'da kapalı.
-- Protokol: `{t:"createChannel", parent, name, temporary}` → Mumble `ChannelState`. Yetkiyi sunucunun ACL'i belirler;
-  ret `denied` olarak sohbete düşer. Arayüz: kanal sağ tık → "Alt kanal oluştur…" penceresi (ad, geçici kanal).
-  Not: plan Bölüm 1 yönetim işlevlerini kapsam dışı sayıyordu; kullanıcı isteğiyle yalnızca kanal oluşturma eklendi.
-- Yerel ortamda Mumble sunucusu da mkcert sertifikasını kullanır (`sslCert`/`sslKey`). mkcert anahtarı 600 izinli
-  olduğundan ve Mumble uid 10000 ile çalıştığından tek seferlik `certs` servisi dosyaları uygun sahiplikle bir volume'e
-  kopyalar (bind mount ile Linux'ta "Failed to read /certs/key.pem" ile kapanıyordu). Sertifika yoksa Türkçe hata ile durur.
-- Doğrulama: Go testleri (SuperUser reddi 3 yazımda; kayıtsız kullanıcı kalıcı kanal → `Permission`; SuperUser geçici
-  kanal oluşturuyor). Yerel stack (openssl ile mkcert benzeri CA): `openssl s_client -CAfile rootCA.pem
-  -verify_hostname mumweb.test` → Mumble portunda `Verify return code: 0`. Tarayıcı: SuperUser web'den girdi (kayıtlı
-  ikonu), sağ tık → "Oyun Odası" oluşturuldu (gözlemci istemci de gördü), menüden katılındı; kayıtsız kullanıcı kalıcı
-  ve geçici kanal denemesinde "Bu işlem için yetkiniz yok." (Mumble varsayılan ACL'i).
+- Gateway `MUMWEB_ALLOW_SUPERUSER` (default **false**): when off the `SuperUser` name (case insensitive) is rejected
+  with `reject SuperUserDisabled` before connecting to Mumble. On in the local and dev compose, off in production.
+- Protocol: `{t:"createChannel", parent, name, temporary}` → Mumble `ChannelState`. The server's ACL decides
+  permission; a refusal appears in the chat as `denied`. UI: channel right-click → "Create sub-channel…" window
+  (name, temporary channel). Note: plan section 1 put administration out of scope; only channel creation was added,
+  at the user's request.
+- In the local environment the Mumble server also uses the mkcert certificate (`sslCert`/`sslKey`). mkcert writes the
+  key with mode 600 and Mumble runs as uid 10000, so the one-shot `certs` service copies the files into a volume
+  with suitable ownership (a bind mount made it exit with "Failed to read /certs/key.pem" on Linux). If the
+  certificate is missing it stops with an error message.
+- Verification: Go tests (SuperUser refused on 3 spellings; an unregistered user creating a permanent channel →
+  `Permission`; SuperUser creates a temporary channel). Local stack (openssl CA like mkcert): `openssl s_client
+  -CAfile rootCA.pem -verify_hostname mumweb.test` → `Verify return code: 0` on the Mumble port. Browser: SuperUser
+  logged in from the web (registered icon), right-click → "Oyun Odası" created (the observer client saw it), joined
+  from the menu; an unregistered user trying a permanent and a temporary channel got "You don't have permission for
+  this action." (Mumble's default ACL).
 
-## Ek — Masaüstü Mumble'daki kullanıcı sağ tık menüsü (2026-10-13)
+## Addendum: the desktop Mumble user right-click menu (2026-10-13)
 
-Kullanıcının paylaştığı ekran görüntüsündeki (SuperUser olarak başka kullanıcıya sağ tık) 18 öğe, masaüstü istemcinin
-sırasıyla ve izin mantığıyla (`MainWindow::qmUser_aboutToShow`, `updateMenuPermissions`, v1.5.939) uygulandı.
-- İzinler: kök izinler `ServerSync.permissions` (`ready.permissions`), kanal izinleri `PermissionQuery` (istek üzerine,
-  `flush` ile sıfırlanır). Sunucu SuperUser'a izin bilgisi göndermez; SuperUser = `All & ~(Speak|Whisper)`
-  (`ChanACL::effectivePermissions`). Tarayıcıya `userId`, `hash`, `hasComment`, `hasTexture` eklendi.
-- Gateway komutları: `moveUser`, `setUser` (mute/deaf/prioritySpeaker), `kick`, `ban`, `register`, `resetComment`,
-  `resetTexture`, `requestComment` (RequestBlob), `userStats` (UserStats → `userStats` mesajı), özel `text`
+The 18 items in the screenshot the user shared (right-click on another user as SuperUser) were implemented in the
+order and with the permission logic of the desktop client (`MainWindow::qmUser_aboutToShow`,
+`updateMenuPermissions`, v1.5.939).
+- Permissions: root permissions from `ServerSync.permissions` (`ready.permissions`), channel permissions from
+  `PermissionQuery` (on demand, reset by `flush`). The server sends no permission info to SuperUser; SuperUser =
+  `All & ~(Speak|Whisper)` (`ChanACL::effectivePermissions`). `userId`, `hash`, `hasComment`, `hasTexture` were
+  added to what the browser receives.
+- Gateway commands: `moveUser`, `setUser` (mute/deaf/prioritySpeaker), `kick`, `ban`, `register`, `resetComment`,
+  `resetTexture`, `requestComment` (RequestBlob), `userStats` (UserStats → `userStats` message), private `text`
   (`session`), `queryPermissions`.
-- **Önemli bulgu — ban:** sunucunun `msgUserRemove(ban)`'ı kullanıcının IP'sini de yasaklar; tüm web kullanıcıları
-  gateway IP'sini paylaştığı için bu hepsini dışarıda bırakır. Web'deki "Yasakla" bu yüzden ban listesini çekip
-  `100::/128` (RFC 6666, hiçbir istemciyle eşleşmez) adresli + sertifika hash'li bir kayıt ekleyip geri yazar ve
-  kullanıcıyı kovar. Masaüstünden yapılan ban'lar için README'ye uyarı eklendi.
-- Yerel tercihler (sertifika hash'ine göre, yoksa ada göre): rumuz (ağaçta rumuz, ipucunda gerçek ad), mesajları
-  görmezden gel (sohbete düşmez), arkadaş (kalp ikonu; ad değişirse "güncelle"). İmtiyazlı konuşmacı ikonu eklendi.
-- Pencereler: kov/yasakla sebebi, rumuz, özel mesaj (Ctrl+Enter), açıklama (DOMPurify), bilgi (istemci, OS,
-  süreler, adres, ping, sertifika, paketler).
-- SuperUser ile girince sohbette "SuperUser konuşamaz" bilgisi.
-- Doğrulama: Go entegrasyon testi `TestAdminActions` (normal kullanıcıyla izin sorgusu, sustur/sağır/imtiyazlı,
-  taşı ve geri, özel mesajın yalnız hedefe gitmesi, bilgi, kaydet, kov; ban sonrası yasaklı sertifika geri giremiyor,
-  **başka web kullanıcısı girebiliyor**; sunucu logu `Host: "[100:]"`). Tarayıcı (Chromium, iki ayrı bağlam):
-  menü içeriği masaüstüyle aynı sırada; taşı, sustur, sağır et, imtiyazlı (ikon), rumuz, özel mesaj iki tarafta,
-  görmezden gelinen mesaj görünmüyor, bilgi penceresi, açıklama görüntüle (`<script>` temizlendi) ve sıfırla (sonra
-  pasif), arkadaş (kalp), kaydet (kayıtlı), normal kullanıcının menüsünde yönetim öğeleri yok/pasif, kov → hedefte
-  "Sunucudan atıldınız: test bitti".
-- Bilinen sınır: kendi açıklamasını düzenleme ve avatar gösterme yok (avatar yalnızca kaldırılabiliyor).
+- **Important finding: ban.** The server's `msgUserRemove(ban)` also bans the user's IP; since all web users share the
+  gateway IP this locks everyone out. The web "Ban" therefore fetches the ban list, adds an entry with the address
+  `100::/128` (RFC 6666, matches no client) + the certificate hash, writes it back and kicks the user. A warning about
+  bans made from the desktop was added to the README.
+- Local preferences (by certificate hash, else by name): nickname (nickname in the tree, real name in the tooltip),
+  ignore messages (do not reach the chat), friend (heart icon; "update" if the name changes). A priority-speaker
+  icon was added.
+- Windows: kick/ban reason, nickname, private message (Ctrl+Enter), comment (DOMPurify), info (client, OS, times,
+  address, ping, certificate, packets).
+- When logging in as SuperUser the chat shows a "SuperUser cannot speak" notice.
+- Verification: Go integration test `TestAdminActions` (permission query as a normal user, mute/deafen/priority,
+  move and back, private message reaching only the target, info, register, kick; after the ban the banned
+  certificate cannot get back in and **another web user can**; the server log shows `Host: "[100:]"`). Browser
+  (Chromium, two separate contexts): the menu content is in the same order as the desktop; move, mute, deafen,
+  priority (icon), nickname, private message on both sides, ignored messages not shown, info window, view comment
+  (`<script>` stripped) and reset (then disabled), friend (heart), register (registered), a normal user's menu has
+  the admin items missing/disabled, kick → "You were kicked from the server: test over" on the target.
+- Known limit: editing your own comment and showing avatars are missing (an avatar can only be removed).
 
-## Ek — Masaüstü Mumble'daki kanal sağ tık menüsü (2026-10-13)
+## Addendum: the desktop Mumble channel right-click menu (2026-10-13)
 
-Kullanıcının ekran görüntüsündeki kanal menüsü, masaüstü istemcinin sırası ve kurallarıyla
-(`qmChannel_aboutToShow` + `updateMenuPermissions`, v1.5.939; iki kural kümesi birlikte uygulanır):
-Kanala katıl, Kanalı dinle | Ekle…, Düzenle…, Kaldır… | Bağla, Bağlantıyı kaldır, Tümünün bağlantısını kaldır |
-URL'i kopyala, Mesaj gönder… | Filtrelerken gizle, Filtrelerken iğnele.
-- Gateway: `editChannel` (ad/açıklama/sıra/kullanıcı sınırı), `removeChannel`, `linkChannels` (bağla/kaldır her zaman
-  kendi kanalımız üzerinden, masaüstü gibi), `listen` (`listening_channel_add/remove`), `requestDescription`
-  (RequestBlob), `text` + `channelId` + `tree` (`tree_id`). Kanal mesajına `hasDescription`, `maxUsers`; kullanıcıya
-  `listening` eklendi.
-- **Düzeltme:** Mumble kanal bağlantıları çift yönlüdür (`Channel::link`) ama sunucu değişikliği tek kanal üzerinden
-  bildirir; durum artık karşı kanalı da günceller ve iki kanal için de olay yayınlar (birim + entegrasyon testi).
-  Kanal silinince diğer kanalların bağlantılarından ve dinleyici listelerinden de düşer.
-- URL'i kopyala: masaüstünün `mumble://` adresi yerine (Mumble'ın dış adresi gateway'de bilinmiyor) web adresi
-  `…/#kanal=/Yol/Alt`; bu bağlantıyla giriş yapan kişi ilk `ready`'de o kanala katılır.
-- Filtre: kanal listesinin başlığında huni düğmesi; açıkken kullanıcısı (veya dinleyicisi) olmayan kanallar gizlenir,
-  "iğnele" her zaman gösterir, "gizle" (kendi kanalımız değilse) her zaman gizler. Kanal başına ayarlar yerel.
-- Ağaç: dinleyiciler kulak ikonuyla kanalın altında, bağlı kanallarda zincir ikonu. Gönderilen kanal/özel mesajlarda
-  "Sen → #Kanal" / "Sen → Ad" etiketi (yalnızca özel mesajlar "özel" işaretli).
-- Doğrulama: Go `TestChannelActions` (oluştur, düzenle, açıklama, bağla/kaldır ve tarayıcıya giden iki tarafın sırası,
-  dinleme ve `listening` alanı, ağaç mesajı, sil), `TestLinksAreSymmetric`, `TestListeningChannels`. Tarayıcı
-  (SuperUser + ayrı bağlamda normal kullanıcı + bağlantıyla giren üçüncü kişi): menü içeriği, ekle, düzenle (form
-  yeniden açılınca değerler geri geliyor), bağla/kaldır/tümünü kaldır ikonları, dinleyici satırı ve onay işareti,
-  alt kanaldaki kullanıcıya ağaç mesajı, URL kopyala → yeni oturum doğrudan o kanalda, filtre + iğnele/gizle, kaldır;
-  normal kullanıcının menüsünde yönetim öğeleri pasif.
-- Bilinen sınır: kanal şifresi (ACL ile) ve kanal açıklamasını görüntüleme yok.
+The channel menu in the user's screenshot, in the order and with the rules of the desktop client
+(`qmChannel_aboutToShow` + `updateMenuPermissions`, v1.5.939; both rule sets applied together):
+Join channel, Listen to channel | Add…, Edit…, Remove… | Link, Unlink, Unlink all | Copy URL, Send message… |
+Hide when filtering, Pin when filtering.
+- Gateway: `editChannel` (name/description/position/user limit), `removeChannel`, `linkChannels` (link/unlink always
+  via our own channel, like the desktop), `listen` (`listening_channel_add/remove`), `requestDescription`
+  (RequestBlob), `text` + `channelId` + `tree` (`tree_id`). `hasDescription`, `maxUsers` added to the channel
+  message; `listening` to the user.
+- **Fix:** Mumble channel links are bidirectional (`Channel::link`) but the server reports a change through one
+  channel only; the state now updates the other channel too and emits events for both (unit + integration test).
+  When a channel is removed it also drops from the other channels' links and listener lists.
+- Copy URL: instead of the desktop's `mumble://` address (Mumble's external address is not known to the gateway) the
+  web address `…/#kanal=/Path/Sub`; someone logging in with that link joins the channel at the first `ready`.
+- Filter: a funnel button in the channel list header; when on, channels without users (or listeners) are hidden,
+  "pin" always shows, "hide" (unless it is our channel) always hides. Per-channel settings are local.
+- Tree: listeners under the channel with an ear icon, a chain icon on linked channels. Sent channel/private
+  messages get a "You → #Channel" / "You → Name" label (only private messages are marked "private").
+- Verification: Go `TestChannelActions` (create, edit, description, link/unlink and the order of the two sides sent to
+  the browser, listening and the `listening` field, tree message, delete), `TestLinksAreSymmetric`,
+  `TestListeningChannels`. Browser (SuperUser + a normal user in a separate context + a third person arriving by
+  link): menu content, add, edit (values come back when the form reopens), link/unlink/unlink-all icons, listener row
+  and tick, tree message to a user in a sub-channel, copy URL → a new session lands straight in that channel, filter +
+  pin/hide, remove; admin items disabled in a normal user's menu.
+- Known limit: channel password (via ACL) and viewing channel descriptions are missing.
 
-## Ek — Şifreli kanallar (2026-10-13)
+## Addendum: password-protected channels (2026-10-13)
 
-Mumble'da kanal şifresi bir ACL'dir (masaüstü `ACLEditor::updatePasswordACL`): `@all` için Enter|Speak|Whisper|
-TextMessage|LinkChannel|Traverse reddedilir, `#<şifre>` grubuna izin verilir; şifre "erişim token'ı" olarak gönderilir.
-Masaüstü 1.5 girerken şifre sormaz (Erişim tokenları penceresi); web'de istenen akış uygulandı.
-- Giriş: kilitli kanala (sunucunun `is_enter_restricted` / `can_enter` alanları) katılırken veya "Enter" reddi
-  gelince şifre penceresi. Şifre oturumun **kalıcı** erişim token'larına eklenir (oturum ortasında `Authenticate.tokens`;
-  sunucu tüm kanalların `can_enter`'ını yeniden gönderir), ardından katılma isteği gider. Geçici token
-  (`UserState.temporary_access_tokens`) yalnızca giriş kontrolünde geçerli olduğu için kullanılmadı: şifre ACL'i
-  Speak/TextMessage'ı da kısıtlar, kullanıcı içeride konuşamazdı. Yanlış şifre → token geri alınır, pencere hata ile
-  tekrar açılır. "Bu tarayıcıda hatırla" → localStorage, girişte `hello.tokens` ile gönderilir; Ayarlar'dan silinir.
-- Yönetici: Düzenle penceresinde "Kanal şifresi" (ACL okunup gösterilir; değişince ACL masaüstüyle aynı kurallarla
-  geri yazılır: miras alınanlar ve değişmemiş miras gruplar atlanır, mevcut şifre ACL'i + eşleşen `@all` reddi
-  değiştirilir).
-- Ağaç: kilitli kanal kırmızı kilit, şifresi olunan kanal açık kilit.
-- **Bulgu — sunucu mesaj hız sınırı:** murmur kullanıcı başına `messagelimit` (1/sn) / `messageburst` (5) uygular
-  (kendi UserState'i, kanal oluşturma, TextMessage, ACL) ve fazlasını sessizce düşürür. ACL yazma 2 mesajdır
-  (sorgu + yazma). Testte hızlı ardışık işlemler bu yüzden düştü; README'ye not eklendi.
-- Doğrulama: Go `TestChannelPassword` (şifre koy/oku, normal kullanıcıda kilitli + reddedilir, yanlış token
-  reddedilir, doğru token → `canEnter` true ve giriş, `hello.tokens` girişten itibaren geçerli, şifre kaldırılınca
-  kısıt kalkar). Tarayıcı: SuperUser Düzenle'den şifre koydu; normal kullanıcı kırmızı kilit gördü, çift tıkta şifre
-  penceresi, yanlış şifre → hata satırı, doğru şifre + hatırla → kanalda ve sohbet yazabiliyor, sayfa yenilenince
-  şifresiz girdi, Ayarlar'dan şifre silinince yeniden kilitli; yönetici Düzenle'de mevcut şifreyi görüyor.
+In Mumble a channel password is an ACL (desktop `ACLEditor::updatePasswordACL`): `@all` is denied
+Enter|Speak|Whisper|TextMessage|LinkChannel|Traverse and the `#<password>` group is allowed; the password is sent as
+an "access token". Desktop 1.5 does not ask for the password on entering (the Access tokens window); the requested
+flow was implemented on the web.
+- Entering: when joining a locked channel (the server's `is_enter_restricted` / `can_enter` fields) or on an "Enter"
+  denial, a password window appears. The password is added to the session's **persistent** access tokens (mid-session
+  via `Authenticate.tokens`; the server re-sends `can_enter` for all channels), then the join request is sent. The
+  temporary token (`UserState.temporary_access_tokens`) was not used because it only counts at the entry check: the
+  password ACL also restricts Speak/TextMessage, so the user could not speak inside. Wrong password → the token is
+  withdrawn and the window reopens with an error. "Remember in this browser" → localStorage, sent at login in
+  `hello.tokens`; removable from Settings.
+- Admin: "Channel password" in the Edit window (the ACL is read and shown; on change it is written back with the same
+  rules as the desktop: inherited entries and unchanged inherited groups are skipped, an existing password ACL +
+  its matching `@all` denial are replaced).
+- Tree: a locked channel has a red lock, a channel whose password you hold has an open lock.
+- **Finding: server message rate limit.** murmur applies `messagelimit` (1/s) / `messageburst` (5) per user (own
+  UserState, channel creation, TextMessage, ACL) and silently drops the excess. An ACL write is 2 messages (query +
+  write). Rapid consecutive operations in tests were dropped because of this; a note was added to the README.
+- Verification: Go `TestChannelPassword` (set/read the password, locked and denied for a normal user, a wrong token
+  denied, the right token → `canEnter` true and entry, `hello.tokens` valid from login, restriction gone once the
+  password is removed). Browser: SuperUser set a password via Edit; a normal user saw a red lock, a password window on
+  double-click, wrong password → error line, right password + remember → in the channel and able to chat, entered
+  without a password after a reload, locked again after the password was removed in Settings; the admin sees the
+  current password in Edit.
 
-## Ek — Aynı IP'den gelen web kullanıcıları: takma ad devralma açığı (2026-10-13)
+## Addendum: web users on the same IP: nickname takeover (2026-10-13)
 
-Kaynak (murmur `msgAuthenticate`, "Allow reuse of name from same IP"): kayıtsız bir kullanıcı, kullanımdaki bir adla
-**aynı IP'den** gelirse sunucu UsernameInUse demek yerine eski oturumu atar. Tüm web kullanıcıları gateway IP'sini
-paylaştığı için herhangi bir web kullanıcısı başka bir web kullanıcısının adını yazarak onu düşürebiliyordu.
-- Gateway, açık oturumların adlarını (büyük/küçük harf duyarsız) ve sertifika hash'lerini tutar; aynı adla **farklı
-  sertifikadan** gelen girişi Mumble'a bağlanmadan `reject UsernameInUse` ile reddeder. Aynı sertifika (yeniden
-  bağlanma, ikinci sekme) eskisi gibi kabul edilir ve sunucu eski oturumu kapatır.
-- Hash, Mumble'ınkiyle aynı biçimde hesaplanır (DER sertifikanın SHA-1'i, hex); entegrasyon testinde sunucunun
-  gördüğü hash ile karşılaştırıldı.
-- Doğrulama: `TestNameRegistry` (talep, büyük/küçük harf, aynı sertifikayla ikinci oturum, bırakma) ve
-  `TestNameTakeover` (gerçek sunucu: hash eşleşmesi, başka sertifikayla aynı ad reddedildi ve sahibi bağlı kaldı,
-  aynı sertifikayla yeniden bağlanma eski oturumu değiştirdi).
-- Masaüstü kullanıcıları etkilenmez (farklı IP → sunucu zaten reddeder). IP'nin sunucuda kullanıldığı diğer yerler:
-  ban (açık konu), autoban (çözüldü), UserStats adresi (kozmetik).
+Source (murmur `msgAuthenticate`, "Allow reuse of name from same IP"): if an unregistered user arrives from the
+**same IP** with a name already in use, the server drops the old session instead of answering UsernameInUse. Since
+all web users share the gateway IP, any web user could kick another web user by typing their name.
+- The gateway keeps the names (case insensitive) and certificate hashes of open sessions and rejects a login with
+  the same name from a **different certificate** with `reject UsernameInUse` without connecting to Mumble. The same
+  certificate (reconnect, a second tab) is accepted as before and the server closes the old session.
+- The hash is computed the way Mumble does (SHA-1 of the DER certificate, hex); compared with the hash the server
+  sees in the integration test.
+- Verification: `TestNameRegistry` (claim, case, a second session with the same certificate, release) and
+  `TestNameTakeover` (real server: hash match, the same name with another certificate rejected and the owner stays
+  connected, reconnecting with the same certificate replaced the old session).
+- Desktop users are not affected (a different IP → the server already refuses). Other places where the IP matters on
+  the server: ban (open issue), autoban (solved), the UserStats address (cosmetic).
 
-## Faz 9 kararı (2026-10-13)
-WASM Opus yedeği **yapılmayacak** (kullanıcı kararı). Gerekçe: WebKit kaynağına göre Safari 26+ (iOS 26 / macOS)
-WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (`AudioEncoderCocoa.cpp`,
-`AudioDecoderCocoa.cpp`); yedek yalnız eski Safari için gerekirdi ve tarayıcıda Opus kodlayıcı kütüphaneleri eski.
-Öncelik Android ve masaüstü web özellikleri. Safari 26+ gerçek cihazda test edilmedi.
+## Phase 9 decision (2026-10-13)
+A WASM Opus fallback will **not** be built (user decision). Rationale: per the WebKit source Safari 26+ (iOS 26 /
+macOS) supports raw mono/stereo Opus through WebCodecs `AudioEncoder`/`AudioDecoder` (`AudioEncoderCocoa.cpp`,
+`AudioDecoderCocoa.cpp`); a fallback would only be for older Safari, and Opus encoder libraries for the browser are
+dated. Priority goes to Android and desktop web features. Safari 26+ has not been tested on a real device.
 
-## Açık konular
-- Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
-  (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,
-  yasaklama nadir. Web arayüzündeki "Yasakla" yalnızca sertifikayı yasaklar; masaüstünden yasaklama olursa yönetici
-  yasak listesinden IP'li kaydı siler (README'de anlatıldı). İleride gerekirse "bekçi hesabı" ile otomatik düzeltme
-  seçeneği değerlendirilebilir.
-- Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
-  (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.
-- Plan 5.3'teki `frame_number` "+1 / 20 ms" ifadesi resmî istemciye göre "+2 / 20 ms" (10 ms birim) olarak
-  düzeltilmeli (bkz. Faz 4 notu).
+## Documentation: English as the primary language (2026-10-13)
+
+- `README.md`, `docs/DEVELOPMENT.md`, `docs/PROGRESS.md`, `docs/TODO.md` and the new `docs/TESTING.md` are now
+  English. Turkish versions live in `README.tr.md` and `docs/tr/`; every page links to its counterpart.
+- The README was restructured for a public audience (highlights, feature table, browser support, quick start,
+  deployment, configuration, building, testing, troubleshooting). Repository-internal material moved into the new
+  `CLAUDE.md`.
+- Deploy files: the Turkish welcome-text default in `deploy/docker-compose.yml` and `.env.example` and the error
+  message of the `certs` service in `deploy/local/compose.yaml` are now English.
+- Not done yet: the user interface itself is still Turkish only (see TODO A1).
+
+## Open issues
+- When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
+  logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small
+  groups/teams and bans are rare. The web "Ban" only bans the certificate; after a desktop ban an admin deletes the
+  IP entry from the ban list (described in the README). A "guard account" automatic fix may be considered later.
+- Mumble autoban in production (Phase 7): at least `autobanSuccessfulConnections=false`. Failed logins (wrong
+  password) are still counted against the gateway IP; 10 wrong passwords in 120 s cut off all web users for 5 minutes.
+- The plan's 5.3 `frame_number` "+1 / 20 ms" should read "+2 / 20 ms" (10 ms unit) per the official client (see the
+  Phase 4 note).
