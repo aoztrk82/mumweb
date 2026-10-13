@@ -11,6 +11,10 @@ services:
       - "${MUMBLE_PORT:-64738}:64738/udp"
     environment:
       MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:?set MUMBLE_SUPERUSER_PASSWORD in deploy/.env}
+      # All browser users reach Mumble from the gateway's single IP. With the default
+      # autoban (10 connections / 120 s, successful ones included) a handful of web
+      # logins would ban the gateway for 5 minutes. Count only failed attempts.
+      MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
     volumes:
       - mumble-data:/data
 

@@ -216,6 +216,9 @@ func (c *Client) handshake(r *bufio.Reader, cfg Config) error {
 		return err
 	}
 
+	// The server sends ServerConfig right after ServerSync; wait for both so
+	// Info() is complete when Dial returns.
+	synced := false
 	for {
 		t, payload, err := readFrame(r)
 		if err != nil {
@@ -233,10 +236,13 @@ func (c *Client) handshake(r *bufio.Reader, cfg Config) error {
 			c.info.MaxBandwidth = m.GetMaxBandwidth()
 			c.info.WelcomeText = m.GetWelcomeText()
 			c.info.Permissions = m.GetPermissions()
-			return nil
+			synced = true
 		default:
-			// State and info messages before sync; no events are emitted for them.
+			// No events are emitted during the handshake; the caller reads State().
 			c.handle(t, msg, payload, false)
+			if t == MsgServerConfig && synced {
+				return nil
+			}
 		}
 	}
 }
