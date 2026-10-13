@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/ws': { target: 'http://localhost:8080', ws: true },
+      '/config': { target: 'http://localhost:8080' },
       '/healthz': { target: 'http://localhost:8080' },
     },
   },

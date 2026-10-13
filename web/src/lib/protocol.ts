@@ -8,7 +8,7 @@ export interface CertPair {
 // --- browser -> gateway ---
 
 export type ClientMessage =
-  | { t: 'hello'; username: string; password: string; cert: CertPair | null; tokens: string[] }
+  | { t: 'hello'; username: string; password: string; accessPassword: string; cert: CertPair | null; tokens: string[] }
   | { t: 'setTokens'; tokens: string[] }
   | { t: 'setChannelPassword'; channelId: number; channelPassword: string }
   | { t: 'queryChannelPassword'; channelId: number }

@@ -21,13 +21,12 @@ Son güncelleme: 2026-10-13. Ayrıntılı geçmiş ve doğrulama notları: [PROG
       diğer Mumble web istemcileriyle "Neden mumweb?" karşılaştırması.
 
 ### 2. Web erişim şifresi (sunucu şifresinden ayrı)
-- [ ] `MUMWEB_ACCESS_PASSWORD` (boşsa kapalı) — web arayüzünü kullanmak için gereken, yalnızca gateway'in bildiği şifre.
-      Mumble sunucu şifresinden bağımsız; `MUMWEB_ALLOW_SUPERUSER` gibi açılıp kapanabilir.
-- [ ] Gateway `hello`'da (Mumble'a bağlanmadan önce) sabit zamanlı karşılaştırma ile kontrol eder; yanlışsa Türkçe/İngilizce
-      anlaşılır `reject`.
-- [ ] Kaba kuvvete karşı IP başına deneme sınırı ve gecikme (mevcut bağlantı sınırına ek).
-- [ ] Giriş ekranında "Erişim şifresi" alanı yalnızca özellik açıksa görünsün (gateway bunu bir `/config` uç noktası ile
-      bildirebilir). İsteğe bağlı "bu tarayıcıda hatırla".
+- [x] `MUMWEB_ACCESS_PASSWORD` (boşsa kapalı): web arayüzü için gereken, yalnızca gateway'in bildiği şifre; Mumble
+      sunucu şifresinden bağımsız.
+- [x] `hello`'da Mumble'a bağlanmadan önce, sabit zamanlı karşılaştırmayla ve ayrı `reject` nedenleriyle kontrol edilir.
+- [x] Kaba kuvvet koruması: yanlış denemede 1 sn gecikme, 5 yanlış denemede IP 10 dakika engellenir.
+- [x] Giriş ekranı alanı yalnızca `/config` isterse gösterir; "bu tarayıcıda hatırla" var.
+- [ ] Tarayıcıda elle denenmedi (yalnızca otomatik gateway testleri ve tip kontrolü yapıldı).
 - [ ] Değerlendirme: şifre yerine/yanında davet bağlantısı (imzalı, süreli token) daha kullanışlı olabilir.
 
 ### 3. Web yönetim paneli (mümkünse)

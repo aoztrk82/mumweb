@@ -495,6 +495,26 @@ dated. Priority goes to Android and desktop web features. Safari 26+ has not bee
 - Verification: `npm run check` 0 errors, `npm test` (19) and `npm run build` pass. Not yet checked in a browser by
   hand: switching while connected, and the fallback with a non-English/Turkish browser language.
 
+## Addendum: web access password (2026-10-13)
+
+- `MUMWEB_ACCESS_PASSWORD` (empty = off). The browser sends it as `hello.accessPassword`; it is separate from
+  `hello.password`, which stays the Mumble server password. The check runs first in the session, before username
+  validation, certificate handling and any Mumble connection. Reject reasons: `AccessPasswordRequired`,
+  `AccessPasswordWrong`, `AccessRateLimited` (not Mumble types; the UI maps them to messages).
+- Constant-time comparison (SHA-256 of both sides, `subtle.ConstantTimeCompare`). A wrong guess is answered after
+  1 s; 5 wrong guesses from one IP within 10 minutes lock that IP out, even for the right password (`failTracker`).
+  The existing per-IP connection rate limit still applies. Passwords are never logged.
+- `GET /config` returns `{"accessPassword": bool}` (`Cache-Control: no-store`; excluded from the service worker).
+  The login screen fetches it and shows the "Access password" field only when needed, with "Remember in this
+  browser" (localStorage). A reject with an `Access…` reason also reveals the field, and a wrong password forgets the
+  saved one.
+- Limits: a door code, not per-user authentication; desktop Mumble clients bypass it (port 64738); it is as private
+  as the HTTPS connection that carries it.
+- Verification: Go tests `TestAccessPassword` (required, wrong, the Mumble server password is not accepted, right
+  password passes, lockout after 5 wrong guesses also for the right password), `TestFailTracker`,
+  `TestPasswordMatches`, `TestNoAccessPassword`; the built gateway answers `/config` with `true` when the variable
+  is set. `npm run check` 0 errors, `npm test` and `npm run build` pass. **Not tried by hand in a browser.**
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

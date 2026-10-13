@@ -36,6 +36,8 @@ services:
       # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
       # is reachable by anyone who knows the URL; use the desktop client for admin work.
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
+      # Optional password every web user must enter (independent of the Mumble server password).
+      MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
     depends_on:
       - mumble
 

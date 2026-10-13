@@ -170,6 +170,7 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
 | `MUMWEB_TRUST_PROXY` | `false` | Take the client IP from `X-Forwarded-For` (set `true` behind a reverse proxy) |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web (when off the name is rejected; administer from the desktop client) |
+| `MUMWEB_ACCESS_PASSWORD` | empty | If set, every web user must enter this password on the login screen. Separate from the Mumble server password and only enforced by the gateway (see below) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 ### Compose variables (`deploy/.env`)
@@ -183,6 +184,19 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_MAX_SESSIONS` | `50` | See above |
 | `MUMWEB_LOG_LEVEL` | `info` | See above |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | See above |
+| `MUMWEB_ACCESS_PASSWORD` | empty | See above |
+
+### Web access password
+
+Set `MUMWEB_ACCESS_PASSWORD` to keep strangers out of the web client. The login screen then shows an extra
+"Access password" field (with a "remember in this browser" option); it appears only when the feature is on.
+
+- It is **not** the Mumble server password. Desktop Mumble clients connect straight to port 64738 and never see it,
+  so protect the server itself with Mumble's own password if you need that too.
+- The gateway checks it before it connects to Mumble, compares in constant time, waits a second after a wrong
+  guess, and locks an IP out for 10 minutes after 5 wrong guesses.
+- It travels over the same HTTPS/WSS connection as everything else, so use HTTPS. Treat it as a shared "door code",
+  not as per-user authentication.
 
 ### Pinning the Mumble certificate
 

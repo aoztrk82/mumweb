@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"log/slog"
@@ -44,6 +45,7 @@ func main() {
 		ConnsPerMinute: envInt("MUMWEB_CONN_RATE", 10),
 		TrustProxy:     envBool("MUMWEB_TRUST_PROXY", false),
 		AllowSuperUser: envBool("MUMWEB_ALLOW_SUPERUSER", false),
+		AccessPassword: os.Getenv("MUMWEB_ACCESS_PASSWORD"),
 		Release:        release,
 		Logger:         logger,
 	}
@@ -61,7 +63,7 @@ func main() {
 
 	go func() {
 		slog.Info("listening", "addr", addr, "mumble", bcfg.MumbleAddr, "tlsVerify", bcfg.TLSVerify,
-			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser)
+			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "err", err)
 			os.Exit(1)
@@ -77,9 +79,15 @@ func main() {
 	}
 }
 
-func newMux(dist fs.FS, ws http.Handler) *http.ServeMux {
+func newMux(dist fs.FS, ws *bridge.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /ws", ws)
+	// Tells the login screen whether to ask for the web access password.
+	mux.HandleFunc("GET /config", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(map[string]bool{"accessPassword": ws.AccessPasswordRequired()})
+	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		_, _ = w.Write([]byte("ok\n"))

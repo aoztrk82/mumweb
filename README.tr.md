@@ -139,7 +139,20 @@ location / {
 | `MUMWEB_CONN_RATE` | `10` | IP başına dakikada yeni bağlantı sınırı (`0` = kapalı) |
 | `MUMWEB_TRUST_PROXY` | `false` | İstemci IP'sini `X-Forwarded-For`'dan al (ters proxy arkasında `true`) |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Web'den Mumble `SuperUser` hesabıyla girişe izin ver (kapalıyken bu ad reddedilir; yönetim masaüstü istemciden) |
+| `MUMWEB_ACCESS_PASSWORD` | boş | Doluysa her web kullanıcısı giriş ekranında bu şifreyi girmek zorundadır. Mumble sunucu şifresinden ayrıdır ve yalnızca gateway uygular (aşağıya bakın) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+
+### Web erişim şifresi
+
+Web istemcisini yabancılardan korumak için `MUMWEB_ACCESS_PASSWORD` ayarlayın. Giriş ekranında ek bir "Erişim şifresi"
+alanı çıkar ("bu tarayıcıda hatırla" seçeneğiyle); alan yalnızca özellik açıkken görünür.
+
+- Mumble sunucu şifresi **değildir**. Masaüstü Mumble istemcileri doğrudan 64738 portuna bağlanır ve bu şifreyi görmez;
+  sunucunun kendisini de korumak istiyorsanız Mumble'ın kendi şifresini kullanın.
+- Gateway şifreyi Mumble'a bağlanmadan önce sabit zamanlı karşılaştırır, yanlış denemeden sonra bir saniye bekler ve
+  5 yanlış denemeden sonra o IP'yi 10 dakika engeller.
+- Diğer her şey gibi HTTPS/WSS üzerinden gider, bu yüzden HTTPS kullanın. Kullanıcı başına kimlik doğrulama değil,
+  ortak bir "kapı kodu" olarak düşünün.
 
 Mumble sunucusunun parmak izini `mumprobe` yazdırır (`make gateway` sonrası):
 `./bin/mumprobe -addr <sunucu>:64738 -exit` → `server certificate SHA-256: AB:CD:…`. Bu değer

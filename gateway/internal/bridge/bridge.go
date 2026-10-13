@@ -47,6 +47,7 @@ type Config struct {
 	TrustProxy     bool     // take client IP from X-Forwarded-For
 	Release        string   // client release string shown to other users
 	AllowSuperUser bool     // allow logging in as Mumble's SuperUser from the web
+	AccessPassword string   // if set, browsers must send it in hello (separate from the Mumble server password)
 	Logger         *slog.Logger
 }
 
@@ -58,6 +59,7 @@ type Handler struct {
 	cfg      Config
 	log      *slog.Logger
 	limiter  *ipLimiter
+	fails    *failTracker
 	sessions atomic.Int64
 }
 
@@ -75,12 +77,15 @@ func New(cfg Config) *Handler {
 	}
 	cfg.AllowedOrigins = origins
 	base, stop := context.WithCancel(context.Background())
-	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute)}
+	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute), fails: newFailTracker()}
 }
 
 // Shutdown ends all sessions. Hijacked WebSocket connections are not covered
 // by http.Server.Shutdown, so call this from its shutdown path.
 func (h *Handler) Shutdown() { h.stop() }
+
+// AccessPasswordRequired reports whether browsers must supply the web access password.
+func (h *Handler) AccessPasswordRequired() bool { return h.cfg.AccessPassword != "" }
 
 // Sessions returns the number of open sessions.
 func (h *Handler) Sessions() int { return int(h.sessions.Load()) }
@@ -120,12 +125,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer ws.CloseNow()
 	ws.SetReadLimit(maxJSONSize)
 
-	s := &session{h: h, ws: ws, log: log}
+	s := &session{h: h, ws: ws, log: log, ip: ip}
 	code, reason := s.run(r.Context())
 	_ = ws.Close(code, reason)
 }
 
 type session struct {
+	ip  string
 	h   *Handler
 	ws  *websocket.Conn
 	log *slog.Logger
@@ -142,6 +148,10 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 	if err != nil {
 		s.log.Info("ws session ended before hello", "err", err)
 		return websocket.StatusPolicyViolation, "expected hello"
+	}
+	if reason, msg := s.checkAccess(ctx, hello.AccessPassword); reason != "" {
+		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
+		return websocket.StatusNormalClosure, "access denied"
 	}
 	username := strings.TrimSpace(hello.Username)
 	if username == "" || len(username) > maxUsernameLen || !utf8.ValidString(username) {
@@ -226,6 +236,35 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		s.log.Info("session closed", "reason", readErr)
 		return websocket.StatusNormalClosure, ""
 	}
+}
+
+// checkAccess enforces MUMWEB_ACCESS_PASSWORD. It returns a reject reason (empty
+// when access is granted). Wrong guesses are delayed and, after a few, the IP is
+// locked out for a while even if it then sends the right password.
+func (s *session) checkAccess(ctx context.Context, given string) (reason, msg string) {
+	want := s.h.cfg.AccessPassword
+	if want == "" {
+		return "", ""
+	}
+	now := time.Now()
+	if s.h.fails.locked(s.ip, now) {
+		s.log.Warn("access password: ip locked out")
+		return rejectAccessRateLimited, "too many wrong access passwords, try again later"
+	}
+	if given == "" {
+		return rejectAccessRequired, "access password required"
+	}
+	if passwordMatches(given, want) {
+		s.h.fails.ok(s.ip)
+		return "", ""
+	}
+	s.h.fails.fail(s.ip, now)
+	s.log.Warn("access password: wrong password")
+	select {
+	case <-time.After(accessFailDelay):
+	case <-ctx.Done():
+	}
+	return rejectAccessWrong, "wrong access password"
 }
 
 func (s *session) readHello(ctx context.Context) (clientMsg, error) {

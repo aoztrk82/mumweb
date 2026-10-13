@@ -29,6 +29,8 @@ export const en: Translations = {
     nickname: 'Nickname',
     password: 'Server password',
     passwordHint: 'Optional',
+    accessPassword: 'Access password',
+    accessPasswordRemember: 'Remember in this browser',
     connect: 'Connect',
     connecting: 'Connecting…',
   },
@@ -268,6 +270,9 @@ export const en: Translations = {
     banned: (reason: string) => (reason ? `You were banned from the server: ${reason}` : 'You were banned from the server.'),
     // Mumble Reject types
     reject: {
+      AccessPasswordRequired: 'An access password is required to use this server.',
+      AccessPasswordWrong: 'Wrong access password.',
+      AccessRateLimited: 'Too many wrong access passwords. Try again later.',
       None: 'Connection rejected.',
       WrongVersion: 'The server does not accept this client version.',
       InvalidUsername: 'Invalid nickname. Try another one.',

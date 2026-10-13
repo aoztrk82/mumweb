@@ -21,13 +21,12 @@ Last updated: 2026-10-13. Detailed history and verification notes: [PROGRESS.md]
       feature video, release badge, CI badge, a "Why mumweb?" comparison with other Mumble web clients.
 
 ### 2. Web access password (separate from the server password)
-- [ ] `MUMWEB_ACCESS_PASSWORD` (off if empty): a password only the gateway knows, required to use the web UI. It is
-      independent of the Mumble server password and can be turned on and off like `MUMWEB_ALLOW_SUPERUSER`.
-- [ ] The gateway checks it in `hello` (before connecting to Mumble) with a constant-time comparison; a wrong one
-      gets a clear `reject` message.
-- [ ] Brute-force protection: per-IP attempt limit and delay (in addition to the existing connection limit).
-- [ ] The login screen shows the "Access password" field only when the feature is on (the gateway can report this
-      through a `/config` endpoint). Optional "remember in this browser".
+- [x] `MUMWEB_ACCESS_PASSWORD` (off if empty): a password only the gateway knows, required to use the web UI,
+      independent of the Mumble server password.
+- [x] Checked in `hello` before connecting to Mumble, constant-time, with distinct `reject` reasons.
+- [x] Brute-force protection: 1 s delay per wrong guess, 5 wrong guesses lock the IP for 10 minutes.
+- [x] The login screen shows the field only when `/config` says so, with "remember in this browser".
+- [ ] Not verified by hand in a browser yet (automated gateway tests and a type-checked UI only).
 - [ ] Evaluate an invite link (signed, expiring token) instead of or alongside the password.
 
 ### 3. Web admin panel (if feasible)

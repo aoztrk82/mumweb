@@ -1,20 +1,35 @@
 <script lang="ts">
   import { t } from '../i18n/index.svelte'
   import LangSwitch from './LangSwitch.svelte'
+  import { accessPassword, fetchAccessRequired } from '../lib/accessPassword'
   import { connect } from '../lib/client'
   import { getSetting, setSetting } from '../lib/settings'
   import { session } from '../lib/stores/session.svelte'
 
   let username = $state(getSetting('username', ''))
   let password = $state('')
+  const savedAccess = accessPassword.saved()
+  let access = $state(savedAccess)
+  let rememberAccess = $state(savedAccess !== '')
   const busy = $derived(session.status === 'connecting' || session.status === 'reconnecting')
+
+  // Ask the gateway whether it wants its web access password; the field only appears then.
+  $effect(() => {
+    void fetchAccessRequired().then((required) => {
+      if (required) session.accessRequired = true
+    })
+  })
 
   function submit(e: SubmitEvent) {
     e.preventDefault()
     const name = username.trim()
     if (!name) return
     setSetting('username', name)
-    connect(name, password)
+    if (session.accessRequired) {
+      if (rememberAccess && access) accessPassword.save(access)
+      else accessPassword.forget()
+    }
+    connect(name, password, session.accessRequired ? access : '')
   }
 </script>
 
@@ -23,6 +38,17 @@
   <form class="card" onsubmit={submit}>
     <h1>{t.appName}</h1>
     <p class="sub">{t.login.title}</p>
+
+    {#if session.accessRequired}
+      <label>
+        <span>{t.login.accessPassword}</span>
+        <input type="password" bind:value={access} autocomplete="off" required />
+      </label>
+      <label class="remember">
+        <input type="checkbox" bind:checked={rememberAccess} />
+        <span>{t.login.accessPasswordRemember}</span>
+      </label>
+    {/if}
 
     <label>
       <span>{t.login.nickname}</span>
@@ -41,7 +67,7 @@
       <p class="notice" role="status">{session.notice}</p>
     {/if}
 
-    <button class="primary" type="submit" disabled={busy || !username.trim()}>
+    <button class="primary" type="submit" disabled={busy || !username.trim() || (session.accessRequired && !access)}>
       {busy ? t.login.connecting : t.login.connect}
     </button>
   </form>
@@ -81,6 +107,13 @@
     display: flex;
     flex-direction: column;
     gap: 0.3rem;
+  }
+  .remember {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-dim);
   }
   small {
     color: var(--text-dim);

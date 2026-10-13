@@ -66,6 +66,8 @@ services:
       MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-debug}
       # Local testing: allow "SuperUser" to log in from the browser (create channels etc.).
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-true}
+      # Optional web access password (empty = open); handy for trying the login field.
+      MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
     depends_on:
       - mumble
 

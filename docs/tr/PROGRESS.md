@@ -475,6 +475,25 @@ WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (
 - Doğrulama: `npm run check` 0 hata, `npm test` (19) ve `npm run build` geçti. Elle tarayıcıda denenmedi: bağlıyken
   dil değiştirme ve İngilizce/Türkçe olmayan tarayıcı dili ile yedek davranış.
 
+## Ek — web erişim şifresi (2026-10-13)
+
+- `MUMWEB_ACCESS_PASSWORD` (boş = kapalı). Tarayıcı bunu `hello.accessPassword` olarak gönderir; Mumble sunucu şifresi
+  olan `hello.password`'dan ayrıdır. Kontrol oturumda ilk iştir: kullanıcı adı doğrulamasından, sertifikadan ve
+  Mumble bağlantısından önce. Reject nedenleri: `AccessPasswordRequired`, `AccessPasswordWrong`, `AccessRateLimited`
+  (Mumble tipi değil; arayüz bunları mesaja çevirir).
+- Sabit zamanlı karşılaştırma (iki tarafın SHA-256'sı, `subtle.ConstantTimeCompare`). Yanlış deneme 1 sn sonra
+  yanıtlanır; bir IP'den 10 dakikada 5 yanlış deneme o IP'yi doğru şifreyle bile kilitler (`failTracker`). Mevcut IP
+  başına bağlantı sınırı da geçerli. Şifre loglanmaz.
+- `GET /config` `{"accessPassword": bool}` döner (`Cache-Control: no-store`; service worker dışında). Giriş ekranı bunu
+  çeker ve "Erişim şifresi" alanını yalnızca gerekirse gösterir; "Bu tarayıcıda hatırla" (localStorage) var. `Access…`
+  nedenli bir reject de alanı gösterir, yanlış şifre kayıtlı olanı unutturur.
+- Sınırlar: kullanıcı başına kimlik doğrulama değil, "kapı kodu"; masaüstü Mumble istemcileri (64738) bunu atlar; onu
+  taşıyan HTTPS bağlantısı kadar gizlidir.
+- Doğrulama: Go testleri `TestAccessPassword` (gerekli, yanlış, Mumble sunucu şifresi kabul edilmez, doğru şifre geçer,
+  5 yanlıştan sonra doğru şifre de kilitli), `TestFailTracker`, `TestPasswordMatches`, `TestNoAccessPassword`; derlenen
+  gateway değişken ayarlıyken `/config`'te `true` döndü. `npm run check` 0 hata, `npm test` ve `npm run build` geçti.
+  **Tarayıcıda elle denenmedi.**
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

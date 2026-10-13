@@ -36,6 +36,8 @@ type clientMsg struct {
 	// hello (Tokens: remembered channel passwords / access tokens; also setTokens)
 	Username string    `json:"username"`
 	Password string    `json:"password"`
+	// AccessPassword is the web access password (MUMWEB_ACCESS_PASSWORD), not the Mumble server password.
+	AccessPassword string `json:"accessPassword"`
 	Cert     *certPair `json:"cert"`
 	Tokens   []string  `json:"tokens"`
 

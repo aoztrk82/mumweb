@@ -25,7 +25,7 @@ self.addEventListener('fetch', (event) => {
   const req = event.request
   const url = new URL(req.url)
   if (req.method !== 'GET' || url.origin !== self.location.origin) return
-  if (url.pathname === '/ws' || url.pathname === '/healthz' || url.pathname === '/sw.js') return
+  if (url.pathname === '/ws' || url.pathname === '/healthz' || url.pathname === '/config' || url.pathname === '/sw.js') return
 
   if (req.mode === 'navigate') {
     // Network first so updates show up; fall back to the cached shell.

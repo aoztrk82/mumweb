@@ -28,6 +28,8 @@ class SessionState {
   error = $state<string | null>(null)
   /** Transient warning shown in the status bar (cleared on reconnect). */
   notice = $state<string | null>(null)
+  /** The gateway wants its web access password (set from /config or a reject). */
+  accessRequired = $state(false)
   /** True once the first "ready" arrived; the main view stays up while reconnecting. */
   joined = $state(false)
   ready = $state(false)

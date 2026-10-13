@@ -27,6 +27,8 @@ export const tr = {
     nickname: 'Takma ad',
     password: 'Sunucu şifresi',
     passwordHint: 'İsteğe bağlı',
+    accessPassword: 'Web erişim şifresi',
+    accessPasswordRemember: 'Bu tarayıcıda hatırla',
     connect: 'Bağlan',
     connecting: 'Bağlanıyor…',
   },
@@ -265,6 +267,9 @@ export const tr = {
     banned: (reason: string) => (reason ? `Sunucudan yasaklandınız: ${reason}` : 'Sunucudan yasaklandınız.'),
     // Mumble Reject types
     reject: {
+      AccessPasswordRequired: 'Bu sunucuya girmek için erişim şifresi gerekli.',
+      AccessPasswordWrong: 'Erişim şifresi yanlış.',
+      AccessRateLimited: 'Çok fazla yanlış erişim şifresi denendi. Biraz sonra tekrar deneyin.',
       None: 'Bağlantı reddedildi.',
       WrongVersion: 'Sunucu bu istemci sürümünü kabul etmiyor.',
       InvalidUsername: 'Geçersiz takma ad. Başka bir ad deneyin.',
