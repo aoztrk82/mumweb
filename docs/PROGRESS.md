@@ -349,6 +349,12 @@ Windows + Firefox'ta yerel testte: "mikrofon kullanılamıyor" uyarısı ve sağ
   ikonu), sağ tık → "Oyun Odası" oluşturuldu (gözlemci istemci de gördü), menüden katılındı; kayıtsız kullanıcı kalıcı
   ve geçici kanal denemesinde "Bu işlem için yetkiniz yok." (Mumble varsayılan ACL'i).
 
+## Faz 9 kararı (2026-10-13)
+WASM Opus yedeği **yapılmayacak** (kullanıcı kararı). Gerekçe: WebKit kaynağına göre Safari 26+ (iOS 26 / macOS)
+WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (`AudioEncoderCocoa.cpp`,
+`AudioDecoderCocoa.cpp`); yedek yalnız eski Safari için gerekirdi ve tarayıcıda Opus kodlayıcı kütüphaneleri eski.
+Öncelik Android ve masaüstü web özellikleri. Safari 26+ gerçek cihazda test edilmedi.
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.
