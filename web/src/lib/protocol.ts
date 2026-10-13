@@ -8,7 +8,10 @@ export interface CertPair {
 // --- browser -> gateway ---
 
 export type ClientMessage =
-  | { t: 'hello'; username: string; password: string; cert: CertPair | null }
+  | { t: 'hello'; username: string; password: string; cert: CertPair | null; tokens: string[] }
+  | { t: 'setTokens'; tokens: string[] }
+  | { t: 'setChannelPassword'; channelId: number; channelPassword: string }
+  | { t: 'queryChannelPassword'; channelId: number }
   | { t: 'joinChannel'; channelId: number }
   | { t: 'createChannel'; parent: number; name: string; temporary: boolean }
   | { t: 'setSelf'; mute?: boolean; deaf?: boolean }
@@ -38,6 +41,10 @@ export interface ChannelInfo {
   /** 0 = no limit. */
   maxUsers: number
   links: number[]
+  /** Entering needs a password (access token). */
+  restricted: boolean
+  /** Whether we may enter with our current tokens. */
+  canEnter: boolean
 }
 
 export interface UserInfo {
@@ -99,7 +106,8 @@ export type ServerMessage =
   | ({ t: 'user' } & UserInfo)
   | { t: 'userRemove'; session: number; actor?: number; reason: string; ban?: boolean }
   | { t: 'text'; from: number; channelIds: number[]; private?: boolean; message: string }
-  | { t: 'denied'; type: string; reason: string }
+  | { t: 'denied'; type: string; reason: string; permission?: number; channelId: number; session?: number }
+  | { t: 'channelPassword'; channelId: number; password: string }
   | { t: 'reject'; reason: string; message: string }
   | { t: 'pong'; ts: number }
   | { t: 'permissions'; channelId: number; permissions: number; flush: boolean }

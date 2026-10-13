@@ -27,6 +27,8 @@ const (
 	maxUsernameLen    = 128
 	maxChannelNameLen = 128
 	maxReasonLen      = 512
+	maxTokens         = 32
+	maxTokenLen       = 128
 	audioPacketsPerS  = 100
 	audioPacketsBurst = 150
 )
@@ -160,6 +162,7 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		Addr:        s.h.cfg.MumbleAddr,
 		Username:    username,
 		Password:    hello.Password,
+		Tokens:      cleanTokens(hello.Tokens),
 		Certificate: cert,
 		TLSVerify:   s.h.cfg.TLSVerify,
 		Fingerprint: s.h.cfg.Fingerprint,
@@ -277,7 +280,10 @@ func (s *session) pumpEvents(ctx context.Context) error {
 		case mumble.TextEvent:
 			err = s.sendJSON(ctx, newTextMsg(e))
 		case mumble.DeniedEvent:
-			err = s.sendJSON(ctx, deniedMsg{T: "denied", Type: e.Type.String(), Reason: e.Reason})
+			err = s.sendJSON(ctx, deniedMsg{T: "denied", Type: e.Type.String(), Reason: e.Reason,
+				Permission: e.Permission, ChannelID: e.ChannelID, Session: e.Session})
+		case mumble.ChannelPasswordEvent:
+			err = s.sendJSON(ctx, channelPasswordMsg{T: "channelPassword", ChannelID: e.ChannelID, Password: e.Password})
 		case mumble.PermissionEvent:
 			err = s.sendJSON(ctx, permissionsMsg{T: "permissions", ChannelID: e.ChannelID, Permissions: e.Permissions, Flush: e.Flush})
 		case mumble.UserStatsEvent:
@@ -387,7 +393,9 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 			return fmt.Errorf("%w: queryPermissions without channelId", errProtocol)
 		}
 		return s.mc.QueryPermissions(*m.ChannelID)
-	case "editChannel", "removeChannel", "linkChannels", "listen", "requestDescription":
+	case "setTokens":
+		return s.mc.SetAccessTokens(cleanTokens(m.Tokens))
+	case "editChannel", "removeChannel", "linkChannels", "listen", "requestDescription", "setChannelPassword", "queryChannelPassword":
 		return s.channelAction(m)
 	case "moveUser", "setUser", "kick", "ban", "register", "resetComment", "resetTexture", "requestComment", "userStats":
 		return s.userAction(m)
@@ -437,8 +445,32 @@ func (s *session) channelAction(m clientMsg) error {
 		return s.mc.SetListening(nil, []uint32{id})
 	case "requestDescription":
 		return s.mc.RequestChannelDescription(id)
+	case "queryChannelPassword":
+		return s.mc.QueryChannelPassword(id)
+	case "setChannelPassword":
+		if m.ChannelPass == nil || len(*m.ChannelPass) > maxTokenLen || !utf8.ValidString(*m.ChannelPass) {
+			return fmt.Errorf("%w: bad channel password", errProtocol)
+		}
+		s.log.Info("channel password change requested", "channel", id)
+		return s.mc.SetChannelPassword(id, strings.TrimSpace(*m.ChannelPass))
 	}
 	return nil
+}
+
+// cleanTokens bounds the access tokens a browser may send.
+func cleanTokens(in []string) []string {
+	var out []string
+	for _, t := range in {
+		t = strings.TrimSpace(t)
+		if t == "" || len(t) > maxTokenLen || !utf8.ValidString(t) || slices.Contains(out, t) {
+			continue
+		}
+		out = append(out, t)
+		if len(out) == maxTokens {
+			break
+		}
+	}
+	return out
 }
 
 // userAction handles commands that target another user. The Mumble server

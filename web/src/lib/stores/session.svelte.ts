@@ -39,6 +39,8 @@ class SessionState {
   rootPermissions = $state(0)
   /** Permissions per channel as answered by PermissionQuery. */
   channelPermissions = new SvelteMap<number, number>()
+  /** Channel passwords read from the ACL (for the edit dialog), by channel. */
+  channelPasswords = new SvelteMap<number, string>()
   /** Last UserStats answer, shown by the information dialog. */
   userStats = $state<import('../protocol').UserStats | null>(null)
 

@@ -21,7 +21,8 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
   kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
 
 **Özellikler:** takma ad + isteğe bağlı sunucu şifresi, kanal ağacı ve kanal değiştirme (çift tık), konuşan göstergesi,
-boş kanalları gizleyen filtre, masaüstü Mumble'daki gibi sağ tık menüleri — kullanıcı: kanalına katıl, kendi kanalına taşı, kov, yasakla,
+şifreli kanallar (kilit ikonu; girerken şifre sorulur, "hatırla" ile sonraki girişlerde otomatik; yönetici
+"Düzenle"den şifre koyar/kaldırır), boş kanalları gizleyen filtre, masaüstü Mumble'daki gibi sağ tık menüleri — kullanıcı: kanalına katıl, kendi kanalına taşı, kov, yasakla,
 sustur, sağır et, imtiyazlı konuşmacı, yerel sustur, mesajları görmezden gel, yerel ses seviyesi (%0–200), rumuz,
 açıklamayı görüntüle/sıfırla, avatarı kaldır, özel mesaj, bilgi, kaydet, arkadaş ekle (yönetim öğeleri sunucudaki
 yetkinize göre etkin olur); kanal: katıl, kanalı dinle, ekle, düzenle (ad, açıklama, sıra, kullanıcı sınırı), kaldır,
@@ -77,6 +78,10 @@ kullanıcılarını yasaklar.** mumweb arayüzündeki "Yasakla…" bu yüzden ya
 `100::/128` adresli, hiçbir istemciyle eşleşmeyen bir kayıtla). Masaüstünden yanlışlıkla gateway IP'si yasaklanırsa
 masaüstü istemcide *Sunucu → Yasak listesi* üzerinden o kaydı silin. Not: sertifika yasağı, kişi yeni bir sertifika
 oluşturursa (tarayıcı verisini silerse) aşılabilir.
+
+Mumble sunucusu kullanıcı başına mesaj hızını sınırlar (`messagelimit`=1/sn, `messageburst`=5; kanala katılma,
+mute, kanal oluşturma/ACL, sohbet mesajı) ve fazlasını **sessizce düşürür**. Çok hızlı art arda yapılan işlemlerden
+biri olmazsa birkaç saniye sonra tekrar deneyin; masaüstü istemci için de aynı sınır geçerlidir.
 
 `SuperUser` hesabı Mumble'da tasarım gereği konuşamaz (yalnızca yönetim içindir). Web'den SuperUser girişi
 `MUMWEB_ALLOW_SUPERUSER` ile açılır; production'da kapalıdır.

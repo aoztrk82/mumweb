@@ -1,6 +1,6 @@
 <script lang="ts">
   // Minimal inline icon set (stroke icons, 24x24 viewBox).
-  type Name = 'mic' | 'micOff' | 'headphones' | 'headphonesOff' | 'logout' | 'user' | 'shield' | 'send' | 'channel' | 'settings' | 'heart' | 'megaphone' | 'ear' | 'link' | 'filter'
+  type Name = 'mic' | 'micOff' | 'headphones' | 'headphonesOff' | 'logout' | 'user' | 'shield' | 'send' | 'channel' | 'settings' | 'heart' | 'megaphone' | 'ear' | 'link' | 'filter' | 'lock' | 'unlock'
   let { name, size = 18 }: { name: Name; size?: number } = $props()
 </script>
 
@@ -35,6 +35,9 @@
     <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
   {:else if name === 'filter'}
     <path d="M22 3H2l8 9.5V19l4 2v-8.5z" />
+  {:else if name === 'lock' || name === 'unlock'}
+    <rect x="4" y="11" width="16" height="10" rx="2" />
+    <path d={name === 'lock' ? 'M8 11V7a4 4 0 0 1 8 0v4' : 'M8 11V7a4 4 0 0 1 7.5-2'} />
   {:else if name === 'channel'}
     <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" />
   {/if}

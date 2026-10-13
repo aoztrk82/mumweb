@@ -59,16 +59,24 @@ type PermissionEvent struct {
 // UserStatsEvent is the answer to RequestUserStats.
 type UserStatsEvent struct{ Stats *pb.UserStats }
 
+// ChannelPasswordEvent answers QueryChannelPassword: the password defined by the
+// channel's ACL ("" if none).
+type ChannelPasswordEvent struct {
+	ChannelID uint32
+	Password  string
+}
+
 // AudioEvent is a received voice packet.
 type AudioEvent struct{ Packet AudioPacket }
 
-func (ChannelEvent) isEvent()       {}
-func (ChannelRemoveEvent) isEvent() {}
-func (UserEvent) isEvent()          {}
-func (UserRemoveEvent) isEvent()    {}
-func (TextEvent) isEvent()          {}
-func (DeniedEvent) isEvent()        {}
-func (ServerConfigEvent) isEvent()  {}
-func (AudioEvent) isEvent()         {}
-func (PermissionEvent) isEvent()    {}
-func (UserStatsEvent) isEvent()     {}
+func (ChannelEvent) isEvent()         {}
+func (ChannelRemoveEvent) isEvent()   {}
+func (UserEvent) isEvent()            {}
+func (UserRemoveEvent) isEvent()      {}
+func (TextEvent) isEvent()            {}
+func (DeniedEvent) isEvent()          {}
+func (ServerConfigEvent) isEvent()    {}
+func (AudioEvent) isEvent()           {}
+func (PermissionEvent) isEvent()      {}
+func (UserStatsEvent) isEvent()       {}
+func (ChannelPasswordEvent) isEvent() {}

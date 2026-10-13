@@ -93,6 +93,9 @@ type Client struct {
 	banMu       sync.Mutex
 	pendingBans []pendingBan
 
+	aclMu      sync.Mutex
+	aclPending map[uint32]aclRequest // channel -> what to do with the ACL reply
+
 	ctx    context.Context
 	cancel context.CancelCauseFunc
 	wg     sync.WaitGroup
@@ -345,6 +348,8 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 		ev = UserStatsEvent{Stats: m}
 	case *pb.BanList:
 		c.completeBans(m)
+	case *pb.ACL:
+		ev = c.handleACL(m)
 	case *pb.Reject:
 		c.cancel(&RejectError{Type: m.GetType(), Reason: m.GetReason()})
 	case *pb.ServerSync:
@@ -703,4 +708,120 @@ func (c *Client) dropPendingBans() {
 	c.banMu.Lock()
 	c.pendingBans = nil
 	c.banMu.Unlock()
+}
+
+// SetAccessTokens replaces our access tokens (channel passwords) for the rest of
+// the session. The server re-evaluates permissions and resends can_enter for
+// every channel.
+func (c *Client) SetAccessTokens(tokens []string) error {
+	return c.send(&pb.Authenticate{Tokens: tokens})
+}
+
+// Channel passwords are ACL entries (desktop ACLEditor::updatePasswordACL):
+// "@all" is denied passwordPerms and "#<password>" is granted them.
+const (
+	passwordPerms       = PermEnter | PermSpeak | PermWhisper | PermTextMessage | PermLinkChannel | PermTraverse
+	legacyPasswordPerms = PermEnter | PermSpeak | PermWhisper | PermTextMessage | PermLinkChannel
+)
+
+type aclRequest struct {
+	set      bool   // false: only report the password
+	password string // new password when set ("" removes it)
+}
+
+// QueryChannelPassword asks for a channel's ACL (needs Write) and reports its
+// password as a ChannelPasswordEvent.
+func (c *Client) QueryChannelPassword(channelID uint32) error {
+	return c.requestACL(channelID, aclRequest{})
+}
+
+// SetChannelPassword sets ("" removes) a channel's password by rewriting its
+// ACL like the desktop client does. Needs Write on the channel.
+func (c *Client) SetChannelPassword(channelID uint32, password string) error {
+	return c.requestACL(channelID, aclRequest{set: true, password: password})
+}
+
+func (c *Client) requestACL(channelID uint32, r aclRequest) error {
+	c.aclMu.Lock()
+	if c.aclPending == nil {
+		c.aclPending = map[uint32]aclRequest{}
+	}
+	if prev, ok := c.aclPending[channelID]; ok && prev.set && !r.set {
+		r = prev // a pending write wins over a read
+	}
+	c.aclPending[channelID] = r
+	c.aclMu.Unlock()
+	return c.send(&pb.ACL{ChannelId: &channelID, Query: proto.Bool(true)})
+}
+
+func isPasswordACL(a *pb.ACL_ChanACL) bool {
+	g := a.GetGroup()
+	return strings.HasPrefix(g, "#") && a.GetApplyHere() && !a.GetInherited() &&
+		(a.GetGrant() == passwordPerms || a.GetGrant() == legacyPasswordPerms) && a.GetDeny() == 0
+}
+
+func isDenyAllForPassword(a *pb.ACL_ChanACL) bool {
+	return a.GetGroup() == "all" && a.UserId == nil && !a.GetInherited() && a.GetApplyHere() && a.GetGrant() == 0 &&
+		(a.GetDeny() == passwordPerms || a.GetDeny() == legacyPasswordPerms)
+}
+
+// handleACL processes an ACL reply for a pending query/write.
+func (c *Client) handleACL(m *pb.ACL) Event {
+	id := m.GetChannelId()
+	c.aclMu.Lock()
+	req, ok := c.aclPending[id]
+	delete(c.aclPending, id)
+	c.aclMu.Unlock()
+	if !ok {
+		return nil
+	}
+	current := ""
+	for _, a := range m.Acls {
+		if isPasswordACL(a) {
+			current = strings.TrimPrefix(a.GetGroup(), "#")
+		}
+	}
+	if !req.set {
+		return ChannelPasswordEvent{ChannelID: id, Password: current}
+	}
+
+	// Write back like ACLEditor::accept: own (non-inherited) ACLs and the groups
+	// that differ from plain inheritance, with the password entries replaced.
+	out := &pb.ACL{ChannelId: &id, InheritAcls: proto.Bool(m.GetInheritAcls())}
+	hadPassword := current != ""
+	for _, a := range m.Acls {
+		if a.GetInherited() || (a.UserId == nil && a.Group == nil) {
+			continue
+		}
+		if isPasswordACL(a) || (hadPassword && isDenyAllForPassword(a)) {
+			continue
+		}
+		e := &pb.ACL_ChanACL{ApplyHere: proto.Bool(a.GetApplyHere()), ApplySubs: proto.Bool(a.GetApplySubs()),
+			Grant: proto.Uint32(a.GetGrant()), Deny: proto.Uint32(a.GetDeny())}
+		if a.UserId != nil {
+			e.UserId = proto.Uint32(a.GetUserId())
+		} else {
+			e.Group = proto.String(a.GetGroup())
+		}
+		out.Acls = append(out.Acls, e)
+	}
+	if req.password != "" {
+		out.Acls = append(out.Acls,
+			&pb.ACL_ChanACL{ApplyHere: proto.Bool(true), ApplySubs: proto.Bool(false), Group: proto.String("all"),
+				Grant: proto.Uint32(0), Deny: proto.Uint32(passwordPerms)},
+			&pb.ACL_ChanACL{ApplyHere: proto.Bool(true), ApplySubs: proto.Bool(false), Group: proto.String("#" + req.password),
+				Grant: proto.Uint32(passwordPerms), Deny: proto.Uint32(0)},
+		)
+	}
+	for _, g := range m.Groups {
+		if g.GetInherited() && g.GetInherit() && g.GetInheritable() && len(g.Add) == 0 && len(g.Remove) == 0 {
+			continue
+		}
+		out.Groups = append(out.Groups, &pb.ACL_ChanGroup{Name: proto.String(g.GetName()),
+			Inherit: proto.Bool(g.GetInherit()), Inheritable: proto.Bool(g.GetInheritable()), Add: g.Add, Remove: g.Remove})
+	}
+	if err := c.send(out); err != nil {
+		return nil
+	}
+	return ChannelPasswordEvent{ChannelID: id, Password: req.password}
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tr } from '../i18n/tr'
-  import { editChannel, requestDescription, userCommand } from '../lib/client'
+  import { editChannel, queryChannelPassword, requestDescription, setChannelPassword, userCommand } from '../lib/client'
   import { sanitizeHtml } from '../lib/sanitize'
   import { session } from '../lib/stores/session.svelte'
   import { ui } from '../lib/stores/ui.svelte'
@@ -12,6 +12,8 @@
   // editChannel form
   let ch = $state({ name: '', description: '', position: 0, maxUsers: 0 })
   let descTouched = $state(false)
+  let chPassword = $state('')
+  let pwTouched = $state(false)
 
   const d = $derived(ui.dialog)
   const target = $derived(d && (d.kind === 'comment' || d.kind === 'info') ? session.users.get(d.session) : undefined)
@@ -29,7 +31,10 @@
         const c = session.channels.get(d.channelId)
         ch = { name: c?.name ?? '', description: c?.description ?? '', position: c?.position ?? 0, maxUsers: c?.maxUsers ?? 0 }
         descTouched = false
+        chPassword = ''
+        pwTouched = false
         if (c && c.hasDescription && !c.description) requestDescription(c.id)
+        if (c) queryChannelPassword(c.id)
       }
       dialog.showModal()
     } else if (!d && dialog.open) {
@@ -40,6 +45,12 @@
   // A long description arrives after opening: show it unless the user already typed.
   $effect(() => {
     if (channel && !descTouched) ch.description = channel.description
+  })
+
+  // The current password arrives from the ACL after opening.
+  const currentPassword = $derived(d?.kind === 'editChannel' ? session.channelPasswords.get(d.channelId) : undefined)
+  $effect(() => {
+    if (currentPassword !== undefined && !pwTouched) chPassword = currentPassword
   })
 
   // The channel was removed while editing.
@@ -60,6 +71,7 @@
     if (Number(ch.position) !== channel.position) patch.position = Math.trunc(Number(ch.position))
     if (Number(ch.maxUsers) !== channel.maxUsers) patch.maxUsers = Math.max(0, Math.trunc(Number(ch.maxUsers)))
     if (Object.keys(patch).length) editChannel(channel.id, patch)
+    if (pwTouched && chPassword.trim() !== (currentPassword ?? '')) setChannelPassword(channel.id, chPassword.trim())
     close()
   }
 
@@ -91,9 +103,13 @@
   {#if d?.kind === 'prompt'}
     <form onsubmit={submit}>
       <h2 id="user-dialog-title">{d.title}</h2>
+      {#if d.error}<p class="error" role="alert">{d.error}</p>{/if}
       <label class="field">
         <span>{d.label}</span>
-        {#if d.multiline}
+        {#if d.password}
+          <!-- svelte-ignore a11y_autofocus -->
+          <input type="password" bind:value maxlength="128" autocomplete="off" autofocus />
+        {:else if d.multiline}
           <!-- svelte-ignore a11y_autofocus -->
           <textarea rows="4" bind:value onkeydown={onKey} autofocus></textarea>
         {:else}
@@ -135,7 +151,20 @@
           <input type="number" bind:value={ch.maxUsers} min="0" step="1" />
         </label>
       </div>
-      <p class="hint">{tr.channelMenu.passwordNote}</p>
+      {#if channel.id !== 0}
+        <label class="field">
+          <span>{tr.channelMenu.password}</span>
+          <input
+            type="text"
+            bind:value={chPassword}
+            oninput={() => (pwTouched = true)}
+            placeholder={currentPassword === undefined ? tr.channelMenu.passwordLoading : ''}
+            autocomplete="off"
+            maxlength="128"
+          />
+        </label>
+        <p class="hint">{tr.channelMenu.passwordHint}</p>
+      {/if}
       <div class="actions">
         <button type="button" onclick={close}>{tr.channels.cancel}</button>
         <button type="submit" class="primary" disabled={!ch.name.trim()}>{tr.userMenu.save}</button>
@@ -243,6 +272,11 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+  }
+  .error {
+    color: var(--danger);
+    font-size: 0.9rem;
+    margin: 0 0 0.6rem;
   }
   .hint {
     color: var(--text-dim);

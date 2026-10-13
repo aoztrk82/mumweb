@@ -133,6 +133,8 @@ func newMessage(t MsgType) proto.Message {
 		return &pb.UserStats{}
 	case MsgBanList:
 		return &pb.BanList{}
+	case MsgACL:
+		return &pb.ACL{}
 	}
 	return nil
 }
@@ -164,6 +166,8 @@ func msgTypeOf(m proto.Message) (MsgType, bool) {
 		return MsgRequestBlob, true
 	case *pb.BanList:
 		return MsgBanList, true
+	case *pb.ACL:
+		return MsgACL, true
 	}
 	return 0, false
 }

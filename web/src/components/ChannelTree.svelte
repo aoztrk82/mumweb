@@ -57,6 +57,11 @@
   >
     <Icon name="channel" size={15} />
     <span class="name">{channel.name}</span>
+    {#if channel.restricted}
+      <span class="dim-icon" class:red={!channel.canEnter} title={channel.canEnter ? tr.channelMenu.unlocked : tr.channelMenu.locked}>
+        <Icon name={channel.canEnter ? 'unlock' : 'lock'} size={13} />
+      </span>
+    {/if}
     {#if channel.links.length}<span class="dim-icon" title={tr.channelMenu.linked}><Icon name="link" size={13} /></span>{/if}
     {#if users.length}<span class="count">{users.length}</span>{/if}
   </div>

@@ -85,10 +85,19 @@ export const tr = {
     description: 'Açıklama (HTML kullanılabilir)',
     position: 'Sıra (küçük olan üstte)',
     maxUsers: 'Kullanıcı sınırı (0 = sınırsız)',
-    passwordNote: 'Kanal şifresi Mumble\'da ACL ile ayarlanır; şimdilik masaüstü istemciden yapılabilir.',
     filter: 'Boş kanalları gizle (filtre)',
     listeners: 'Dinliyor',
     linked: 'Bağlı kanal',
+    locked: 'Şifreli kanal — girmek için şifre gerekir',
+    unlocked: 'Şifreli kanal — şifreniz var',
+    passwordTitle: (name: string) => `"${name}" şifreli`,
+    passwordLabel: 'Kanal şifresi',
+    passwordRemember: 'Bu tarayıcıda hatırla',
+    passwordJoin: 'Gir',
+    passwordWrong: 'Şifre yanlış ya da bu kanala giriş izniniz yok.',
+    password: 'Kanal şifresi (boş = şifresiz)',
+    passwordLoading: 'Mevcut şifre okunuyor…',
+    passwordHint: 'Şifre, Mumble ACL\'ine masaüstü istemcinin yaptığı gibi yazılır: şifresi olmayanlar kanala giremez, konuşamaz ve yazamaz.',
   },
 
   userMenu: {
@@ -203,6 +212,10 @@ export const tr = {
     certImportInvalid: 'Dosyada sertifika ve özel anahtar bulunamadı (PEM biçimi gerekli).',
     certResetDone: 'Sertifika silindi. Bir sonraki bağlantıda yeni sertifika oluşturulacak.',
     reconnectNow: 'Şimdi yeniden bağlan',
+    sectionTokens: 'Kanal şifreleri',
+    tokensHelp: 'Şifreli kanallara girerken "hatırla" dediğiniz şifreler. Her girişte sunucuya gönderilir.',
+    tokensNone: 'Kayıtlı kanal şifresi yok.',
+    tokenRemove: 'Sil',
   },
 
   chat: {

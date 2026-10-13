@@ -33,10 +33,11 @@ const (
 type clientMsg struct {
 	T string `json:"t"`
 
-	// hello
+	// hello (Tokens: remembered channel passwords / access tokens; also setTokens)
 	Username string    `json:"username"`
 	Password string    `json:"password"`
 	Cert     *certPair `json:"cert"`
+	Tokens   []string  `json:"tokens"`
 
 	// joinChannel
 	ChannelID *uint32 `json:"channelId"`
@@ -62,6 +63,7 @@ type clientMsg struct {
 	Remove      []uint32 `json:"remove"`
 	On          *bool    `json:"on"`
 	Tree        bool     `json:"tree"`
+	ChannelPass *string  `json:"channelPassword"` // setChannelPassword
 
 	// setSelf
 	Mute *bool `json:"mute"`
@@ -108,6 +110,14 @@ type channelMsg struct {
 	Temporary   bool     `json:"temporary"`
 	MaxUsers    uint32   `json:"maxUsers"`
 	Links       []uint32 `json:"links"`
+	Restricted  bool     `json:"restricted"` // entering needs a password/token
+	CanEnter    bool     `json:"canEnter"`
+}
+
+type channelPasswordMsg struct {
+	T         string `json:"t"` // "channelPassword"
+	ChannelID uint32 `json:"channelId"`
+	Password  string `json:"password"`
 }
 
 type channelRemoveMsg struct {
@@ -189,9 +199,12 @@ type textMsg struct {
 }
 
 type deniedMsg struct {
-	T      string `json:"t"` // "denied"
-	Type   string `json:"type"`
-	Reason string `json:"reason"`
+	T          string `json:"t"` // "denied"
+	Type       string `json:"type"`
+	Reason     string `json:"reason"`
+	Permission uint32 `json:"permission,omitempty"` // ACL bit for type "Permission"
+	ChannelID  uint32 `json:"channelId"`
+	Session    uint32 `json:"session,omitempty"`
 }
 
 type rejectMsg struct {
@@ -223,6 +236,7 @@ func newChannelMsg(c mumble.Channel) channelMsg {
 		T: "channel", ID: c.ID, Name: c.Name, Position: c.Position,
 		Description: c.Description, HasDesc: c.Description != "" || c.HasDescriptionHash,
 		Temporary: c.Temporary, MaxUsers: c.MaxUsers, Links: c.Links,
+		Restricted: c.EnterRestricted, CanEnter: c.CanEnter,
 	}
 	if m.Links == nil {
 		m.Links = []uint32{}

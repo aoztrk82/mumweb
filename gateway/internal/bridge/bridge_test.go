@@ -547,3 +547,96 @@ func TestChannelActions(t *testing.T) {
 	su.send(map[string]any{"t": "removeChannel", "channelId": id})
 	waitEvent(t, obs, func(e mumble.ChannelRemoveEvent) bool { return e.ID == id })
 }
+
+// TestChannelPassword covers password-protected channels (ACL "#password" tokens).
+func TestChannelPassword(t *testing.T) {
+	addr := mumbleAddr(t)
+	pw := os.Getenv("MUMWEB_TEST_SUPERUSER_PASSWORD")
+	if pw == "" {
+		t.Skip("MUMWEB_TEST_SUPERUSER_PASSWORD not set")
+	}
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr, AllowSuperUser: true}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	name := "sifreli-" + strconv.FormatInt(time.Now().UnixNano()%1e6, 36)
+
+	obs, err := mumble.Dial(context.Background(), mumble.Config{Addr: addr, Username: "gozcu-" + name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obs.Close()
+
+	su := dialBridge(t, url, map[string]any{"username": "SuperUser", "password": pw})
+	defer su.ws.CloseNow()
+	su.until("ready")
+	su.send(map[string]any{"t": "createChannel", "parent": 0, "name": name})
+	id := waitEvent(t, obs, func(e mumble.ChannelEvent) bool { return e.Channel.Name == name }).Channel.ID
+	defer func() { su.send(map[string]any{"t": "removeChannel", "channelId": id}) }()
+
+	su.send(map[string]any{"t": "setChannelPassword", "channelId": id, "channelPassword": "gizli123"})
+	if m := su.until("channelPassword"); m["password"] != "gizli123" {
+		t.Fatalf("set %v", m)
+	}
+	su.send(map[string]any{"t": "queryChannelPassword", "channelId": id})
+	if m := su.until("channelPassword"); m["password"] != "gizli123" || m["channelId"] != float64(id) {
+		t.Fatalf("query %v", m)
+	}
+
+	// An ordinary user sees the channel as restricted and cannot enter.
+	u := dialBridge(t, url, map[string]any{"username": "misafir-" + name})
+	defer u.ws.CloseNow()
+	locked := func(m map[string]any) bool { return m["id"] == float64(id) && m["restricted"] == true && m["canEnter"] == false }
+	for {
+		if m, _ := u.next(); m["t"] == "channel" && locked(m) {
+			break
+		}
+	}
+	u.until("ready")
+	u.send(map[string]any{"t": "joinChannel", "channelId": id})
+	if m := u.until("denied"); m["permission"] != float64(mumble.PermEnter) || m["channelId"] != float64(id) {
+		t.Fatalf("denied %v", m)
+	}
+
+	// Wrong password: still denied.
+	u.send(map[string]any{"t": "setTokens", "tokens": []string{"yanlis"}})
+	u.send(map[string]any{"t": "joinChannel", "channelId": id})
+	u.until("denied")
+
+	// Right password: can_enter flips and the join works.
+	u.send(map[string]any{"t": "setTokens", "tokens": []string{"yanlis", "gizli123"}})
+	for {
+		m := u.until("channel")
+		if m["id"] == float64(id) && m["canEnter"] == true {
+			break
+		}
+	}
+	us := uint32(0)
+	for _, x := range obs.State().Users() {
+		if x.Name == "misafir-"+name {
+			us = x.Session
+		}
+	}
+	u.send(map[string]any{"t": "joinChannel", "channelId": id})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return e.User.Session == us && e.User.ChannelID == id })
+
+	// Tokens sent at login apply from the start.
+	v := dialBridge(t, url, map[string]any{"username": "anahtarli-" + name, "tokens": []string{"gizli123"}})
+	defer v.ws.CloseNow()
+	for {
+		m, _ := v.next()
+		if m["t"] == "channel" && m["id"] == float64(id) {
+			if m["canEnter"] != true {
+				t.Fatalf("login tokens not applied: %v", m)
+			}
+			break
+		}
+	}
+
+	// Removing the password lifts the restriction. Wait first: the server rate-limits
+	// ACL/ChannelState/TextMessage/own UserState per user (1/s, burst 5) and silently
+	// drops the excess.
+	time.Sleep(3 * time.Second)
+	su.send(map[string]any{"t": "setChannelPassword", "channelId": id, "channelPassword": ""})
+	su.until("channelPassword")
+	waitEvent(t, obs, func(e mumble.ChannelEvent) bool { return e.Channel.ID == id && !e.Channel.EnterRestricted })
+}

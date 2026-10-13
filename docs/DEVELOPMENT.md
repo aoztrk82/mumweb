@@ -177,8 +177,11 @@ Yerel ortamda Mumble'ın yönetici hesabı **SuperUser** web'den de kullanılabi
    bilgi, özel mesaj. Rumuz, arkadaş ve "mesajları görmezden gel" yalnızca sizin tarayıcınızda saklanır.
 5. Kanallara **sağ tıklayarak**: dinle, ekle, düzenle, kaldır, bağla/bağlantıyı kaldır, URL kopyala, mesaj gönder,
    filtrelerken gizle/iğnele. Kanal listesinin üstündeki huni düğmesi boş kanalları gizler. Kopyalanan URL
-   (`https://mumweb.test/#kanal=/Oyun`) ile giriş yapan kişi doğrudan o kanala katılır. Kanal şifresi (ACL) henüz
-   web'den ayarlanamıyor.
+   (`https://mumweb.test/#kanal=/Oyun`) ile giriş yapan kişi doğrudan o kanala katılır.
+6. **Şifreli kanal:** SuperUser ile kanala sağ tık → **Düzenle…** → "Kanal şifresi". Normal kullanıcı kanalı kırmızı
+   kilitle görür; çift tıklayınca şifre sorulur ("Bu tarayıcıda hatırla" seçilirse sonraki girişlerde sorulmaz,
+   Ayarlar → Kanal şifreleri'nden silinebilir). Masaüstü Mumble'da aynı şifre *Sunucu → Erişim tokenları*'na
+   eklenerek kullanılır.
 
 SuperUser Mumble'da **konuşamaz** (tasarım gereği); ses testi için normal bir takma adla, yönetim için SuperUser ile
 (ör. gizli pencerede) girin. Normal (kayıtsız) kullanıcılar Mumble'ın varsayılan izinleriyle kanal oluşturamaz; denerlerse sohbette

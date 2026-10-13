@@ -6,9 +6,12 @@ import { playJoin, playLeave } from './audio/notify'
 import { handleAudioFrame, removeSpeaker, silenceAll, startReceiver, stopReceiver } from './audio/receiver'
 import { encoderSupported, setAudioSender, startMicrophone, stopMicrophone } from './audio/transmitter'
 import { loadCert, saveCert } from './certStore'
+import { isSuperUser, Perm } from './permissions'
 import type { ServerMessage, UserInfo } from './protocol'
 import { sanitizeHtml, textToHtml } from './sanitize'
 import { session } from './stores/session.svelte'
+import { tokens } from './stores/tokens.svelte'
+import { ui } from './stores/ui.svelte'
 import { displayName, userPref } from './stores/userPrefs.svelte'
 import { gatewayUrl, ReconnectingSocket } from './ws'
 
@@ -30,7 +33,7 @@ export function connect(username: string, password: string): void {
 
 function openSocket(username: string, password: string): void {
   socket = new ReconnectingSocket(gatewayUrl(), {
-    hello: async () => ({ t: 'hello', username, password, cert: await loadCert() }),
+    hello: async () => ({ t: 'hello', username, password, cert: await loadCert(), tokens: tokens.all() }),
     message: handleMessage,
     audio: handleAudioFrame,
     status: (s, attempt, retryIn) => {
@@ -86,9 +89,56 @@ function fail(message: string): void {
   session.error = message
 }
 
+/** Last password tried for a channel, to report a wrong one. */
+let pendingJoin: { channelId: number; token: string } | null = null
+
+/** Joins a channel; asks for the password first if it is locked for us. */
 export function joinChannel(channelId: number): void {
   if (session.self?.channelId === channelId) return
+  const c = session.channels.get(channelId)
+  if (c?.restricted && !c.canEnter && !isSuperUser()) {
+    askChannelPassword(channelId)
+    return
+  }
   socket?.send({ t: 'joinChannel', channelId })
+}
+
+/** Sends our access tokens (channel passwords) to the server. */
+export function syncTokens(): void {
+  socket?.send({ t: 'setTokens', tokens: tokens.all() })
+}
+
+function askChannelPassword(channelId: number, error?: string): void {
+  const c = session.channels.get(channelId)
+  if (!c) return
+  ui.dialog = {
+    kind: 'prompt',
+    title: tr.channelMenu.passwordTitle(c.name),
+    label: tr.channelMenu.passwordLabel,
+    value: '',
+    password: true,
+    checkbox: tr.channelMenu.passwordRemember,
+    error,
+    confirm: tr.channelMenu.passwordJoin,
+    onSubmit: (pw, remember) => {
+      const token = pw.trim()
+      if (!token) return
+      tokens.add(token, remember)
+      pendingJoin = { channelId, token }
+      // Tokens first: the server applies them before handling the join.
+      syncTokens()
+      socket?.send({ t: 'joinChannel', channelId })
+    },
+  }
+}
+
+export function setChannelPassword(channelId: number, password: string): void {
+  socket?.send({ t: 'setChannelPassword', channelId, channelPassword: password })
+}
+
+export function queryChannelPassword(channelId: number): void {
+  session.channelPasswords.delete(channelId)
+  socket?.send({ t: 'queryChannelPassword', channelId })
 }
 
 /** Asks the server to create a sub-channel; the server's ACL decides (denials show in chat). */
@@ -251,6 +301,7 @@ function handleMessage(m: ServerMessage): void {
       const prev = session.users.get(u.session)
       session.users.set(u.session, u)
       if (u.session === session.selfSession && u.selfDeaf && !prev?.selfDeaf) silenceAll()
+      if (u.session === session.selfSession && pendingJoin?.channelId === u.channelId) pendingJoin = null
       if (session.ready) announceMovement(prev, u)
       break
     }
@@ -303,6 +354,10 @@ function handleMessage(m: ServerMessage): void {
       break
     }
 
+    case 'channelPassword':
+      session.channelPasswords.set(m.channelId, m.password)
+      break
+
     case 'permissions':
       if (m.flush) {
         session.channelPermissions.clear()
@@ -318,6 +373,19 @@ function handleMessage(m: ServerMessage): void {
     }
 
     case 'denied': {
+      // Entering a password-protected channel: ask for the password (again).
+      const target = session.channels.get(m.channelId)
+      if (m.type === 'Permission' && m.permission !== undefined && (m.permission & Perm.Enter) !== 0 && target?.restricted) {
+        if (pendingJoin?.channelId === m.channelId) {
+          tokens.remove(pendingJoin.token)
+          pendingJoin = null
+          syncTokens()
+          askChannelPassword(m.channelId, tr.channelMenu.passwordWrong)
+        } else {
+          askChannelPassword(m.channelId)
+        }
+        break
+      }
       // "Text" denials carry a human-readable reason from the server.
       const msg = m.type === 'Text' && m.reason ? m.reason : (tr.errors.denied[m.type] ?? tr.errors.generic)
       session.addChat({ kind: 'error', body: msg })

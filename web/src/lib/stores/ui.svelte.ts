@@ -21,6 +21,10 @@ export type DialogState =
       allowEmpty?: boolean
       /** Optional checkbox shown under the input (e.g. "send to sub-channels"). */
       checkbox?: string
+      /** Mask the input (passwords). */
+      password?: boolean
+      /** Error line shown above the input (e.g. wrong password). */
+      error?: string
       onSubmit: (value: string, checked: boolean) => void
     }
   | { kind: 'editChannel'; channelId: number }

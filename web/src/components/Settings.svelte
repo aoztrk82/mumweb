@@ -4,7 +4,8 @@
   import { listDevices, restartMicrophone } from '../lib/audio/transmitter'
   import { clearCert, loadCert, saveCert } from '../lib/certStore'
   import { certToPem, downloadText, parsePemBundle } from '../lib/certFile'
-  import { reconnect } from '../lib/client'
+  import { reconnect, syncTokens } from '../lib/client'
+  import { tokens } from '../lib/stores/tokens.svelte'
   import { keyName } from '../lib/keys'
   import { audioSettings } from '../lib/stores/audioSettings.svelte'
   import { prefs } from '../lib/stores/prefs.svelte'
@@ -172,6 +173,23 @@
   </section>
 
   <section>
+    <h3>{tr.settings.sectionTokens}</h3>
+    <p class="help">{tr.settings.tokensHelp}</p>
+    {#if tokens.remembered.size === 0}
+      <p class="help">{tr.settings.tokensNone}</p>
+    {:else}
+      <ul class="tokens">
+        {#each [...tokens.remembered] as tk (tk)}
+          <li>
+            <code>{tk.length > 2 ? tk.slice(0, 2) + '•'.repeat(Math.min(8, tk.length - 2)) : '••'}</code>
+            <button type="button" onclick={() => { tokens.remove(tk); syncTokens() }}>{tr.settings.tokenRemove}</button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
+
+  <section>
     <h3>{tr.settings.sectionIdentity}</h3>
     <p class="help">{tr.settings.certHelp}</p>
     <p class="help">{hasCert ? tr.settings.certPresent : tr.settings.certNone}</p>
@@ -286,6 +304,23 @@
   }
   .danger {
     color: var(--danger);
+  }
+  .tokens {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .tokens li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .tokens button {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.8rem;
   }
   .msg {
     margin: 0.75rem 0 0;

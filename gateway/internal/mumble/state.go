@@ -20,6 +20,10 @@ type Channel struct {
 	Temporary          bool
 	MaxUsers           uint32
 	Links              []uint32
+	// EnterRestricted: entering needs something beyond default rights (e.g. a password token).
+	EnterRestricted bool
+	// CanEnter: whether we may enter (per user, from the server; true until told otherwise).
+	CanEnter bool
 }
 
 // User is the merged state of a connected user.
@@ -66,8 +70,14 @@ func (s *State) applyChannel(m *pb.ChannelState) (Channel, []Channel, bool) {
 	id := m.GetChannelId()
 	c, ok := s.channels[id]
 	if !ok {
-		c = &Channel{ID: id}
+		c = &Channel{ID: id, CanEnter: true}
 		s.channels[id] = c
+	}
+	if m.IsEnterRestricted != nil {
+		c.EnterRestricted = m.GetIsEnterRestricted()
+	}
+	if m.CanEnter != nil {
+		c.CanEnter = m.GetCanEnter()
 	}
 	if m.Parent != nil {
 		c.Parent = m.GetParent()

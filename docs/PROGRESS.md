@@ -404,6 +404,30 @@ URL'i kopyala, Mesaj gönder… | Filtrelerken gizle, Filtrelerken iğnele.
   normal kullanıcının menüsünde yönetim öğeleri pasif.
 - Bilinen sınır: kanal şifresi (ACL ile) ve kanal açıklamasını görüntüleme yok.
 
+## Ek — Şifreli kanallar (2026-10-13)
+
+Mumble'da kanal şifresi bir ACL'dir (masaüstü `ACLEditor::updatePasswordACL`): `@all` için Enter|Speak|Whisper|
+TextMessage|LinkChannel|Traverse reddedilir, `#<şifre>` grubuna izin verilir; şifre "erişim token'ı" olarak gönderilir.
+Masaüstü 1.5 girerken şifre sormaz (Erişim tokenları penceresi); web'de istenen akış uygulandı.
+- Giriş: kilitli kanala (sunucunun `is_enter_restricted` / `can_enter` alanları) katılırken veya "Enter" reddi
+  gelince şifre penceresi. Şifre oturumun **kalıcı** erişim token'larına eklenir (oturum ortasında `Authenticate.tokens`;
+  sunucu tüm kanalların `can_enter`'ını yeniden gönderir), ardından katılma isteği gider. Geçici token
+  (`UserState.temporary_access_tokens`) yalnızca giriş kontrolünde geçerli olduğu için kullanılmadı: şifre ACL'i
+  Speak/TextMessage'ı da kısıtlar, kullanıcı içeride konuşamazdı. Yanlış şifre → token geri alınır, pencere hata ile
+  tekrar açılır. "Bu tarayıcıda hatırla" → localStorage, girişte `hello.tokens` ile gönderilir; Ayarlar'dan silinir.
+- Yönetici: Düzenle penceresinde "Kanal şifresi" (ACL okunup gösterilir; değişince ACL masaüstüyle aynı kurallarla
+  geri yazılır: miras alınanlar ve değişmemiş miras gruplar atlanır, mevcut şifre ACL'i + eşleşen `@all` reddi
+  değiştirilir).
+- Ağaç: kilitli kanal kırmızı kilit, şifresi olunan kanal açık kilit.
+- **Bulgu — sunucu mesaj hız sınırı:** murmur kullanıcı başına `messagelimit` (1/sn) / `messageburst` (5) uygular
+  (kendi UserState'i, kanal oluşturma, TextMessage, ACL) ve fazlasını sessizce düşürür. ACL yazma 2 mesajdır
+  (sorgu + yazma). Testte hızlı ardışık işlemler bu yüzden düştü; README'ye not eklendi.
+- Doğrulama: Go `TestChannelPassword` (şifre koy/oku, normal kullanıcıda kilitli + reddedilir, yanlış token
+  reddedilir, doğru token → `canEnter` true ve giriş, `hello.tokens` girişten itibaren geçerli, şifre kaldırılınca
+  kısıt kalkar). Tarayıcı: SuperUser Düzenle'den şifre koydu; normal kullanıcı kırmızı kilit gördü, çift tıkta şifre
+  penceresi, yanlış şifre → hata satırı, doğru şifre + hatırla → kanalda ve sohbet yazabiliyor, sayfa yenilenince
+  şifresiz girdi, Ayarlar'dan şifre silinince yeniden kilitli; yönetici Düzenle'de mevcut şifreyi görüyor.
+
 ## Faz 9 kararı (2026-10-13)
 WASM Opus yedeği **yapılmayacak** (kullanıcı kararı). Gerekçe: WebKit kaynağına göre Safari 26+ (iOS 26 / macOS)
 WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (`AudioEncoderCocoa.cpp`,
