@@ -180,6 +180,39 @@ mumprobe `-tx`/`-play` buna göre düzeltildi; Faz 5'te tarayıcı da `örnek sa
   - sağırlaştırılmışken RMS 0.
 - **Bekleyen manuel doğrulama:** masaüstünden gerçek konuşmanın tarayıcıda temiz duyulması (ve 2–3 kişi aynı anda).
 
+## Faz 5 — Ses gönderme (2026-10-13)
+
+- `audio/capture-worklet.ts` + `audio/frames.ts`: mikrofon → 20 ms / 960 örnek 48 kHz mono çerçeve + RMS;
+  bağlam 48 kHz değilse doğrusal yeniden örnekleme. Firefox'ta akış/bağlam örnekleme hızı uyuşmazsa ayrı bir
+  yakalama bağlamı açılır.
+- `audio/transmitter.ts`: `getUserMedia` (AEC, NS [ayarlanabilir], AGC, mono; kayıtlı cihaz yoksa varsayılana düşer),
+  `AudioEncoder` (opus, 48 kHz, mono, 20 ms, complexity 9, DTX kapalı). Bitrate = min(40 000, maxBandwidth − 19 600):
+  resmî `getNetworkBandwidth` TCP-modu ek yükü. Mute/deaf/sunucu mute/suppress iken gönderilmez (seviye göstergesi çalışır).
+  - **Terminator:** konuşma bitince son çerçeve de kodlanır, `flush()` tamamlanana kadar çıktılar tutulur ve
+    **en son paket** terminator olarak işaretlenir. (İlk sürümde flush'ın ürettiği lookahead kuyruğu terminator'den
+    sonra ayrı bir paket olarak gidiyordu; testte yakalandı ve düzeltildi.)
+  - Frame numarası paket başına +2 (10 ms birim, bkz. Faz 4 notu).
+- PTT: ayarlanabilir tuş (varsayılan `V`; metin alanında yazarken tetiklenmez; pencere odağı kaybolunca bırakılır)
+  ve kontrol çubuğunda basılı tutulan buton. VAD: anında açılış, 300 ms bekleme; eşik seviye çubuğunun üstündeki
+  kaydırıcıyla (-60…0 dBFS ölçeği) ayarlanır. Ayarlar localStorage'da (`mumweb.audio`).
+- Ayarlar penceresi (Faz 6'da genişleyecek): mikrofon seçimi, PTT tuşu atama. Mikrofon izni yoksa
+  "yalnızca dinleyebilirsiniz" uyarısı, oturum devam eder.
+
+### Doğrulama
+- Vitest: FrameAssembler (48 kHz bölme, 44.1→48 kHz), VAD bekleme süresi, bitrate sınırı, seviye ölçeği.
+- Uçtan uca: Chromium'a sahte mikrofon olarak WAV (1,5 sn 1 kHz + 1,5 sn sessizlik, döngü); A konuşur, B (mute) dinler
+  ve çıkışı FFT ile ölçülür, mumprobe paketleri loglar:
+  - VAD: konuşma blokları 0→180, 182→364 … (90 paket = 1,5 sn + 300 ms), sonda `term=true`;
+    sessiz bölümde **paket yok**; terminator sonrası başıboş paket yok.
+  - B'de 1 kHz duyuluyor (-16 dB; tarayıcı AGC'si +8 dB yükseltiyor). Tarayıcı ses işlemesi kapalıyken:
+    RMS 0.212 (birebir) ve diğer frekanslar < -88 dB, yani hat temiz.
+  - PTT: tuşsuz 3 sn → 0 paket; 2 sn basılı → 52 paket (506…712, +2 adım); terminator bırakıştan 22 ms sonra.
+  - Sohbete "vvv" yazmak paket göndermiyor; VAD + mute → 0 paket.
+  - Eşik 1.0 → ton varken 0 paket; 0.3 → paket gidiyor; ayar kalıcı.
+- **Bekleyen manuel doğrulama:** tarayıcıdan konuşmanın masaüstünde net duyulması ve PTT bırakılınca masaüstündeki
+  konuşma göstergesinin hemen sönmesi; gerçek mikrofonla yankı engelleme (Chrome'un AEC'si WebAudio çıkışını
+  her platformda referans almayabilir; kulaklıksız kullanımda yankı olursa not edilmeli).
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.

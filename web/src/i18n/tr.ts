@@ -25,6 +25,14 @@ export const tr = {
     deafen: 'Sesi kapat',
     undeafen: 'Sesi aç',
     disconnect: 'Çıkış',
+    settings: 'Ayarlar',
+    modePtt: 'Bas-konuş',
+    modeVad: 'Ses algılama',
+    holdToTalk: 'Basılı tut, konuş',
+    talking: 'Konuşuyorsun',
+    level: 'Mikrofon seviyesi',
+    threshold: 'Ses algılama eşiği',
+    pttKeyHint: (key: string) => `Bas-konuş tuşu: ${key}`,
   },
 
   channels: {
@@ -43,7 +51,20 @@ export const tr = {
   },
 
   audio: {
+    micDenied: 'Mikrofon izni verilmedi; yalnızca dinleyebilirsiniz. İzni tarayıcının adres çubuğundan verebilirsiniz.',
+    micUnavailable: 'Mikrofon kullanılamıyor; yalnızca dinleyebilirsiniz.',
     unsupported: 'Tarayıcınız Opus ses kodlamayı desteklemiyor; ses çalışmayacak. Güncel Chrome, Edge veya Firefox kullanın.',
+  },
+
+  settings: {
+    title: 'Ayarlar',
+    close: 'Kapat',
+    input: 'Mikrofon',
+    output: 'Hoparlör / kulaklık',
+    defaultDevice: 'Varsayılan',
+    pttKey: 'Bas-konuş tuşu',
+    pttKeyPress: 'Bir tuşa basın…',
+    pttKeyChange: 'Değiştir',
   },
 
   chat: {

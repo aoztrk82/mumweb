@@ -3,12 +3,14 @@
   import ChannelTree from './components/ChannelTree.svelte'
   import Controls from './components/Controls.svelte'
   import Login from './components/Login.svelte'
+  import Settings from './components/Settings.svelte'
   import StatusBar from './components/StatusBar.svelte'
   import { tr } from './i18n/tr'
   import { session } from './lib/stores/session.svelte'
 
   const root = $derived(session.channels.get(0))
   let tab = $state<'channels' | 'chat'>('channels')
+  let settingsOpen = $state(false)
 </script>
 
 {#if !session.joined}
@@ -31,8 +33,9 @@
         <Chat />
       </section>
     </main>
-    <Controls />
+    <Controls onSettings={() => (settingsOpen = true)} />
   </div>
+  <Settings bind:open={settingsOpen} />
 {/if}
 
 <style>

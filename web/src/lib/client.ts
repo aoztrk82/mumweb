@@ -2,6 +2,7 @@
 import { tr } from '../i18n/tr'
 import { unlockAudio } from './audio/context'
 import { handleAudioFrame, removeSpeaker, silenceAll, startReceiver, stopReceiver } from './audio/receiver'
+import { encoderSupported, setAudioSender, startMicrophone, stopMicrophone } from './audio/transmitter'
 import { loadCert, saveCert } from './certStore'
 import type { ServerMessage, UserInfo } from './protocol'
 import { sanitizeHtml, textToHtml } from './sanitize'
@@ -14,12 +15,7 @@ let credentials = { username: '', password: '' }
 /** Starts a session. Call from a click handler: it also unlocks audio playback. */
 export function connect(username: string, password: string): void {
   unlockAudio()
-  startReceiver()
-    .then((ok) => (session.audioUnsupported = !ok))
-    .catch((e) => {
-      console.error('audio playback unavailable', e)
-      session.audioUnsupported = true
-    })
+  void startAudio()
   socket?.stop()
   credentials = { username, password }
   session.error = null
@@ -41,10 +37,25 @@ export function connect(username: string, password: string): void {
   socket.start()
 }
 
+async function startAudio(): Promise<void> {
+  try {
+    const [canDecode, canEncode] = await Promise.all([startReceiver(), encoderSupported()])
+    session.audioUnsupported = !canDecode || !canEncode
+    if (canEncode) {
+      setAudioSender(sendAudioFrame)
+      await startMicrophone()
+    }
+  } catch (e) {
+    console.error('audio setup failed', e)
+    session.audioUnsupported = true
+  }
+}
+
 export function disconnect(): void {
   socket?.stop()
   socket = null
   stopReceiver()
+  stopMicrophone()
   session.joined = false
   session.resetServerState()
 }
