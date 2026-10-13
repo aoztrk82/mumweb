@@ -21,7 +21,8 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
   kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
 
 **Özellikler:** takma ad + isteğe bağlı sunucu şifresi, kanal ağacı ve kanal değiştirme (çift tık), konuşan göstergesi,
-sağ tık menüleri (kullanıcı: yerel ses seviyesi %0–200 / benim için sustur; kanal: katıl; kendin: mute/deafen),
+sağ tık menüleri (kullanıcı: yerel ses seviyesi %0–200 / benim için sustur; kanal: katıl, alt kanal oluştur
+[sunucu yetkisi gerekir]; kendin: mute/deafen),
 bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
 sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 
@@ -111,6 +112,7 @@ location / {
 | `MUMWEB_ALLOWED_ORIGINS` | boş | Virgülle ayrılmış izinli `Origin`'ler (ör. `https://ses.alanadi.com`; varsayılan port yazılsa da olur); boşsa yalnızca aynı host |
 | `MUMWEB_CONN_RATE` | `10` | IP başına dakikada yeni bağlantı sınırı (`0` = kapalı) |
 | `MUMWEB_TRUST_PROXY` | `false` | İstemci IP'sini `X-Forwarded-For`'dan al (ters proxy arkasında `true`) |
+| `MUMWEB_ALLOW_SUPERUSER` | `false` | Web'den Mumble `SuperUser` hesabıyla girişe izin ver (kapalıyken bu ad reddedilir; yönetim masaüstü istemciden) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 Mumble sunucusunun parmak izini `mumprobe` yazdırır (`make gateway` sonrası):

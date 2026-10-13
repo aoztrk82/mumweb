@@ -25,6 +25,7 @@ const (
 	browserIdle       = 60 * time.Second // browsers ping every 20 s
 	wsWriteTimeout    = 10 * time.Second
 	maxUsernameLen    = 128
+	maxChannelNameLen = 128
 	audioPacketsPerS  = 100
 	audioPacketsBurst = 150
 )
@@ -39,6 +40,7 @@ type Config struct {
 	ConnsPerMinute int      // per client IP; 0 disables the limit
 	TrustProxy     bool     // take client IP from X-Forwarded-For
 	Release        string   // client release string shown to other users
+	AllowSuperUser bool     // allow logging in as Mumble's SuperUser from the web
 	Logger         *slog.Logger
 }
 
@@ -138,6 +140,11 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 	if username == "" || len(username) > maxUsernameLen || !utf8.ValidString(username) {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: "InvalidUsername", Message: "invalid username"})
 		return websocket.StatusNormalClosure, "invalid username"
+	}
+	if !s.h.cfg.AllowSuperUser && strings.EqualFold(username, "SuperUser") {
+		s.log.Warn("web SuperUser login refused (MUMWEB_ALLOW_SUPERUSER=false)")
+		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: "SuperUserDisabled", Message: "SuperUser login is disabled for the web client"})
+		return websocket.StatusNormalClosure, "superuser disabled"
 	}
 	s.log = s.log.With("user", username)
 
@@ -339,6 +346,12 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 			return fmt.Errorf("%w: joinChannel without channelId", errProtocol)
 		}
 		return s.mc.JoinChannel(*m.ChannelID)
+	case "createChannel":
+		name := strings.TrimSpace(m.Name)
+		if m.Parent == nil || name == "" || len(name) > maxChannelNameLen || !utf8.ValidString(name) {
+			return fmt.Errorf("%w: bad createChannel", errProtocol)
+		}
+		return s.mc.CreateChannel(*m.Parent, name, m.Temporary)
 	case "setSelf":
 		u, _ := s.mc.State().User(s.mc.Session())
 		mute, deaf := u.SelfMute, u.SelfDeaf

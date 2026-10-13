@@ -10,6 +10,7 @@ export interface CertPair {
 export type ClientMessage =
   | { t: 'hello'; username: string; password: string; cert: CertPair | null }
   | { t: 'joinChannel'; channelId: number }
+  | { t: 'createChannel'; parent: number; name: string; temporary: boolean }
   | { t: 'setSelf'; mute?: boolean; deaf?: boolean }
   | { t: 'text'; message: string }
   | { t: 'ping'; ts: number }

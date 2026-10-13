@@ -38,6 +38,11 @@ type clientMsg struct {
 	// joinChannel
 	ChannelID *uint32 `json:"channelId"`
 
+	// createChannel
+	Parent    *uint32 `json:"parent"`
+	Name      string  `json:"name"`
+	Temporary bool    `json:"temporary"`
+
 	// setSelf
 	Mute *bool `json:"mute"`
 	Deaf *bool `json:"deaf"`

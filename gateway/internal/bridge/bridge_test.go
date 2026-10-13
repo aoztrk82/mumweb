@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -267,7 +268,7 @@ func TestBridgeEndToEnd(t *testing.T) {
 
 func TestBridgeReject(t *testing.T) {
 	addr := mumbleAddr(t)
-	srv := httptest.NewServer(New(Config{MumbleAddr: addr}))
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr, AllowSuperUser: true}))
 	defer srv.Close()
 	url := "ws" + strings.TrimPrefix(srv.URL, "http")
 
@@ -298,5 +299,54 @@ func TestBridgeProtocolViolation(t *testing.T) {
 	var ce websocket.CloseError
 	if !errors.As(err, &ce) {
 		t.Fatal(err)
+	}
+}
+
+func TestSuperUserDisabled(t *testing.T) {
+	// Refused before any Mumble connection is made.
+	srv := httptest.NewServer(New(Config{MumbleAddr: "127.0.0.1:1"}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	for _, name := range []string{"SuperUser", "superuser", " SUPERUSER "} {
+		c := dialBridge(t, url, map[string]any{"username": name, "password": "x"})
+		if m := c.until("reject"); m["reason"] != "SuperUserDisabled" {
+			t.Fatalf("%q: %v", name, m)
+		}
+		c.ws.CloseNow()
+	}
+}
+
+func TestCreateChannel(t *testing.T) {
+	addr := mumbleAddr(t)
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr, AllowSuperUser: true}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	// An ordinary user may not create permanent channels (default ACL).
+	c := dialBridge(t, url, map[string]any{"username": "kanalci"})
+	c.until("ready")
+	c.send(map[string]any{"t": "createChannel", "parent": 0, "name": "izinsiz", "temporary": false})
+	if m := c.until("denied"); m["type"] != "Permission" {
+		t.Fatalf("denied %v", m)
+	}
+	c.ws.CloseNow()
+
+	pw := os.Getenv("MUMWEB_TEST_SUPERUSER_PASSWORD")
+	if pw == "" {
+		t.Skip("MUMWEB_TEST_SUPERUSER_PASSWORD not set")
+	}
+	su := dialBridge(t, url, map[string]any{"username": "SuperUser", "password": pw})
+	defer su.ws.CloseNow()
+	su.until("ready")
+	name := "test-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	su.send(map[string]any{"t": "createChannel", "parent": 0, "name": name, "temporary": true})
+	for {
+		m := su.until("channel")
+		if m["name"] == name {
+			if m["temporary"] != true || m["parent"] != 0.0 {
+				t.Fatalf("channel %v", m)
+			}
+			break
+		}
 	}
 }

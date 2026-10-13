@@ -14,7 +14,8 @@ bağlanabilirsiniz. Windows için yazıldı; macOS/Linux farkları en sonda.
 
 | Servis | Görevi |
 |---|---|
-| `mumble` | Resmî Mumble sunucusu (`mumblevoip/mumble-server`). 64738 portu masaüstü istemciler için açık. |
+| `certs` | Tek seferlik: mkcert dosyalarını Mumble'ın okuyabileceği izinlerle bir volume'e kopyalar, sonra kapanır. |
+| `mumble` | Resmî Mumble sunucusu (`mumblevoip/mumble-server`), mkcert sertifikasıyla. 64738 portu masaüstü istemciler için açık. |
 | `mumweb` | Bu depodan derlenen gateway + web arayüzü. |
 | `caddy` | `https://mumweb.test`'i mkcert ile ürettiğiniz sertifikayla sunar, isteği mumweb'e aktarır. |
 
@@ -144,7 +145,8 @@ Durumu kontrol edin:
 docker compose ps
 ```
 
-`mumweb` satırı `healthy` olmalı, `caddy` ve `mumble` `Up` görünmeli.
+`mumweb` satırı `healthy` olmalı, `caddy` ve `mumble` `Up` görünmeli. `certs` servisinin
+`Exited (0)` görünmesi normaldir (işini yapıp kapanır; `docker compose ps -a` ile görünür).
 
 ## 6. Kullanın
 
@@ -161,19 +163,34 @@ docker compose ps
 takma adla girin. Gizli pencere ayrı bir sertifika (kimlik) kullanır. Yankı ve geri besleme olmaması için
 **kulaklık takın** veya birini sessize alın.
 
-### 6.2 Masaüstü Mumble istemcisiyle
+### 6.2 SuperUser ile yönetim (kanal oluşturma)
+
+Yerel ortamda Mumble'ın yönetici hesabı **SuperUser** web'den de kullanılabilir:
+
+1. Giriş ekranında takma ad: `SuperUser`, **Sunucu şifresi**: `superuser` (`.env`'deki `MUMBLE_SUPERUSER_PASSWORD`).
+2. Bir kanala **sağ tıklayın → Alt kanal oluştur…** → adı yazıp **Oluştur**. "Geçici kanal" seçilirse kanal
+   herkes çıkınca silinir.
+3. Kanala geçmek için çift tıklayın veya **sağ tık → Kanala katıl**.
+
+Normal (kayıtsız) kullanıcılar Mumble'ın varsayılan izinleriyle kanal oluşturamaz; denerlerse sohbette
+"Bu işlem için yetkiniz yok." görürler. Bu davranış sunucunun ACL ayarlarından gelir.
+
+> Web'den SuperUser girişi `MUMWEB_ALLOW_SUPERUSER` ile açılıp kapanır. Yerel ortamda **açık**, production
+> compose'ta **kapalı** gelir; web giriş sayfası adresi bilen herkese açık olduğundan gerçek sunucuda yönetim için
+> masaüstü istemci önerilir.
+
+### 6.3 Masaüstü Mumble istemcisiyle
 
 1. Mumble'da **Sunucu → Bağlan → Sunucu ekle**:
    - Adres: `mumweb.test`
    - Port: `64738`
    - Kullanıcı adı: istediğiniz bir ad
-2. Bağlanırken Mumble sunucu sertifikasının doğrulanamadığını söyler (sunucu kendinden imzalı sertifika kullanır);
-   **Kabul et**'e tıklayın.
+2. Mumble sunucusu da `certs\` klasöründeki mkcert sertifikasını kullanır; mkcert'in kök sertifikası Windows'a
+   kurulu olduğu için istemci **sertifika sormadan** bağlanır. (`localhost` veya IP ile bağlanırsanız ad
+   uyuşmadığı için sorabilir; `mumweb.test` kullanın.)
 3. Web'deki kullanıcıları görürsünüz; konuşma, sohbet ve kanal değiştirme iki yönde çalışmalı.
 
-**Kanal oluşturmak için** masaüstü istemcide kullanıcı adı `SuperUser`, şifre `superuser` ile bağlanın
-(şifre `.env`'deki `MUMBLE_SUPERUSER_PASSWORD`), bir kanala sağ tıklayıp **Ekle** deyin.
-Web arayüzünden de `SuperUser` adı ve "Sunucu şifresi" alanına bu şifreyle girilebilir.
+Masaüstünden yönetim için aynı şekilde `SuperUser` / `superuser` ile bağlanıp kanala sağ tık → **Ekle** diyebilirsiniz.
 
 Denenecek senaryoların listesi için README'deki
 [Manuel kabul testleri](../README.md#manuel-kabul-testleri) bölümüne bakın.
@@ -195,6 +212,7 @@ docker compose up -d       # değişiklikleri uygular
 | `HTTP_PORT` | `80` | HTTP → HTTPS yönlendirmesi |
 | `MUMBLE_PORT` | `64738` | Masaüstü Mumble istemcisinin bağlanacağı port |
 | `MUMBLE_SUPERUSER_PASSWORD` | `superuser` | Mumble SuperUser şifresi (ilk çalıştırmada ayarlanır) |
+| `MUMWEB_ALLOW_SUPERUSER` | `true` | Web'den `SuperUser` girişine izin ver |
 | `MUMWEB_LOG_LEVEL` | `debug` | Gateway log seviyesi |
 
 ### Port çakışması (80/443 dolu)
@@ -261,7 +279,7 @@ Telefondan veya başka bir bilgisayardan denemek için o cihazın da (a) `mumweb
 2. **Sertifikayı bu IP için de üretin** (isteğe bağlı ama önerilir):
    ```powershell
    mkcert -cert-file certs\cert.pem -key-file certs\key.pem mumweb.test localhost 127.0.0.1 ::1 192.168.1.20
-   docker compose restart caddy
+   docker compose up -d --force-recreate certs mumble caddy
    ```
 3. **Güvenlik duvarı:** Yönetici PowerShell'de:
    ```powershell
@@ -285,7 +303,8 @@ Telefondan veya başka bir bilgisayardan denemek için o cihazın da (a) `mumweb
 
 | Belirti | Çözüm |
 |---|---|
-| `caddy` sürekli yeniden başlıyor, logda `open /certs/cert.pem: no such file` | Sertifika üretilmemiş veya adı farklı: [3.2](#32-mumwebtest-için-sertifika-üretin)'deki komutu `deploy\local` içinde çalıştırın, sonra `docker compose restart caddy` |
+| `docker compose up` "service certs didn't complete successfully" ile duruyor / `caddy` logunda `open /certs/cert.pem: no such file` | Sertifika üretilmemiş veya adı farklı: [3.2](#32-mumwebtest-için-sertifika-üretin)'deki komutu `deploy\local` içinde çalıştırın, sonra `docker compose up -d` |
+| Masaüstü Mumble yine de sertifika soruyor | `mumweb.test` adıyla bağlanın; sertifikayı sonradan yenilediyseniz `docker compose up -d --force-recreate certs mumble` |
 | `NET::ERR_CERT_AUTHORITY_INVALID` / "Bağlantınız gizli değil" | `mkcert -install` çalıştırılmamış ya da tarayıcı açıkken kurulmuş: tarayıcıyı tamamen kapatıp açın. Firefox için [3.1](#31-yerel-sertifika-otoritesini-kurun-bir-kez)'deki ayar |
 | `NET::ERR_CERT_COMMON_NAME_INVALID` | Sertifika başka bir ad için üretilmiş; açtığınız adı (`mumweb.test`) içerecek şekilde yeniden üretin |
 | "Bu siteye ulaşılamıyor" / `DNS_PROBE_FINISHED_NXDOMAIN` | hosts satırı eksik veya yanlış; `ping mumweb.test` ile kontrol edin, `ipconfig /flushdns`. Tarayıcıda VPN veya kurumsal proxy varsa kapatın |

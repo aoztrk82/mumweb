@@ -333,6 +333,22 @@ Windows + Firefox'ta yerel testte: "mikrofon kullanılamıyor" uyarısı ve sağ
   menüden kanala katılma Mumble'a yansıdı, menüden mute Mumble'a yansıdı, Esc/dışarı tıklama kapatıyor, sol tık açmıyor.
 - **Bekleyen:** kullanıcının Windows makinesinde gerçek hata adının görülmesi (yeni uyarı gösterecek).
 
+## Ek — SuperUser anahtarı, web'den kanal oluşturma, yerel Mumble sertifikası (2026-10-13)
+
+- Gateway `MUMWEB_ALLOW_SUPERUSER` (varsayılan **false**): kapalıyken `SuperUser` adı (büyük/küçük harf duyarsız)
+  Mumble'a bağlanılmadan `reject SuperUserDisabled` ile reddedilir. Yerel ve dev compose'ta açık, production'da kapalı.
+- Protokol: `{t:"createChannel", parent, name, temporary}` → Mumble `ChannelState`. Yetkiyi sunucunun ACL'i belirler;
+  ret `denied` olarak sohbete düşer. Arayüz: kanal sağ tık → "Alt kanal oluştur…" penceresi (ad, geçici kanal).
+  Not: plan Bölüm 1 yönetim işlevlerini kapsam dışı sayıyordu; kullanıcı isteğiyle yalnızca kanal oluşturma eklendi.
+- Yerel ortamda Mumble sunucusu da mkcert sertifikasını kullanır (`sslCert`/`sslKey`). mkcert anahtarı 600 izinli
+  olduğundan ve Mumble uid 10000 ile çalıştığından tek seferlik `certs` servisi dosyaları uygun sahiplikle bir volume'e
+  kopyalar (bind mount ile Linux'ta "Failed to read /certs/key.pem" ile kapanıyordu). Sertifika yoksa Türkçe hata ile durur.
+- Doğrulama: Go testleri (SuperUser reddi 3 yazımda; kayıtsız kullanıcı kalıcı kanal → `Permission`; SuperUser geçici
+  kanal oluşturuyor). Yerel stack (openssl ile mkcert benzeri CA): `openssl s_client -CAfile rootCA.pem
+  -verify_hostname mumweb.test` → Mumble portunda `Verify return code: 0`. Tarayıcı: SuperUser web'den girdi (kayıtlı
+  ikonu), sağ tık → "Oyun Odası" oluşturuldu (gözlemci istemci de gördü), menüden katılındı; kayıtsız kullanıcı kalıcı
+  ve geçici kanal denemesinde "Bu işlem için yetkiniz yok." (Mumble varsayılan ACL'i).
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.

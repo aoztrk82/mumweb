@@ -43,6 +43,7 @@ func main() {
 		AllowedOrigins: envList("MUMWEB_ALLOWED_ORIGINS"),
 		ConnsPerMinute: envInt("MUMWEB_CONN_RATE", 10),
 		TrustProxy:     envBool("MUMWEB_TRUST_PROXY", false),
+		AllowSuperUser: envBool("MUMWEB_ALLOW_SUPERUSER", false),
 		Release:        release,
 		Logger:         logger,
 	}
@@ -60,7 +61,7 @@ func main() {
 
 	go func() {
 		slog.Info("listening", "addr", addr, "mumble", bcfg.MumbleAddr, "tlsVerify", bcfg.TLSVerify,
-			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins)
+			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "err", err)
 			os.Exit(1)

@@ -118,6 +118,9 @@
       >
         {tr.channels.join}
       </button>
+      <button role="menuitem" onclick={() => act(() => (ui.createIn = channel.id))}>
+        {tr.channels.create}
+      </button>
     {/if}
   </div>
 {/if}

@@ -10,6 +10,8 @@ export interface MenuTarget {
 class UiState {
   /** Open context menu, if any. */
   menu = $state<MenuTarget | null>(null)
+  /** Parent channel of the open "create channel" dialog, if any. */
+  createIn = $state<number | null>(null)
 }
 
 export const ui = new UiState()

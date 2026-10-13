@@ -86,6 +86,11 @@ export function joinChannel(channelId: number): void {
   socket?.send({ t: 'joinChannel', channelId })
 }
 
+/** Asks the server to create a sub-channel; the server's ACL decides (denials show in chat). */
+export function createChannel(parent: number, name: string, temporary: boolean): void {
+  socket?.send({ t: 'createChannel', parent, name: name.trim(), temporary })
+}
+
 export function setSelf(mute: boolean, deaf: boolean): void {
   socket?.send({ t: 'setSelf', mute, deaf })
 }

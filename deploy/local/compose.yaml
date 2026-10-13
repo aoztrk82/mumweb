@@ -10,6 +10,26 @@
 name: mumweb-local
 
 services:
+  # One-shot: copies the mkcert files into a volume owned by the Mumble server's user
+  # (uid 10000). mkcert writes key.pem with mode 600, which the server could not read
+  # through a bind mount on Linux/macOS.
+  certs:
+    image: alpine:3.24
+    restart: "no"
+    volumes:
+      - ./certs:/src:ro
+      - mumble-certs:/out
+    command:
+      - sh
+      - -c
+      - |
+        if [ ! -f /src/cert.pem ] || [ ! -f /src/key.pem ]; then
+          echo "HATA: deploy/local/certs/cert.pem ve key.pem bulunamadi. mkcert adimi icin docs/DEVELOPMENT.md (3.2)." >&2
+          exit 1
+        fi
+        cp /src/cert.pem /src/key.pem /out/ && chown 10000:10000 /out/*.pem && chmod 644 /out/cert.pem && chmod 600 /out/key.pem
+        echo "certificates ready"
+
   mumble:
     image: mumblevoip/mumble-server:latest
     restart: unless-stopped
@@ -19,11 +39,19 @@ services:
       - "${MUMBLE_PORT:-64738}:64738/udp"
     volumes:
       - mumble-data:/data
+      # Same mkcert certificate as Caddy, so desktop clients connecting to
+      # mumweb.test:64738 trust the server without a prompt.
+      - mumble-certs:/certs:ro
     environment:
       MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:-superuser}
       MUMBLE_CONFIG_WELCOMETEXT: "mumweb yerel test sunucusu"
+      MUMBLE_CONFIG_SSLCERT: /certs/cert.pem
+      MUMBLE_CONFIG_SSLKEY: /certs/key.pem
       # All web users share the gateway's IP; don't autoban successful logins.
       MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
+    depends_on:
+      certs:
+        condition: service_completed_successfully
 
   mumweb:
     build:
@@ -36,6 +64,8 @@ services:
       MUMWEB_ALLOWED_ORIGINS: https://${MUMWEB_DOMAIN:-mumweb.test}:${HTTPS_PORT:-443}
       MUMWEB_TRUST_PROXY: "true"
       MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-debug}
+      # Local testing: allow "SuperUser" to log in from the browser (create channels etc.).
+      MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-true}
     depends_on:
       - mumble
 
@@ -57,5 +87,6 @@ services:
 
 volumes:
   mumble-data:
+  mumble-certs:
   caddy-data:
   caddy-config:

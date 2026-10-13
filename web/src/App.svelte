@@ -3,6 +3,7 @@
   import ChannelTree from './components/ChannelTree.svelte'
   import ContextMenu from './components/ContextMenu.svelte'
   import Controls from './components/Controls.svelte'
+  import CreateChannel from './components/CreateChannel.svelte'
   import Login from './components/Login.svelte'
   import Settings from './components/Settings.svelte'
   import StatusBar from './components/StatusBar.svelte'
@@ -39,6 +40,7 @@
   </div>
   <Settings bind:open={settingsOpen} />
   <ContextMenu />
+  <CreateChannel />
 {/if}
 
 <style>

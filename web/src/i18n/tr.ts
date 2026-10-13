@@ -39,6 +39,14 @@ export const tr = {
     title: 'Kanallar',
     joinHint: 'Kanala geçmek için çift tıklayın; seçenekler için sağ tıklayın',
     join: 'Kanala katıl',
+    create: 'Alt kanal oluştur…',
+    createTitle: (parent: string) => `"${parent}" altında yeni kanal`,
+    createName: 'Kanal adı',
+    createTemporary: 'Geçici kanal (herkes çıkınca silinir)',
+    createHint:
+      'Kanal oluşturmak için sunucuda yetki gerekir (ör. SuperUser veya yöneticinin yetki verdiği kayıtlı kullanıcı). Yetkiniz yoksa sohbette uyarı görürsünüz.',
+    createSubmit: 'Oluştur',
+    cancel: 'Vazgeç',
     userHint: 'Ses seviyesi için sağ tıklayın',
     mutedForMe: 'susturuldu',
     you: '(sen)',
@@ -138,6 +146,7 @@ export const tr = {
       ServerFull: 'Sunucu dolu.',
       NoCertificate: 'Sunucu sertifika istiyor.',
       AuthenticatorFail: 'Kimlik doğrulama başarısız.',
+      SuperUserDisabled: 'SuperUser ile web üzerinden giriş bu sunucuda kapalı. Masaüstü Mumble istemcisini kullanın.',
     } as Record<string, string>,
     // Mumble PermissionDenied types
     denied: {

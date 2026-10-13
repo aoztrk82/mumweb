@@ -92,7 +92,7 @@ func main() {
 		}
 	}
 	if *mkchannel != "" {
-		if err := c.CreateChannel(0, *mkchannel); err != nil {
+		if err := c.CreateChannel(0, *mkchannel, false); err != nil {
 			fatal("mkchannel", err)
 		}
 	}

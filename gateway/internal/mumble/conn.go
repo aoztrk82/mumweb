@@ -495,7 +495,13 @@ func (c *Client) SendText(message string, channels, sessions []uint32) error {
 	return c.send(&pb.TextMessage{Message: &message, ChannelId: channels, Session: sessions})
 }
 
-// CreateChannel asks the server to create a permanent sub-channel (needs MakeChannel permission).
-func (c *Client) CreateChannel(parent uint32, name string) error {
-	return c.send(&pb.ChannelState{Parent: &parent, Name: &name})
+// CreateChannel asks the server to create a sub-channel. Permanent channels need the
+// MakeChannel permission, temporary ones (removed when empty) MakeTempChannel.
+// The server answers with ChannelState on success or PermissionDenied.
+func (c *Client) CreateChannel(parent uint32, name string, temporary bool) error {
+	m := &pb.ChannelState{Parent: &parent, Name: &name}
+	if temporary {
+		m.Temporary = &temporary
+	}
+	return c.send(m)
 }
