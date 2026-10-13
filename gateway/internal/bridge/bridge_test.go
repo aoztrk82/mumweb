@@ -18,7 +18,7 @@ import (
 )
 
 func TestOriginAndSessionLimits(t *testing.T) {
-	h := New(Config{MumbleAddr: "127.0.0.1:1", AllowedOrigins: []string{"https://ses.example.com"}, MaxSessions: 1})
+	h := New(Config{MumbleAddr: "127.0.0.1:1", AllowedOrigins: []string{"https://ses.example.com:443"}, MaxSessions: 1})
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 	url := "ws" + strings.TrimPrefix(srv.URL, "http")

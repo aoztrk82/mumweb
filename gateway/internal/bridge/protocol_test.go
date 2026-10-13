@@ -92,3 +92,20 @@ func parseIncomingForTest(b []byte) (mumble.AudioPacket, error) {
 		Opus:        b[outAudioHeaderLen:],
 	}, nil
 }
+
+func TestNormalizeOrigin(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://ses.example.com":      "https://ses.example.com",
+		"https://Ses.Example.com:443/": "https://ses.example.com",
+		"https://mumweb.test:8443":     "https://mumweb.test:8443",
+		"http://localhost:80":          "http://localhost",
+		"http://localhost:5173":        "http://localhost:5173",
+		"https://[::1]:443":            "https://[::1]",
+		" https://ses.example.com/ ":   "https://ses.example.com",
+		"null":                         "null",
+	} {
+		if got := normalizeOrigin(in); got != want {
+			t.Errorf("normalizeOrigin(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

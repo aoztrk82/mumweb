@@ -1,0 +1,10 @@
+{
+	# The certificate comes from mkcert (./certs); never contact a public CA.
+	auto_https disable_certs
+}
+
+{$MUMWEB_DOMAIN} {
+	tls /certs/cert.pem /certs/key.pem
+	encode zstd gzip
+	reverse_proxy mumweb:8080
+}

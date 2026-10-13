@@ -1,0 +1,3 @@
+# mkcert output (cert.pem, key.pem) stays local.
+*
+!.gitignore

@@ -297,6 +297,24 @@ Dev stack, 8 çekirdekli makine. 10 WebSocket istemcisi aynı kanalda, **hepsi a
 Gerçekte aynı anda 1–2 kişi konuşur; yük konuşan sayısı × dinleyen sayısıyla doğru orantılıdır.
 Gerekirse ilk optimizasyon adayı: ses çerçevesi başına `context.WithTimeout` + WS yazımı.
 
+## Ek — Yerel HTTPS test ortamı (2026-10-13)
+
+- `deploy/local/compose.yaml` (Caddy + Mumble + mumweb), `deploy/local/Caddyfile` (mkcert sertifikası `certs/`,
+  `auto_https disable_certs`), `.env.example` (alan adı, portlar, SuperUser şifresi); `.env` olmadan da çalışır.
+  `certs/` içeriği git'e ve Docker build context'ine girmez. Windows checkout'larında LF için `.gitattributes`.
+- Gateway: izinli Origin karşılaştırması normalize edildi (küçük harf, sondaki `/`, varsayılan `:443`/`:80`
+  yok sayılır); böylece compose `https://<alan>:<HTTPS_PORT>` yazar ve hem 443'te hem başka portta çalışır.
+- `docs/DEVELOPMENT.md`: Windows için adım adım rehber (mkcert, hosts, başlatma, masaüstü istemci, port çakışması,
+  LAN/Android, sorun giderme); README'den bağlantı verildi.
+
+### Doğrulama (Linux, mkcert yerine openssl ile aynı yapıda CA + sertifika)
+- 80/443/64738 bu makinede dolu olduğu için `.env` ile 8444/8082/64741 kullanıldı (port değiştirme yolu da sınandı).
+- Caddy ACME'ye gitmeden dosya sertifikasını sundu; `curl --cacert rootCA.pem https://mumweb.test:8444/healthz` → 200.
+- Headless Chromium (`mumweb.test` → host IP): güvenli bağlam, iki oturum arası ses (1 kHz, -16 dB), service worker,
+  Origin `https://mumweb.test:8444` kabul edildi; mumprobe `localhost:64741` üzerinden kullanıcıları ve sesi gördü.
+- Ortam `down -v` ile kaldırıldı, sahte sertifikalar silindi.
+- **Bekleyen:** gerçek Windows + Docker Desktop + mkcert üzerinde deneme.
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.

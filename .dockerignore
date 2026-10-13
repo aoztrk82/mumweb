@@ -3,3 +3,5 @@
 bin
 gateway/web/dist
 deploy/.env
+deploy/local/certs
+deploy/local/.env

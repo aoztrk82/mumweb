@@ -35,7 +35,7 @@ type Config struct {
 	TLSVerify      bool
 	Fingerprint    string
 	MaxSessions    int
-	AllowedOrigins []string // exact Origin values; empty = same-host check only
+	AllowedOrigins []string // allowed Origin values (default ports may be explicit); empty = same-host check only
 	ConnsPerMinute int      // per client IP; 0 disables the limit
 	TrustProxy     bool     // take client IP from X-Forwarded-For
 	Release        string   // client release string shown to other users
@@ -60,6 +60,11 @@ func New(cfg Config) *Handler {
 	if cfg.Release == "" {
 		cfg.Release = "mumweb"
 	}
+	origins := make([]string, 0, len(cfg.AllowedOrigins))
+	for _, o := range cfg.AllowedOrigins {
+		origins = append(origins, normalizeOrigin(o))
+	}
+	cfg.AllowedOrigins = origins
 	base, stop := context.WithCancel(context.Background())
 	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute)}
 }
@@ -78,7 +83,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	opts := &websocket.AcceptOptions{}
 	if len(h.cfg.AllowedOrigins) > 0 {
 		origin := r.Header.Get("Origin")
-		if !slices.Contains(h.cfg.AllowedOrigins, origin) {
+		if !slices.Contains(h.cfg.AllowedOrigins, normalizeOrigin(origin)) {
 			log.Warn("ws origin rejected", "origin", origin)
 			http.Error(w, "origin not allowed", http.StatusForbidden)
 			return

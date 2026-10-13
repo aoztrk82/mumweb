@@ -3,6 +3,7 @@ package bridge
 import (
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -85,4 +86,26 @@ func clientIP(r *http.Request, trustProxy bool) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// normalizeOrigin lowercases scheme and host and drops a default port, so that
+// "https://Ses.example.com:443/" and "https://ses.example.com" compare equal.
+// Browsers omit default ports in the Origin header.
+func normalizeOrigin(o string) string {
+	u, err := url.Parse(strings.TrimSpace(o))
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(o)), "/")
+	}
+	scheme := strings.ToLower(u.Scheme)
+	host := strings.ToLower(u.Hostname())
+	port := u.Port()
+	if (scheme == "https" && port == "443") || (scheme == "http" && port == "80") {
+		port = ""
+	}
+	if port != "" {
+		host = net.JoinHostPort(host, port)
+	} else if strings.Contains(host, ":") {
+		host = "[" + host + "]" // IPv6 literal
+	}
+	return scheme + "://" + host
 }

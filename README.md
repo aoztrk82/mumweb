@@ -28,6 +28,9 @@ sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 **Tarayıcılar:** Chrome/Edge ve Firefox (masaüstü), Chrome (Android). Safari/iOS henüz desteklenmiyor
 (WebCodecs Opus eksik; bkz. plan Faz 9).
 
+> **Kendi bilgisayarınızda denemek mi istiyorsunuz?** Windows (ve macOS/Linux) için mkcert sertifikası ve hosts
+> dosyasıyla `https://mumweb.test` üzerinde çalışan hazır ortam: **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)**.
+
 ## Kurulum (yeni bir sunucuda)
 
 Gereksinimler: Docker + Docker Compose, 80/443 (TCP) ve 64738 (TCP+UDP) portları açık bir Linux sunucu,
@@ -105,7 +108,7 @@ location / {
 | `MUMWEB_TLS_VERIFY` | `false` | Mumble sunucu sertifikasını doğrula (kendinden imzalıysa kapalı kalmalı) |
 | `MUMWEB_TLS_FINGERPRINT` | boş | Doluysa sunucu sertifikasının SHA-256 parmak izi sabitlenir |
 | `MUMWEB_MAX_SESSIONS` | `50` | Eşzamanlı web oturumu sınırı |
-| `MUMWEB_ALLOWED_ORIGINS` | boş | Virgülle ayrılmış izinli `Origin`'ler (ör. `https://ses.alanadi.com`); boşsa yalnızca aynı host |
+| `MUMWEB_ALLOWED_ORIGINS` | boş | Virgülle ayrılmış izinli `Origin`'ler (ör. `https://ses.alanadi.com`; varsayılan port yazılsa da olur); boşsa yalnızca aynı host |
 | `MUMWEB_CONN_RATE` | `10` | IP başına dakikada yeni bağlantı sınırı (`0` = kapalı) |
 | `MUMWEB_TRUST_PROXY` | `false` | İstemci IP'sini `X-Forwarded-For`'dan al (ters proxy arkasında `true`) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
@@ -145,7 +148,10 @@ Gateway logları JSON'dur: `docker compose logs -f mumweb`. Şifre, sertifika an
 
 ## Geliştirme
 
-Gereksinimler: Go 1.27+, Node 24 LTS, Docker + Compose, GNU Make; `protoc` + `protoc-gen-go` yalnızca `make proto` için.
+**Yerel HTTPS test ortamı** (Caddy + Mumble + mumweb, mkcert sertifikası, `https://mumweb.test`; Windows için adım
+adım anlatım): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) — `deploy/local/` içinde `docker compose up -d --build`.
+
+Aşağıdakiler kaynak koddan geliştirme içindir. Gereksinimler: Go 1.27+, Node 24 LTS, Docker + Compose, GNU Make; `protoc` + `protoc-gen-go` yalnızca `make proto` için.
 
 ```sh
 cp deploy/.env.example deploy/.env   # MUMBLE_SUPERUSER_PASSWORD; port doluysa MUMBLE_PORT
@@ -175,7 +181,8 @@ Gateway entegrasyon testleri gerçek bir Mumble sunucusu ister:
 | `gateway/proto` | Resmî `Mumble.proto` / `MumbleUDP.proto` + üretilen Go kodu |
 | `web/src/lib` | WS istemcisi, ses hattı (`audio/`), durum store'ları |
 | `web/src/components` | Arayüz bileşenleri |
-| `deploy/` | Compose dosyaları, Caddyfile, `.env.example` |
+| `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
+| `deploy/local/` | Yerel HTTPS test ortamı (mkcert), bkz. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 
 İlerleme ve doğrulama notları: [docs/PROGRESS.md](docs/PROGRESS.md).
 
