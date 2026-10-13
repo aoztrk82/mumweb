@@ -452,8 +452,10 @@ WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (
 
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
-  (mevcut oturumlar düşmez). Seçenekler kullanıcıya sunuldu: (1) yasaklama yetkili "bekçi" hesabıyla otomatik
-  düzeltme, (2) yalnızca algılama/uyarı, (3) kural. Karar bekleniyor.
+  (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,
+  yasaklama nadir. Web arayüzündeki "Yasakla" yalnızca sertifikayı yasaklar; masaüstünden yasaklama olursa yönetici
+  yasak listesinden IP'li kaydı siler (README'de anlatıldı). İleride gerekirse "bekçi hesabı" ile otomatik düzeltme
+  seçeneği değerlendirilebilir.
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.
 - Plan 5.3'teki `frame_number` "+1 / 20 ms" ifadesi resmî istemciye göre "+2 / 20 ms" (10 ms birim) olarak
