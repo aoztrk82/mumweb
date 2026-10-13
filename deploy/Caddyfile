@@ -1,0 +1,5 @@
+{$MUMWEB_DOMAIN} {
+	encode zstd gzip
+	# Caddy proxies WebSocket upgrades (/ws) transparently.
+	reverse_proxy mumweb:8080
+}

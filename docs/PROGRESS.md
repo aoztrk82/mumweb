@@ -243,6 +243,34 @@ mumprobe `-tx`/`-play` buna göre düzeltildi; Faz 5'te tarayıcı da `örnek sa
 - **Bekleyen manuel doğrulama:** gerçek Android Chrome'da "Ana ekrana ekle" → tam ekran açılış ve bas-konuş
   (HTTPS gerekir; Faz 7 dağıtımından sonra).
 
+## Faz 7 — Dağıtım (2026-10-13)
+
+- `Dockerfile` (Faz 0'dan): Node ile web build → Go build (embed) → alpine, root olmayan `mumweb` kullanıcısı,
+  `HEALTHCHECK /healthz`.
+- `deploy/docker-compose.yml` (Bölüm 13'e göre) + `deploy/Caddyfile` + `deploy/.env.example`. Plandan farklar:
+  - `container_name`'ler kaldırıldı (gereksiz; aynı sunucudaki mevcut `mumble-server`/`caddy` container'larıyla çakışıyordu).
+  - Mumble: `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` (bkz. Faz 2 bulgusu); karşılama metni ve kullanıcı
+    sınırı `.env`'den değiştirilebilir.
+  - mumweb: `MUMWEB_TRUST_PROXY=true` (Caddy arkasında gerçek istemci IP'si), `MUMWEB_ALLOWED_ORIGINS=https://${MUMWEB_DOMAIN}`.
+  - Caddy: HTTP/3 için `443/udp` da açık.
+- README (Türkçe): kurulum, DNS, autoban açıklaması, mevcut ters proxy (Caddy/nginx örnekleri) veya mevcut Mumble
+  sunucusuyla kullanım, yapılandırma tablosu, güncelleme/yedekleme, sorun giderme, geliştirme.
+- mumprobe ve `mumble.Client.ServerFingerprint()`: sunucu sertifikasının SHA-256 parmak izini
+  `MUMWEB_TLS_FINGERPRINT` biçiminde yazdırır.
+
+### Doğrulama
+- Production compose, ayrı proje adıyla (`mumweb-prodtest`) yerelde ayağa kaldırıldı; override ile yalnızca portlar
+  değiştirildi ve gerçek alan adı olmadığı için Caddy'ye `tls internal` verildi (alan adı `ses.test`):
+  - 3 servis ayakta, mumweb `healthy`, uid 100 (`mumweb`); Mumble ini'sinde autoban/karşılama/kullanıcı ayarları uygulanmış.
+  - `https://ses.test/healthz` → 200 (HTTP/2). `/ws` yanlış Origin → 403, doğru Origin → 101.
+  - Headless Chromium (bayraksız, gerçek HTTPS güvenli bağlam): iki tarayıcı oturumu Caddy/TLS üzerinden bağlandı,
+    konuşan sayfanın 1 kHz tonu dinleyen sayfada duyuldu (-16 dB), service worker `activated`,
+    mumprobe gözlemci kullanıcıları ve sesi gördü. Gateway logundaki IP tarayıcının IP'si (Caddy'ninki değil).
+  - Test stack'i volume'leriyle kaldırıldı.
+- Parmak izi sabitleme: doğru değerle bağlanıyor, bir baytı değiştirilmiş değerle `fingerprint mismatch`.
+- **Bekleyen manuel doğrulama:** temiz bir VPS'te gerçek alan adıyla `docker compose up -d` → `https://ses.<alanadi>`
+  ve uçtan uca konuşma (Let's Encrypt sertifikası dahil).
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.

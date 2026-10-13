@@ -422,6 +422,25 @@ func (c *Client) Info() ServerInfo {
 	return c.info
 }
 
+// ServerFingerprint returns the SHA-256 fingerprint of the server's TLS certificate
+// in the colon-separated hex form accepted by Config.Fingerprint.
+func (c *Client) ServerFingerprint() string {
+	tc, ok := c.conn.(*tls.Conn)
+	if !ok {
+		return ""
+	}
+	certs := tc.ConnectionState().PeerCertificates
+	if len(certs) == 0 {
+		return ""
+	}
+	sum := sha256.Sum256(certs[0].Raw)
+	parts := make([]string, len(sum))
+	for i, b := range sum {
+		parts[i] = fmt.Sprintf("%02X", b)
+	}
+	return strings.Join(parts, ":")
+}
+
 // Session returns our own session ID (fixed after Dial).
 func (c *Client) Session() uint32 { return c.info.Session }
 

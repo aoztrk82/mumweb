@@ -80,6 +80,7 @@ func main() {
 	info := c.Info()
 	fmt.Printf("connected: session=%d maxBandwidth=%d server=%s (v2=%#x)\n",
 		info.Session, info.MaxBandwidth, info.ServerRelease, info.ServerVersion)
+	fmt.Printf("server certificate SHA-256: %s\n", c.ServerFingerprint())
 	if info.WelcomeText != "" {
 		fmt.Printf("welcome: %s\n", info.WelcomeText)
 	}
