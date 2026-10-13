@@ -271,6 +271,32 @@ mumprobe `-tx`/`-play` buna göre düzeltildi; Faz 5'te tarayıcı da `örnek sa
 - **Bekleyen manuel doğrulama:** temiz bir VPS'te gerçek alan adıyla `docker compose up -d` → `https://ses.<alanadi>`
   ve uçtan uca konuşma (Let's Encrypt sertifikası dahil).
 
+## Faz 8 — Test ve doğrulama (2026-10-13)
+
+- Go: `internal/mumble/conn_test.go` eklendi — sahte TLS Mumble sunucusuyla (sunucu gerektirmez): Version/Authenticate
+  içeriği, handshake öncesi ve sonrası **bilinmeyen mesaj tiplerinin atlanması**, `ServerSync` + `ServerConfig` sonrası
+  `Info()`/durum, olaylar, giden `UserState`/`UDPTunnel` çerçeveleri, deaf ⇒ mute, sunucu kapatınca olay akışının
+  hatayla bitmesi, `Reject`, handshake zaman aşımı, parmak izi uyuşmazlığı, `Close` sonrası goroutine'lerin bitmesi.
+  (İlk sürümde parmak izi testi sahte sunucu TLS el sıkışmasını sürmediği için yanlış sebeple — zaman aşımıyla —
+  geçiyordu; düzeltildi ve hata metni de doğrulanıyor.)
+- Mevcut testler: framing, birleştirme, ses encode/decode, sertifika, köprü ikili çerçeveleri ve sınırlar,
+  gerçek sunucuya karşı entegrasyon; Vitest 19 test (ikili çerçeve, jitter buffer, çerçeveleme/yeniden örnekleme,
+  VAD, bitrate, PEM, backoff).
+- README'ye test komutları ve Bölüm 14 manuel kabul listesi eklendi.
+
+### Kaynak kullanımı (manuel test 12'nin otomatik karşılığı)
+Dev stack, 8 çekirdekli makine. 10 WebSocket istemcisi aynı kanalda, **hepsi aynı anda sürekli konuşuyor**
+(her biri 50 paket/s; en kötü durum): gateway'e 496 paket/s giriş, 4460 paket/s çıkış (beklenen 4461/s, kayıp yok).
+
+| | Boşta | 10 oturum, 10 konuşan |
+|---|---|---|
+| gateway CPU | %0 | tek çekirdeğin %40–46'sı |
+| gateway RAM | 4.9 MiB | ~15 MiB |
+| mumble-server CPU / RAM | – | ~%15 / 6.7 MiB |
+
+Gerçekte aynı anda 1–2 kişi konuşur; yük konuşan sayısı × dinleyen sayısıyla doğru orantılıdır.
+Gerekirse ilk optimizasyon adayı: ses çerçevesi başına `context.WithTimeout` + WS yazımı.
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.
