@@ -31,3 +31,9 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# mumweb
+node_modules/
+/bin/
+gateway/web/dist/*
+!gateway/web/dist/.gitkeep

@@ -1,0 +1,30 @@
+# Local development stack: Mumble server + mumweb gateway.
+# Usage: cp deploy/.env.example deploy/.env && make dev
+name: mumweb-dev
+
+services:
+  mumble:
+    image: mumblevoip/mumble-server:latest
+    restart: unless-stopped
+    ports:
+      - "${MUMBLE_PORT:-64738}:64738/tcp"
+      - "${MUMBLE_PORT:-64738}:64738/udp"
+    environment:
+      MUMBLE_SUPERUSER_PASSWORD: ${MUMBLE_SUPERUSER_PASSWORD:?set MUMBLE_SUPERUSER_PASSWORD in deploy/.env}
+    volumes:
+      - mumble-data:/data
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - mumble
+    ports:
+      - "8080:8080"
+    environment:
+      MUMWEB_LISTEN: ":8080"
+
+volumes:
+  mumble-data:
