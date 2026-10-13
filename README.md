@@ -207,7 +207,7 @@ Gateway entegrasyon testleri gerçek bir Mumble sunucusu ister:
 | `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
 | `deploy/local/` | Yerel HTTPS test ortamı (mkcert), bkz. [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
 
-İlerleme ve doğrulama notları: [docs/PROGRESS.md](docs/PROGRESS.md).
+İlerleme ve doğrulama notları: [docs/PROGRESS.md](docs/PROGRESS.md). Yapılacaklar: [docs/TODO.md](docs/TODO.md).
 
 ## Testler
 
