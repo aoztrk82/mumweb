@@ -16,6 +16,7 @@
 {:else}
   <div class="app">
     <StatusBar />
+    {#if session.audioUnsupported}<div class="banner" role="alert">{tr.audio.unsupported}</div>{/if}
     <nav class="tabs" aria-label="Görünüm">
       <button class:active={tab === 'channels'} onclick={() => (tab = 'channels')}>{tr.channels.title}</button>
       <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')}>{tr.chat.title}</button>
@@ -62,6 +63,12 @@
   }
   .tabs {
     display: none;
+  }
+  .banner {
+    padding: 0.5rem var(--gutter);
+    background: color-mix(in srgb, var(--danger) 18%, var(--bg));
+    color: var(--text);
+    font-size: 0.9rem;
   }
 
   @media (max-width: 640px) {

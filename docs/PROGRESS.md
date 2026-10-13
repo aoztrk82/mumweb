@@ -144,6 +144,44 @@ Dev compose'a `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` eklendi. Prod
 - **Bekleyen manuel doğrulama:** masaüstü Mumble'da tarayıcı kullanıcısının görünmesi, iki yönlü kanal değişimi ve sohbet,
   masaüstünden taşınınca tarayıcıda güncellenmesi, kayıtlı kullanıcı olarak kalma (kendini kaydetme masaüstünden/yönetici).
 
+## Faz 4 — Ses alma (2026-10-13)
+
+- `web/src/lib/audio/context.ts`: tek `AudioContext` (48 kHz, `interactive`), giriş tıklamasında açılıyor.
+- `audio/receiver.ts`: konuşmacı başına WebCodecs `AudioDecoder` (opus, 48 kHz, mono); geride kalan/yinelenen
+  paket (`frameNumber` ≤ son) atılır; terminator'ün PCM'i gidince worklet'e `end`; 300 ms paket gelmezse
+  "konuşmuyor"; 30 sn boşta kalan decoder kapatılır; decoder hatasında yeniden oluşturulur.
+  Kazanç = yerel ses seviyesi (0–200 %, yerel susturma) × `volume_adjustment` (0 ise 1).
+  `AudioDecoder` opus desteklemiyorsa üstte uyarı bandı (Faz 9).
+- `audio/playback-worklet.ts` + `audio/jitter.ts`: kullanıcı başına jitter buffer (60 ms ön dolum, en fazla 200 ms,
+  taşarsa en eski atılır, eksikse sessizlik + yeniden ön dolum, terminator'de kalan çalınıp akış biter),
+  bağlam 48 kHz değilse doğrusal yeniden örnekleme, tüm kullanıcılar karıştırılıp [-1, 1]'e kırpılır.
+- Sağırlaştırınca worklet anında temizlenir, paketler alınır ama çalınmaz (konuşma göstergesi çalışmaya devam eder).
+- Arayüz: konuşan kullanıcının avatarında yeşil halka; başka kullanıcıya tıklayınca ses seviyesi kaydırıcısı,
+  "Benim için sustur", "Sıfırla" (kullanıcı adına göre localStorage'da).
+- mumprobe: `-play <dosya>` (uzunluk önekli Opus paketleri, TOC'tan süre hesaplanıp gerçek zamanlı gönderilir).
+
+### Protokol düzeltmesi: `frame_number` birimi
+Plan 5.3 "20 ms çerçeve başına +1" diyor. Resmî istemci (v1.5.939 `AudioInput.cpp`/`AudioOutputSpeech.cpp`):
+`iFrameSize = sampleRate / 100` (10 ms), gönderilen `frameNumber = iFrameCounter - iBufferedFrames` 10 ms'lik
+çerçeve sayar; alıcı jitter buffer'ı `timestamp = iFrameSize * frameNumber`, `span = paketteki örnek sayısı` kullanır.
+Yani 20 ms'lik pakette sayaç **+2** artmalı (+1 olursa masaüstü alıcıda zaman damgaları çakışır).
+mumprobe `-tx`/`-play` buna göre düzeltildi; Faz 5'te tarayıcı da `örnek sayısı / 480` kadar artıracak.
+
+### Doğrulama
+- Vitest: jitter buffer (ön dolum, kazanç/karıştırma, 200 ms sınırı, terminator sonrası kısa patlama, underrun,
+  44.1 kHz yeniden örnekleme). `npm run check` temiz.
+- Uçtan uca (headless Chromium, `--unsafely-treat-insecure-origin-as-secure=http://gateway:8080`): test sayfasında
+  tarayıcının `AudioEncoder`'ı ile 440 Hz ve 660 Hz (genlik 0.3) Opus paketleri üretildi, `mumprobe -play` ile
+  Mumble'a gönderildi; tarayıcı çıkışı AnalyserNode ile ölçüldü:
+  - tek konuşmacı: RMS 0.212 (= 0.3/√2, kayıpsız seviye), 440 Hz -24 dB, diğer tüm bölmeler < -84 dB; konuşma göstergesi 1.
+  - bitince RMS 0, gösterge 0.
+  - iki konuşmacı aynı anda: 440 Hz -24 dB ve 660 Hz -25 dB, RMS 0.301 (√2 kat), iki gösterge birlikte.
+  - Ton660 yerelde susturulunca 660 Hz -112 dB, 440 Hz korunuyor.
+  - sağırlaştırılmışken RMS 0.
+- **Bekleyen manuel doğrulama:** masaüstünden gerçek konuşmanın tarayıcıda temiz duyulması (ve 2–3 kişi aynı anda).
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.
+- Plan 5.3'teki `frame_number` "+1 / 20 ms" ifadesi resmî istemciye göre "+2 / 20 ms" (10 ms birim) olarak
+  düzeltilmeli (bkz. Faz 4 notu).

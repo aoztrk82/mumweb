@@ -36,6 +36,14 @@ export const tr = {
     deafened: 'Sağırlaştırılmış',
     serverMuted: 'Sunucu tarafından susturulmuş',
     serverDeafened: 'Sunucu tarafından sağırlaştırılmış',
+    speaking: 'Konuşuyor',
+    volume: 'Ses seviyesi',
+    localMute: 'Benim için sustur',
+    resetVolume: 'Sıfırla',
+  },
+
+  audio: {
+    unsupported: 'Tarayıcınız Opus ses kodlamayı desteklemiyor; ses çalışmayacak. Güncel Chrome, Edge veya Firefox kullanın.',
   },
 
   chat: {

@@ -1,5 +1,7 @@
 // Connects the gateway socket to the session state. UI components call these actions.
 import { tr } from '../i18n/tr'
+import { unlockAudio } from './audio/context'
+import { handleAudioFrame, removeSpeaker, silenceAll, startReceiver, stopReceiver } from './audio/receiver'
 import { loadCert, saveCert } from './certStore'
 import type { ServerMessage, UserInfo } from './protocol'
 import { sanitizeHtml, textToHtml } from './sanitize'
@@ -9,13 +11,15 @@ import { gatewayUrl, ReconnectingSocket } from './ws'
 let socket: ReconnectingSocket | null = null
 let credentials = { username: '', password: '' }
 
-/** Hooks for the audio pipeline (phases 4–5). */
-export const audioHooks = {
-  onAudio: (_buf: ArrayBuffer): void => {},
-  onUserRemoved: (_session: number): void => {},
-}
-
+/** Starts a session. Call from a click handler: it also unlocks audio playback. */
 export function connect(username: string, password: string): void {
+  unlockAudio()
+  startReceiver()
+    .then((ok) => (session.audioUnsupported = !ok))
+    .catch((e) => {
+      console.error('audio playback unavailable', e)
+      session.audioUnsupported = true
+    })
   socket?.stop()
   credentials = { username, password }
   session.error = null
@@ -25,7 +29,7 @@ export function connect(username: string, password: string): void {
   socket = new ReconnectingSocket(gatewayUrl(), {
     hello: async () => ({ t: 'hello', username, password, cert: await loadCert() }),
     message: handleMessage,
-    audio: (buf) => audioHooks.onAudio(buf),
+    audio: handleAudioFrame,
     status: (s, attempt, retryIn) => {
       session.status = s
       session.attempt = attempt
@@ -40,6 +44,7 @@ export function connect(username: string, password: string): void {
 export function disconnect(): void {
   socket?.stop()
   socket = null
+  stopReceiver()
   session.joined = false
   session.resetServerState()
 }
@@ -116,6 +121,7 @@ function handleMessage(m: ServerMessage): void {
       const { t: _t, ...u } = m
       const prev = session.users.get(u.session)
       session.users.set(u.session, u)
+      if (u.session === session.selfSession && u.selfDeaf && !prev?.selfDeaf) silenceAll()
       if (session.ready) announceMovement(prev, u)
       break
     }
@@ -128,7 +134,7 @@ function handleMessage(m: ServerMessage): void {
       }
       const prev = session.users.get(m.session)
       session.users.delete(m.session)
-      audioHooks.onUserRemoved(m.session)
+      removeSpeaker(m.session)
       if (prev && session.ready && prev.channelId === session.self?.channelId) {
         session.addChat({ kind: 'system', body: tr.chat.left(prev.name) })
       }

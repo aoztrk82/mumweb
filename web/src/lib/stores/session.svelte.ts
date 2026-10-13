@@ -1,5 +1,5 @@
 // Reactive state of the current Mumble session (channels, users, chat, connection).
-import { SvelteMap } from 'svelte/reactivity'
+import { SvelteMap, SvelteSet } from 'svelte/reactivity'
 import type { ChannelInfo, UserInfo } from '../protocol'
 import type { ConnStatus } from '../ws'
 
@@ -37,10 +37,15 @@ class SessionState {
   channels = new SvelteMap<number, ChannelInfo>()
   users = new SvelteMap<number, UserInfo>()
   chat = $state<ChatEntry[]>([])
+  /** Sessions currently transmitting voice. */
+  speaking = new SvelteSet<number>()
+  /** Set when the browser cannot decode/encode Opus. */
+  audioUnsupported = $state(false)
 
   private nextId = 1
 
   self = $derived(this.selfSession === null ? undefined : this.users.get(this.selfSession))
+  selfDeaf = $derived(this.self?.selfDeaf ?? false)
   currentChannel = $derived(this.self ? this.channels.get(this.self.channelId) : undefined)
 
   /** Clears server state before a new connection's initial sync. */
@@ -49,6 +54,7 @@ class SessionState {
     this.selfSession = null
     this.channels.clear()
     this.users.clear()
+    this.speaking.clear()
   }
 
   addChat(e: Omit<ChatEntry, 'id' | 'time'>): void {

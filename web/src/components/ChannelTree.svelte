@@ -3,8 +3,11 @@
   import { joinChannel } from '../lib/client'
   import type { ChannelInfo } from '../lib/protocol'
   import { channelUsers, childChannels, session } from '../lib/stores/session.svelte'
+  import { ui } from '../lib/stores/ui.svelte'
+  import { volumePref } from '../lib/stores/volumes.svelte'
   import ChannelTree from './ChannelTree.svelte'
   import Icon from './Icon.svelte'
+  import UserVolume from './UserVolume.svelte'
 
   let { channel, depth = 0 }: { channel: ChannelInfo; depth?: number } = $props()
 
@@ -14,6 +17,10 @@
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'Enter') joinChannel(channel.id)
+  }
+
+  function toggleVolume(sessionId: number) {
+    ui.volumeFor = ui.volumeFor === sessionId ? null : sessionId
   }
 </script>
 
@@ -36,9 +43,14 @@
     <ul class="users">
       {#each users as u (u.session)}
         {@const isSelf = u.session === session.selfSession}
-        <li class="row user" class:self={isSelf}>
-          <span class="avatar"><Icon name="user" size={14} /></span>
+        {@const speaking = session.speaking.has(u.session)}
+        {@const pref = volumePref(u.name)}
+        {#snippet content()}
+          <span class="avatar" class:speaking title={speaking ? tr.channels.speaking : undefined}><Icon name="user" size={14} /></span>
           <span class="name">{u.name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}</span>
+          {#if !isSelf && (pref.muted || pref.volume !== 1)}
+            <span class="dim small">{pref.muted ? '0%' : `${Math.round(pref.volume * 100)}%`}</span>
+          {/if}
           <span class="flags">
             {#if u.registered}<span title={tr.channels.registered}><Icon name="shield" size={14} /></span>{/if}
             {#if u.mute || u.suppress}<span class="red" title={tr.channels.serverMuted}><Icon name="micOff" size={14} /></span>
@@ -46,6 +58,23 @@
             {#if u.deaf}<span class="red" title={tr.channels.serverDeafened}><Icon name="headphonesOff" size={14} /></span>
             {:else if u.selfDeaf}<span title={tr.channels.deafened}><Icon name="headphonesOff" size={14} /></span>{/if}
           </span>
+        {/snippet}
+        <li>
+        {#if isSelf}
+          <div class="row user self">{@render content()}</div>
+        {:else}
+          <div
+            class="row user"
+            role="button"
+            tabindex="0"
+            aria-expanded={ui.volumeFor === u.session}
+            onclick={() => toggleVolume(u.session)}
+            onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggleVolume(u.session))}
+          >
+            {@render content()}
+          </div>
+        {/if}
+        {#if !isSelf && ui.volumeFor === u.session}<UserVolume name={u.name} />{/if}
         </li>
       {/each}
     </ul>
@@ -92,8 +121,21 @@
   .user {
     padding-left: calc(1.6rem + var(--depth) * 1rem);
   }
+  .user:not(.self) {
+    cursor: pointer;
+  }
+  .user:not(.self):hover {
+    background: var(--bg-hover);
+  }
   .user.self .name {
     font-weight: 600;
+  }
+  .avatar.speaking {
+    color: var(--speaking);
+    box-shadow: 0 0 0 2px var(--speaking);
+  }
+  .small {
+    font-size: 0.75rem;
   }
   .avatar {
     display: inline-grid;

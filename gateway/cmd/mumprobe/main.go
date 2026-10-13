@@ -35,6 +35,7 @@ func main() {
 	join := flag.Int("join", -1, "move to this channel ID after connecting")
 	mkchannel := flag.String("mkchannel", "", "create a sub-channel of the root with this name (needs permission, e.g. SuperUser)")
 	tx := flag.Duration("tx", 0, "transmit Opus silence for this long (e.g. 2s) to exercise the voice path")
+	play := flag.String("play", "", "transmit Opus packets from a file of [uint16 BE length][packet] records, paced in real time")
 	exit := flag.Bool("exit", false, "exit after the initial dump and -say/-join/-tx actions")
 	debug := flag.Bool("debug", false, "debug logging")
 	flag.Parse()
@@ -103,11 +104,31 @@ func main() {
 	if *tx > 0 {
 		go transmit(c, *tx)
 	}
+	var playDone chan struct{}
+	if *play != "" {
+		packets, err := readPacketFile(*play)
+		if err != nil {
+			fatal("play", err)
+		}
+		playDone = make(chan struct{})
+		go func() {
+			defer close(playDone)
+			playPackets(c, packets)
+		}()
+	}
 
 	var deadline <-chan time.Time
 	if *exit {
-		// Give the server time to process our actions (and -tx to finish).
-		deadline = time.After(*tx + time.Second)
+		// Give the server time to process our actions (and -tx/-play to finish).
+		wait := make(chan time.Time, 1)
+		go func() {
+			if playDone != nil {
+				<-playDone
+			}
+			time.Sleep(*tx + time.Second)
+			wait <- time.Now()
+		}()
+		deadline = wait
 	}
 
 	speaking := map[uint32]int{}
@@ -136,7 +157,8 @@ func transmit(c *mumble.Client, d time.Duration) {
 	for i := range frames {
 		<-tick.C
 		err := c.SendAudio(mumble.AudioPacket{
-			FrameNumber: uint64(i),
+			// Frame numbers count 10 ms frames (as the desktop client does), so +2 per 20 ms packet.
+			FrameNumber: uint64(2 * i),
 			Opus:        opusSilence,
 			Terminator:  i == frames-1,
 		})
@@ -146,6 +168,80 @@ func transmit(c *mumble.Client, d time.Duration) {
 		}
 	}
 	fmt.Printf("tx: sent %d frames\n", frames)
+}
+
+// readPacketFile reads [uint16 BE length][Opus packet] records.
+func readPacketFile(path string) ([][]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var out [][]byte
+	for len(data) > 0 {
+		if len(data) < 2 {
+			return nil, errors.New("truncated length prefix")
+		}
+		n := int(data[0])<<8 | int(data[1])
+		if n == 0 || len(data) < 2+n {
+			return nil, fmt.Errorf("bad record at packet %d", len(out))
+		}
+		out = append(out, data[2:2+n])
+		data = data[2+n:]
+	}
+	if len(out) == 0 {
+		return nil, errors.New("no packets")
+	}
+	return out, nil
+}
+
+// playPackets sends packets in real time, deriving durations from the Opus TOC.
+func playPackets(c *mumble.Client, packets [][]byte) {
+	var frame uint64
+	next := time.Now()
+	for i, p := range packets {
+		samples := opusSamples(p)
+		if samples <= 0 {
+			fmt.Fprintf(os.Stderr, "play: packet %d: invalid Opus TOC\n", i)
+			return
+		}
+		time.Sleep(time.Until(next))
+		if err := c.SendAudio(mumble.AudioPacket{FrameNumber: frame, Opus: p, Terminator: i == len(packets)-1}); err != nil {
+			fmt.Fprintf(os.Stderr, "play: %v\n", err)
+			return
+		}
+		frame += uint64(max(1, samples/480)) // 10 ms units at 48 kHz
+		next = next.Add(time.Duration(samples) * time.Second / 48000)
+	}
+	fmt.Printf("play: sent %d packets\n", len(packets))
+}
+
+// opusSamples returns the number of 48 kHz samples in an Opus packet (RFC 6716 section 3.1).
+func opusSamples(p []byte) int {
+	if len(p) == 0 {
+		return 0
+	}
+	toc := p[0]
+	cfg := int(toc >> 3)
+	var frame int
+	switch {
+	case cfg < 12: // SILK: 10, 20, 40, 60 ms
+		frame = []int{480, 960, 1920, 2880}[cfg%4]
+	case cfg < 16: // Hybrid: 10, 20 ms
+		frame = []int{480, 960}[cfg%2]
+	default: // CELT: 2.5, 5, 10, 20 ms
+		frame = []int{120, 240, 480, 960}[cfg%4]
+	}
+	switch toc & 3 {
+	case 0:
+		return frame
+	case 1, 2:
+		return 2 * frame
+	default:
+		if len(p) < 2 {
+			return 0
+		}
+		return int(p[1]&0x3f) * frame
+	}
 }
 
 func logEvent(c *mumble.Client, ev mumble.Event, speaking map[uint32]int) {
