@@ -84,6 +84,7 @@ same commit, in **both languages** (English first, then the Turkish mirror):
 |---|---|
 | a feature, env var, port, default or deployment step | `README.md` + `README.tr.md` (feature table, configuration tables, deployment sections), `deploy/.env.example`. The compose example in the README quick start is a copy of `deploy/docker-compose.yml`: keep them identical |
 | build, test or release procedure, repository layout | `docs/BUILDING.md` + `docs/tr/BUILDING.md` |
+| env vars, tags, quick start (anything the Docker Hub page states) | `docs/DOCKERHUB.md`, then `make hub-readme` |
 | local dev / HTTPS setup | `docs/DEVELOPMENT.md` + `docs/tr/DEVELOPMENT.md` |
 | anything verified or discovered (a finding, a protocol detail, a verification result) | append to `docs/PROGRESS.md` + `docs/tr/PROGRESS.md` (newest last, before "Open issues") |
 | priorities, known limits, missing features | `docs/TODO.md` + `docs/tr/TODO.md` (tick items, add new ones) |

@@ -5,7 +5,7 @@ DOCKER_REPO    ?= aoztrk82/mumweb
 VERSION        ?= 0.1.0
 BUILDER        ?= mumweb-builder
 
-.PHONY: proto web gateway dev docker publish test
+.PHONY: proto web gateway dev docker publish hub-readme test
 
 ## proto: regenerate Go code from gateway/proto/*.proto (needs protoc + protoc-gen-go)
 proto:
@@ -31,6 +31,10 @@ docker:
 ## publish: build amd64+arm64 and push to Docker Hub (needs `docker login` and a docker-container buildx builder, see docs/BUILDING.md)
 publish:
 	docker buildx build --builder $(BUILDER) --platform linux/amd64,linux/arm64 -t $(DOCKER_REPO):latest -t $(DOCKER_REPO):$(VERSION) --push .
+
+## hub-readme: update the Docker Hub description from docs/DOCKERHUB.md (uses the docker login of Docker Desktop)
+hub-readme:
+	python scripts/dockerhub-description.py docs/DOCKERHUB.md
 
 ## test: Go tests + vitest
 test:

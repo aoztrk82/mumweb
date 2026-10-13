@@ -128,5 +128,5 @@ Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim s
 - [x] Docker Hub imajı `aoztrk82/mumweb` (amd64 + arm64), `make publish`, compose onu çeker.
 - [ ] Sürümleme: gateway `release` sabiti (`mumweb 0.1`), git etiketleri ve CHANGELOG; imaj yayınını CI'da otomatikleştir
       (etiket → derle → gönder).
-- [ ] Docker Hub sayfası: `aoztrk82/mumweb` için açıklama ve kısa README; arm64 imajını gerçek donanımda dene; yeni
-      README kurulum adımlarını temiz bir sunucuda baştan sona çalıştır.
+- [x] Docker Hub sayfası: açıklama ve README (`docs/DOCKERHUB.md`, `make hub-readme`).
+- [ ] arm64 imajını gerçek donanımda dene; yeni README kurulum adımlarını temiz bir sunucuda baştan sona çalıştır.

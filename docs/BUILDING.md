@@ -89,5 +89,9 @@ make publish VERSION=0.1.0       # pushes :latest and :0.1.0
 
 Afterwards check the result: `docker buildx imagetools inspect aoztrk82/mumweb:latest` should list both platforms,
 and a fresh `docker run -p 8080:8080 aoztrk82/mumweb:0.1.0` should answer `curl localhost:8080/healthz` with `ok`.
+The Docker Hub page (short description and README) comes from [DOCKERHUB.md](DOCKERHUB.md). After changing it, run
+`make hub-readme`; the script reuses the Docker login of Docker Desktop (its credential helper) and needs no extra
+token. Keep it consistent with the README on GitHub, which is the source of truth.
+
 Bump `release` in `gateway/cmd/mumweb/main.go` and the default `VERSION` in the `Makefile` together, and record the
 release in [PROGRESS.md](PROGRESS.md).

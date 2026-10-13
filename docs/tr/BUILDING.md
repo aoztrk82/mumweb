@@ -87,6 +87,10 @@ make publish VERSION=0.1.0       # :latest ve :0.1.0 gönderir
 ```
 
 Sonra kontrol edin: `docker buildx imagetools inspect aoztrk82/mumweb:latest` iki platformu da listelemeli ve temiz bir
-`docker run -p 8080:8080 aoztrk82/mumweb:0.1.0` için `curl localhost:8080/healthz` `ok` dönmeli. Sürümü
+`docker run -p 8080:8080 aoztrk82/mumweb:0.1.0` için `curl localhost:8080/healthz` `ok` dönmeli. Docker Hub sayfası (kısa açıklama ve README) [DOCKERHUB.md](../DOCKERHUB.md) dosyasından gelir (yalnızca İngilizce).
+Değiştirdikten sonra `make hub-readme` çalıştırın; betik Docker Desktop'ın mevcut Docker girişini (credential helper)
+kullanır, ek token gerekmez. GitHub'daki README ile tutarlı tutun, doğru kaynak odur.
+
+Sürümü
 `gateway/cmd/mumweb/main.go` içindeki `release` ve `Makefile`'daki varsayılan `VERSION` ile birlikte artırın,
 yayını [PROGRESS.md](PROGRESS.md)'ye yazın.

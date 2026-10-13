@@ -521,6 +521,11 @@ istemciyle konuşuldu.
   **arm64 imajı çalıştırılmadı** (derleme makinesinde emülasyon yok); sorunsuz derlendi. Güncellenen production compose
   yalnızca `docker compose config` ile doğrulandı; yeni README adımlarıyla temiz bir sunucuda tam kurulum henüz yapılmadı.
 
+- Docker Hub sayfası: kısa açıklama ve README (`docs/DOCKERHUB.md`: imajın ne olduğu, etiketler, asgari compose
+  parçası, değişken tablosu, tam kurulum için GitHub bağlantıları) Docker Hub API ile
+  `scripts/dockerhub-description.py` (`make hub-readme`) üzerinden, Docker Desktop'ın kayıtlı girişi kullanılarak
+  ayarlandı. Herkese açık depo sayfası API'sinden kontrol edildi.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

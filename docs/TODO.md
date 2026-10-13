@@ -131,5 +131,5 @@ Goal: no input path may give access outside the container or to the host system.
 - [x] Docker Hub image `aoztrk82/mumweb` (amd64 + arm64), `make publish`, compose pulls it.
 - [ ] Versioning: the gateway `release` constant (`mumweb 0.1`), git tags and a CHANGELOG; automate the image release
       in CI (tag → build → push).
-- [ ] Docker Hub page: description and a short README for `aoztrk82/mumweb`; test the arm64 image on real hardware;
-      run the new README quick start end to end on a clean server.
+- [x] Docker Hub page: description and README (`docs/DOCKERHUB.md`, `make hub-readme`).
+- [ ] Test the arm64 image on real hardware; run the new README quick start end to end on a clean server.

@@ -544,6 +544,11 @@ desktop client using real microphones.
   production compose was validated with `docker compose config` only; a full install on a clean server with the new
   README steps is still to be done.
 
+- Docker Hub page: short description and a README (`docs/DOCKERHUB.md`: what the image is, tags, a minimal compose
+  snippet, the variable table, links back to GitHub for the full setup) were set through the Docker Hub API with
+  `scripts/dockerhub-description.py` (`make hub-readme`), reusing Docker Desktop's stored login. Checked on the public
+  repository page API.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small
