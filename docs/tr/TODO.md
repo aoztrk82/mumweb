@@ -74,14 +74,20 @@ Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim s
 - [ ] Mumble sunucusunun kendi kullanıcı sınırıyla (`MUMBLE_CONFIG_USERS`) uyum.
 
 ## B. Bekleyen manuel testler (kullanıcı)
-- [ ] Masaüstü Mumble ↔ web arasında **gerçek mikrofonla** konuşma iki yönde (testlerde sentetik ton kullanıldı).
+- [x] Masaüstü Mumble ↔ web arasında **gerçek mikrofonla** konuşma iki yönde (sahibi, 2026-10-13: PC ↔ Android telefon,
+      ses ve mesaj iki yönde).
 - [ ] Bas-konuş bırakılınca masaüstündeki konuşma göstergesinin hemen sönmesi.
-- [ ] Android Chrome: ana ekrana ekle → tam ekran, bas-konuş, ekran kilitlenince davranış.
+- [ ] Android, kalan kontroller (D'deki 2026-10-13 bulgularına bakın): **güvenilir** bir sertifikayla "Ana ekrana ekle" ve
+      tam ekran açılış (telefon yerel mkcert CA'ya güvenmediği için ekleme seçeneği hiç çıkmadı), telefonda bas-konuş,
+      Android Chrome (test Samsung Internet ile yapıldı).
 - [ ] Kulaklıksız kullanımda yankı (tarayıcı AEC'si).
 - [ ] Firefox (Windows) gerçek mikrofon; Safari 26+ (iOS/macOS) — WebKit kaynağına göre WebCodecs Opus var, cihazda denenmedi.
 - [ ] [TESTING.md](TESTING.md)'deki 12 maddelik manuel kabul listesi.
 
 ## C. Bilinen sınırlar ve ertelenen kararlar
+- Sahibinin Android'de bulduğu (2026-10-13, Samsung Internet): ses ve mesaj çalışıyor, mobil görünüm iyi, ekran
+  kilitlenince oturum sürüyor. İki sorun kaldı, ikisi de D'de: Firefox Android 157.0.1 codec desteklenmiyor diyor ve
+  tarayıcı arka plana alınınca 15–20 sn sonra oturum odadan düşüyor.
 - Masaüstünden yasaklanan web kullanıcısı gateway IP'sini de yasaklatır (yeni web girişleri engellenir). Karar:
   şimdilik önlem yok (küçük gruplar). Gerekirse "bekçi hesabı" ile otomatik düzeltme.
 - Tarayıcı odakta değilken global bas-konuş tuşu mümkün değil (tarayıcı sınırı); oyun sırasında ses algılama veya
@@ -100,6 +106,16 @@ Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim s
 - [ ] Masaüstünden `.p12` sertifika içe aktarma (şu an yalnızca PEM).
 - [ ] Tarayıcı bildirimleri (sekme arka plandayken mesaj/katılım), sekme başlığında okunmamış sayısı.
 - [ ] Mobilde Screen Wake Lock (ekran kapanınca ses kesilmesini azaltmak için).
+- [ ] **Android'de arka planda düşme:** başka uygulamaya geçince 15–20 sn sonra kullanıcı odadan düşüyor (ekran kilidi
+      sorun değil). Sekmenin dondurulup dondurulmadığı (20 sn'lik ping durur, gateway 60 sn mesaj gelmeyince oturumu
+      kapatır) mı yoksa soketin mi öldürüldüğü araştırılacak; yüklü PWA, Android Chrome ve ön plan/medya oturumuyla
+      denenecek; arka plandayken daha kısa ping, `visibilitychange` ile hızlı yeniden bağlanma ve kullanıcıyı
+      bilgilendirme düşünülebilir. Yalnızca varsayım, henüz ölçüm yok.
+- [ ] **Firefox Android 157.0.1:** girişte "codec desteklenmiyor". `AudioEncoder` / `AudioDecoder` ya da Opus
+      yapılandırmasından hangisi eksik (kontrol `encoderSupported()` ve alıcı başlatma) bakılacak, kesin bir mesaj
+      gösterilecek, sonuç tarayıcı tablosuna yazılacak. Firefox masaüstü destekleniyor.
+- [ ] "Ana ekrana ekle" denemesi gerçek bir sertifikayla (ör. Let's Encrypt alan adı veya tünel); mkcert kök sertifikası
+      telefona kurulmadıkça güvenilmez (docs/tr/DEVELOPMENT.md bölüm 10).
 - [ ] Sohbete resim yapıştırma (Mumble data: URI resimleri; `ImageMessageLength` sınırı).
 - [ ] Davet bağlantısı: kanal + önerilen takma ad (ve A2 erişim şifresi açıksa token).
 - [ ] Gelişmiş ses ayarları: bitrate, jitter buffer, gürültü bastırma seçenekleri; kanal dinleyici ses ayarı.

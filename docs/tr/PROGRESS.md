@@ -494,6 +494,17 @@ WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (
   gateway değişken ayarlıyken `/config`'te `true` döndü. `npm run check` 0 hata, `npm test` ve `npm run build` geçti.
   **Tarayıcıda elle denenmedi.**
 
+## Ek — Android'de ilk gerçek cihaz testi (2026-10-13)
+
+Sahibinin bildirdiği: Android telefon (Samsung Internet) yerel ortama bağlandı ve gerçek mikrofonlarla masaüstü
+istemciyle konuşuldu.
+- Çalışan: PC ↔ telefon arasında ses ve mesaj iki yönde; mobil görünüm iyi; ekran kilitlenince oturum sürüyor.
+- Firefox Android 157.0.1: sayfa codec'in desteklenmediğini söylüyor. Sebep henüz incelenmedi.
+- Arka plana alınınca: kullanıcı 15–20 sn sonra odadan düşüyor. Sebep henüz incelenmedi.
+- "Ana ekrana ekle" seçeneği çıkmadı; büyük olasılıkla telefon mkcert CA'ya güvenmediği için (sayfa kurulum için
+  güvenilir bir güvenli kaynak değil). Gerçek sertifikayla tekrar denenecek.
+- Sonuç: "gerçek mikrofonla iki yönde" manuel testi kapandı; yukarıdaki üç sorun TODO'da (B, C, D).
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

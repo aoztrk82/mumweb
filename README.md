@@ -51,11 +51,16 @@ server, channels and voice.
 |---|---|
 | Chrome / Edge (desktop) | Supported |
 | Firefox (desktop) | Supported |
-| Chrome (Android) | Supported |
+| Samsung Internet (Android) | Works (voice and chat tested with a desktop client) |
+| Chrome (Android) | Should work, not yet tested on a device |
+| Firefox (Android) | Not working yet: reports that the codec is not supported (under investigation) |
 | Safari 26+ (macOS / iOS) | Should work (WebCodecs Opus), not yet tested on a device |
 | Older Safari / iOS | Not supported (no WebCodecs Opus; a WASM fallback is not planned) |
 
 Microphone access and WebCodecs require a secure context, so the page must be served over HTTPS (or `localhost`).
+
+Known limit on Android: when the browser is sent to the background, the session drops out of the room after about
+15–20 seconds (a locked screen is fine). See the [roadmap](docs/TODO.md).
 
 > **Just want to try it on your own computer?** Follow [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): a ready-made
 > `https://mumweb.test` setup with mkcert for Windows, macOS and Linux.

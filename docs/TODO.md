@@ -76,15 +76,21 @@ Goal: no input path may give access outside the container or to the host system.
 - [ ] Consistency with the Mumble server's own user limit (`MUMBLE_CONFIG_USERS`).
 
 ## B. Pending manual tests (owner)
-- [ ] Two-way conversation between desktop Mumble and web with a **real microphone** (the tests used a synthetic tone).
+- [x] Two-way conversation between desktop Mumble and web with a **real microphone** (owner, 2026-10-13: PC ↔ Android
+      phone, voice and chat both ways).
 - [ ] The desktop speaking indicator going out immediately when push-to-talk is released.
-- [ ] Android Chrome: add to home screen → full screen, push-to-talk, behaviour when the screen locks.
+- [ ] Android, remaining checks (see the 2026-10-13 findings in D): "Add to home screen" and full-screen launch over a
+      **trusted** certificate (the phone did not trust the local mkcert CA, so the install option never appeared),
+      push-to-talk on the phone, Chrome for Android (the test used Samsung Internet).
 - [ ] Echo without headphones (browser AEC).
 - [ ] Firefox (Windows) with a real microphone; Safari 26+ (iOS/macOS): per the WebKit source WebCodecs Opus exists,
       untested on a device.
 - [ ] The 12-item manual acceptance list in [TESTING.md](TESTING.md).
 
 ## C. Known limits and deferred decisions
+- Found by the owner on Android (2026-10-13, Samsung Internet): voice and chat work, the responsive layout is good, and
+  the session survives a locked screen. Two problems remain, both tracked in D: Firefox for Android 157.0.1 reports that
+  the codec is not supported, and the session drops out of the room 15–20 s after the browser goes to the background.
 - A web user banned from the desktop also gets the gateway IP banned (new web logins are blocked). Decision: no
   mitigation for now (small groups). If needed, an automatic fix with a "guard account".
 - A global push-to-talk key while the browser is not focused is impossible (browser limit); voice activation or the
@@ -103,6 +109,16 @@ Goal: no input path may give access outside the container or to the host system.
 - [ ] Importing `.p12` certificates from the desktop (currently PEM only).
 - [ ] Browser notifications (messages/joins while the tab is in the background), unread count in the tab title.
 - [ ] Screen Wake Lock on mobile (to reduce audio cut-outs when the screen turns off).
+- [ ] **Background drop on Android:** switching to another app makes the user leave the room after 15–20 s (a locked
+      screen is fine). Find out whether the tab is frozen (the 20 s ping stops, the gateway then closes the session after
+      60 s without a message) or the socket is killed, and test with the installed PWA, Chrome for Android and a
+      foreground/media session; consider a shorter ping while hidden, reconnecting quickly on `visibilitychange`, and
+      telling the user. Hypotheses only, nothing measured yet.
+- [ ] **Firefox for Android 157.0.1:** "codec not supported" on login. Check which of `AudioEncoder` / `AudioDecoder`
+      or the Opus configuration is missing there (the check is `encoderSupported()` / the receiver start-up), show a
+      precise message, and document the result in the browser table. Firefox desktop is supported.
+- [ ] "Add to home screen" test over a real certificate (e.g. a Let's Encrypt domain or a tunnel); mkcert is not
+      trusted on the phone unless its root CA is installed (docs/DEVELOPMENT.md section 10).
 - [ ] Pasting images into the chat (Mumble `data:` URI images; `ImageMessageLength` limit).
 - [ ] Invite link: channel + suggested nickname (and a token if the A2 access password is on).
 - [ ] Advanced audio settings: bitrate, jitter buffer, noise suppression options; per-listener volume for channel listeners.

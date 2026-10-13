@@ -36,8 +36,10 @@ sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 **Arayüz dili:** İngilizce ve Türkçe. Tarayıcı diline göre açılır (ikisi de değilse Türkçe); giriş ekranında ve durum çubuğunda
 daima görünen EN / TR düğmesiyle değiştirilir.
 
-**Tarayıcılar:** Chrome/Edge ve Firefox (masaüstü), Chrome (Android). Safari/iOS henüz desteklenmiyor
-(WebCodecs Opus eksik; bkz. plan Faz 9).
+**Tarayıcılar:** Chrome/Edge ve Firefox (masaüstü); Android'de Samsung Internet çalışıyor (masaüstü istemciyle ses ve
+mesaj denendi), Android Chrome denenmedi, Firefox Android henüz çalışmıyor ("codec desteklenmiyor", inceleniyor).
+Safari/iOS henüz desteklenmiyor (WebCodecs Opus eksik; bkz. plan Faz 9). Android'de bilinen sınır: tarayıcı arka plana
+alınınca oturum yaklaşık 15–20 sn sonra odadan düşer (ekran kilidi sorun değil).
 
 > **Kendi bilgisayarınızda denemek mi istiyorsunuz?** Windows (ve macOS/Linux) için mkcert sertifikası ve hosts
 > dosyasıyla `https://mumweb.test` üzerinde çalışan hazır ortam: **[docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md)**.

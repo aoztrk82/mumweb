@@ -515,6 +515,18 @@ dated. Priority goes to Android and desktop web features. Safari 26+ has not bee
   `TestPasswordMatches`, `TestNoAccessPassword`; the built gateway answers `/config` with `true` when the variable
   is set. `npm run check` 0 errors, `npm test` and `npm run build` pass. **Not tried by hand in a browser.**
 
+## Addendum: first real-device test on Android (2026-10-13)
+
+Reported by the owner: an Android phone (Samsung Internet) connected to the local environment and talked with a
+desktop client using real microphones.
+- Works: voice and chat both ways between the PC and the phone; the responsive layout is good; the session keeps
+  running when the screen locks.
+- Firefox for Android 157.0.1: the page reports that the codec is not supported. Cause not investigated yet.
+- Sent to the background: the user leaves the room after 15–20 s. Cause not investigated yet.
+- No "Add to home screen" option appeared; most likely because the phone does not trust the mkcert CA (the page is
+  not a trusted secure origin for installation). To be retested over a real certificate.
+- Consequences: the "real microphone, both ways" manual test is closed; the three problems above are in TODO (B, C, D).
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small
