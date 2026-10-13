@@ -37,7 +37,10 @@ export const tr = {
 
   channels: {
     title: 'Kanallar',
-    joinHint: 'Kanala geçmek için çift tıklayın',
+    joinHint: 'Kanala geçmek için çift tıklayın; seçenekler için sağ tıklayın',
+    join: 'Kanala katıl',
+    userHint: 'Ses seviyesi için sağ tıklayın',
+    mutedForMe: 'susturuldu',
     you: '(sen)',
     registered: 'Kayıtlı kullanıcı',
     muted: 'Susturulmuş',
@@ -51,8 +54,19 @@ export const tr = {
   },
 
   audio: {
-    micDenied: 'Mikrofon izni verilmedi; yalnızca dinleyebilirsiniz. İzni tarayıcının adres çubuğundan verebilirsiniz.',
+    micDenied:
+      'Mikrofon izni verilmedi; yalnızca dinleyebilirsiniz. Adres çubuğundaki mikrofon/kilit simgesinden bu siteye izin verip "Tekrar dene"ye basın.',
+    micErrors: {
+      NotFoundError: 'Mikrofon bulunamadı. Bağlı olduğundan ve sistemde bir kayıt cihazı seçili olduğundan emin olun.',
+      NotReadableError:
+        'Mikrofon açılamadı. Başka bir uygulama kullanıyor olabilir ya da Windows engelliyor olabilir: Ayarlar → Gizlilik ve güvenlik → Mikrofon → "Masaüstü uygulamalarının mikrofonunuza erişmesine izin verin" açık olmalı.',
+      AbortError: 'Mikrofon başlatılamadı. Başka bir uygulama kullanıyor olabilir; onu kapatıp tekrar deneyin.',
+      OverconstrainedError: 'Seçili mikrofon bu ayarlarla açılamadı. Ayarlar\'dan başka bir mikrofon seçin.',
+      SecurityError: 'Mikrofon yalnızca güvenli bağlantıda (HTTPS) kullanılabilir.',
+      CaptureSetupError: 'Mikrofon açıldı ama ses işleme başlatılamadı.',
+    } as Record<string, string>,
     micUnavailable: 'Mikrofon kullanılamıyor; yalnızca dinleyebilirsiniz.',
+    micRetry: 'Tekrar dene',
     unsupported: 'Tarayıcınız Opus ses kodlamayı desteklemiyor; ses çalışmayacak. Güncel Chrome, Edge veya Firefox kullanın.',
   },
 

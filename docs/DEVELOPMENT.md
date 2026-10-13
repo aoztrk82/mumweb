@@ -153,7 +153,8 @@ docker compose ps
 1. Chrome, Edge veya Firefox'ta **<https://mumweb.test>** adresini açın. Adres çubuğunda kilit simgesi görünmeli,
    uyarı çıkmamalı.
 2. Bir takma ad yazıp **Bağlan**'a tıklayın. Tarayıcı mikrofon izni ister; izin verin.
-3. Kanal ağacı, sohbet ve altta kontrol çubuğu gelir. Konuşma modu varsayılan olarak **Ses algılama**'dır;
+3. Kanal ağacı, sohbet ve altta kontrol çubuğu gelir. Bir kullanıcıya **sağ tıklayarak** onun sesini sadece kendiniz
+   için kısabilir/susturabilir, bir kanala sağ tıklayıp (veya çift tıklayıp) o kanala geçebilirsiniz. Konuşma modu varsayılan olarak **Ses algılama**'dır;
    konuşurken seviye çubuğu sarı çizgiyi geçmeli. **Bas-konuş** modunda varsayılan tuş `V`'dir (Ayarlar'dan değişir).
 
 **Tek bilgisayarda iki kullanıcı:** Normal pencerede bir kullanıcıyla, **gizli/InPrivate pencerede** başka bir
@@ -291,7 +292,8 @@ Telefondan veya başka bir bilgisayardan denemek için o cihazın da (a) `mumweb
 | `port is already allocated` | 80/443/64738 dolu: [Port çakışması](#port-çakışması-80443-dolu) |
 | Sayfa açılıyor ama hep "Yeniden bağlanılıyor"; `docker compose logs mumweb`'de `ws origin rejected` | Adres çubuğundaki adres ile `.env`'deki `MUMWEB_DOMAIN`/`HTTPS_PORT` uyuşmuyor. `localhost` yerine `https://mumweb.test` kullanın |
 | "Mumble sunucusuna ulaşılamıyor" | `docker compose ps` ile `mumble`'ın çalıştığını kontrol edin; `docker compose logs mumble` |
-| Mikrofon izni istenmiyor / "yalnızca dinleyebilirsiniz" | Windows *Ayarlar → Gizlilik → Mikrofon* altında masaüstü uygulamalarına (tarayıcıya) izin verin; tarayıcının adres çubuğundaki kilit simgesinden siteye mikrofon izni verin |
+| "Mikrofon kullanılamıyor" / "Mikrofon açılamadı" | Uyarının altındaki parantezde gerçek hata yazar. `NotReadableError`/`AbortError`: mikrofonu başka bir uygulama kullanıyor (Teams, Discord, OBS…) veya Windows engelliyor → *Ayarlar → Gizlilik ve güvenlik → Mikrofon* altında hem "Mikrofon erişimi" hem "Masaüstü uygulamalarının mikrofonunuza erişmesine izin verin" açık olmalı. `NotFoundError`: Windows'ta varsayılan kayıt cihazı yok (*Ses ayarları → Giriş*). Düzelttikten sonra **Tekrar dene**'ye basın |
+| Mikrofon izni istenmiyor / "izin verilmedi" | Adres çubuğundaki mikrofon/kilit simgesinden siteye izin verin (Firefox: kilit → *Bağlantı güvenli* yanındaki izinler), sonra **Tekrar dene** |
 | Karşı taraf kendi sesini yankı olarak duyuyor | Hoparlör sesi mikrofona giriyor: kulaklık kullanın veya Bas-konuş moduna geçin |
 | Sesler kesik kesik | Docker Desktop'a yeterli CPU/RAM verildiğini kontrol edin (*Settings → Resources*); arka planda ağır işler varsa kapatın; mümkünse iki farklı cihazla deneyin |
 | Caddy logunda Caddyfile ayrıştırma hatası veya derlemede `\r` hatası | Dosyalar CRLF ile çekilmiş (`.gitattributes` eklenmeden önceki bir klon). En kolayı depoyu yeniden klonlamak. Yerinde düzeltmek için `git rm --cached -r . ; git reset --hard` (**commit edilmemiş değişiklikler silinir**) |

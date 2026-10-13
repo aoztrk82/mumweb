@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tr } from '../i18n/tr'
-  import { setPushToTalk } from '../lib/audio/transmitter'
+  import { setPushToTalk, startMicrophone } from '../lib/audio/transmitter'
   import { disconnect, toggleDeaf, toggleMute } from '../lib/client'
   import { isTyping, keyName } from '../lib/keys'
   import { audioSettings } from '../lib/stores/audioSettings.svelte'
@@ -52,7 +52,13 @@
 </script>
 
 {#if mic.state === 'denied' || mic.state === 'unavailable'}
-  <div class="mic-warning" role="alert">{mic.state === 'denied' ? tr.audio.micDenied : tr.audio.micUnavailable}</div>
+  <div class="mic-warning" role="alert">
+    <span>
+      {mic.state === 'denied' ? tr.audio.micDenied : (tr.audio.micErrors[mic.errorName] ?? tr.audio.micUnavailable)}
+      {#if mic.errorDetail}<small class="detail">({mic.errorName}: {mic.errorDetail})</small>{/if}
+    </span>
+    <button type="button" onclick={() => startMicrophone()}>{tr.audio.micRetry}</button>
+  </div>
 {/if}
 
 {#if mic.state === 'on' && mode === 'ptt'}
@@ -198,10 +204,27 @@
     display: none;
   }
   .mic-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
     padding: 0.45rem var(--gutter);
     font-size: 0.85rem;
     color: var(--warn);
     border-top: 1px solid var(--border);
+  }
+  .mic-warning span {
+    flex: 1;
+  }
+  .mic-warning .detail {
+    display: block;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
+  }
+  .mic-warning button {
+    flex: none;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.7rem;
   }
   @media (max-width: 900px) {
     .label {

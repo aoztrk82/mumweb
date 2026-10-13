@@ -1,12 +1,14 @@
 <script lang="ts">
   import Chat from './components/Chat.svelte'
   import ChannelTree from './components/ChannelTree.svelte'
+  import ContextMenu from './components/ContextMenu.svelte'
   import Controls from './components/Controls.svelte'
   import Login from './components/Login.svelte'
   import Settings from './components/Settings.svelte'
   import StatusBar from './components/StatusBar.svelte'
   import { tr } from './i18n/tr'
   import { session } from './lib/stores/session.svelte'
+  import { closeMenu } from './lib/stores/ui.svelte'
 
   const root = $derived(session.channels.get(0))
   let tab = $state<'channels' | 'chat'>('channels')
@@ -24,7 +26,7 @@
       <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')}>{tr.chat.title}</button>
     </nav>
     <main class="panes" data-tab={tab}>
-      <aside class="channels" aria-label={tr.channels.title}>
+      <aside class="channels" aria-label={tr.channels.title} onscroll={closeMenu}>
         {#if root}
           <ul class="tree"><ChannelTree channel={root} /></ul>
         {/if}
@@ -36,6 +38,7 @@
     <Controls onSettings={() => (settingsOpen = true)} />
   </div>
   <Settings bind:open={settingsOpen} />
+  <ContextMenu />
 {/if}
 
 <style>

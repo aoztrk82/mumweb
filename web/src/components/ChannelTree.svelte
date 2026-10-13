@@ -3,11 +3,10 @@
   import { joinChannel } from '../lib/client'
   import type { ChannelInfo } from '../lib/protocol'
   import { channelUsers, childChannels, session } from '../lib/stores/session.svelte'
-  import { ui } from '../lib/stores/ui.svelte'
+  import { openMenu, ui } from '../lib/stores/ui.svelte'
   import { volumePref } from '../lib/stores/volumes.svelte'
   import ChannelTree from './ChannelTree.svelte'
   import Icon from './Icon.svelte'
-  import UserVolume from './UserVolume.svelte'
 
   let { channel, depth = 0 }: { channel: ChannelInfo; depth?: number } = $props()
 
@@ -19,19 +18,19 @@
     if (e.key === 'Enter') joinChannel(channel.id)
   }
 
-  function toggleVolume(sessionId: number) {
-    ui.volumeFor = ui.volumeFor === sessionId ? null : sessionId
-  }
 </script>
 
 <li class="channel" style:--depth={depth}>
   <div
     class="row channel-row"
     class:current={isCurrent}
+    class:menu-open={ui.menu?.kind === 'channel' && ui.menu.id === channel.id}
     role="button"
     tabindex="0"
+    aria-haspopup="menu"
     title={tr.channels.joinHint}
     ondblclick={() => joinChannel(channel.id)}
+    oncontextmenu={(e) => openMenu(e, 'channel', channel.id)}
     onkeydown={onKey}
   >
     <Icon name="channel" size={15} />
@@ -60,21 +59,18 @@
           </span>
         {/snippet}
         <li>
-        {#if isSelf}
-          <div class="row user self">{@render content()}</div>
-        {:else}
           <div
             class="row user"
+            class:self={isSelf}
+            class:menu-open={ui.menu?.kind === 'user' && ui.menu.id === u.session}
             role="button"
             tabindex="0"
-            aria-expanded={ui.volumeFor === u.session}
-            onclick={() => toggleVolume(u.session)}
-            onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggleVolume(u.session))}
+            aria-haspopup="menu"
+            title={isSelf ? undefined : tr.channels.userHint}
+            oncontextmenu={(e) => openMenu(e, 'user', u.session)}
           >
             {@render content()}
           </div>
-        {/if}
-        {#if !isSelf && ui.volumeFor === u.session}<UserVolume name={u.name} />{/if}
         </li>
       {/each}
     </ul>
@@ -121,10 +117,14 @@
   .user {
     padding-left: calc(1.6rem + var(--depth) * 1rem);
   }
-  .user:not(.self) {
-    cursor: pointer;
+  .row {
+    -webkit-touch-callout: none; /* long press opens our menu, not the text selection UI */
   }
-  .user:not(.self):hover {
+  .user {
+    user-select: none;
+  }
+  .user:hover,
+  .menu-open {
     background: var(--bg-hover);
   }
   .user.self .name {

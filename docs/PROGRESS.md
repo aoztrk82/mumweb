@@ -315,6 +315,24 @@ Gerekirse ilk optimizasyon adayı: ses çerçevesi başına `context.WithTimeout
 - Ortam `down -v` ile kaldırıldı, sahte sertifikalar silindi.
 - **Bekleyen:** gerçek Windows + Docker Desktop + mkcert üzerinde deneme.
 
+## Ek — Kullanıcı geri bildirimi: sağ tık menüsü ve mikrofon hataları (2026-10-13)
+
+Windows + Firefox'ta yerel testte: "mikrofon kullanılamıyor" uyarısı ve sağ tıkta Firefox menüsünün açılması.
+- **Sağ tık menüsü** (`ContextMenu.svelte`): kullanıcı → yerel ses seviyesi (0–200 %), "Benim için sustur", "Sıfırla";
+  kendi satırı → mikrofon/ses kapat-aç; kanal → "Kanala katıl" (çift tık da çalışır). Ekran kenarına sığdırılır;
+  Esc, dışarı tıklama, kaydırma, pencere değişimi ile kapanır; klavye menü tuşu/Shift+F10 ve Android uzun basma ile açılır.
+  Sol tıkla açılan ses paneli kaldırıldı.
+- **Mikrofon:** işlemeli (AEC/NS/AGC, mono) `getUserMedia` izin dışı bir hatayla reddedilirse `{audio: true}` ile bir kez
+  daha denenir (bazı Windows sürücüleri işlemeli açılışı reddediyor). Uyarı artık hata türüne göre Türkçe açıklama
+  (Windows gizlilik ayarı, başka uygulama, cihaz yok…) ve teknik hata adını gösterir; "Tekrar dene" butonu eklendi.
+- Doğrulama: geçici Firefox 156 container'ı (Selenium) — sahte mikrofonla normal açılış; Firefox'u farklı örnekleme
+  hızına zorlayınca da sorun yok (kullanıcıdaki hata buna bağlı değil); işlemeli istek `NotReadableError` ile
+  reddedilince sade istekle mikrofon açıldı; iki istek de reddedilince Türkçe açıklama + `(NotReadableError: …)`,
+  "Tekrar dene" sonrası mikrofon açıldı. Menü: `contextmenu` olayı `defaultPrevented` (Firefox menüsü açılmıyor),
+  WebDriver sağ tıklama ile kullanıcı/kanal/kendi menüleri, %50 → rozet "50%", yerel susturma → "0%" ve kalıcı,
+  menüden kanala katılma Mumble'a yansıdı, menüden mute Mumble'a yansıdı, Esc/dışarı tıklama kapatıyor, sol tık açmıyor.
+- **Bekleyen:** kullanıcının Windows makinesinde gerçek hata adının görülmesi (yeni uyarı gösterecek).
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.

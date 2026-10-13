@@ -56,10 +56,14 @@ export async function encoderSupported(): Promise<boolean> {
  */
 export async function startMicrophone(): Promise<boolean> {
   const p = audioSettings.prefs
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return micFailed('SecurityError', 'navigator.mediaDevices is unavailable (not a secure context?)')
+  }
+  const device = p.inputDeviceId ? { deviceId: { exact: p.inputDeviceId } } : {}
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: {
-        deviceId: p.inputDeviceId ? { exact: p.inputDeviceId } : undefined,
+        ...device,
         echoCancellation: true,
         noiseSuppression: p.noiseSuppression,
         autoGainControl: true,
@@ -67,25 +71,43 @@ export async function startMicrophone(): Promise<boolean> {
       },
     })
   } catch (e) {
+    const err = e as DOMException
     // A stored device may have disappeared: retry with the default one.
-    if (p.inputDeviceId && (e as DOMException).name === 'OverconstrainedError') {
+    if (p.inputDeviceId && (err.name === 'OverconstrainedError' || err.name === 'NotFoundError')) {
       audioSettings.update({ inputDeviceId: '' })
       return startMicrophone()
     }
-    console.warn('microphone unavailable', e)
-    mic.state = (e as DOMException).name === 'NotAllowedError' ? 'denied' : 'unavailable'
-    return false
+    if (err.name === 'NotAllowedError' || err.name === 'SecurityError') return micFailed(err.name, err.message)
+    // Some devices/drivers (seen with Firefox on Windows) refuse to open with
+    // processing constraints; try once more with a plain request.
+    console.warn('microphone open failed, retrying without constraints', err)
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: p.inputDeviceId ? device : true })
+    } catch (e2) {
+      const err2 = e2 as DOMException
+      return micFailed(err2.name, err2.message)
+    }
   }
   try {
     await connectGraph(stream)
   } catch (e) {
     console.error('capture setup failed', e)
     stopMicrophone()
-    mic.state = 'unavailable'
-    return false
+    const err = e as Error
+    return micFailed('CaptureSetupError', `${err.name}: ${err.message}`)
   }
   mic.state = 'on'
+  mic.errorName = ''
+  mic.errorDetail = ''
   return true
+}
+
+function micFailed(name: string, detail: string): false {
+  console.warn('microphone unavailable', name, detail)
+  mic.state = name === 'NotAllowedError' ? 'denied' : 'unavailable'
+  mic.errorName = name
+  mic.errorDetail = detail
+  return false
 }
 
 async function connectGraph(s: MediaStream): Promise<void> {
@@ -120,7 +142,7 @@ export function stopMicrophone(): void {
   captureCtx = null
   encoder = null
   mic.level = 0
-  mic.state = 'off'
+  if (mic.state === 'on') mic.state = 'off'
 }
 
 /** Re-opens the microphone after a device or processing change. */

@@ -21,8 +21,8 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
   kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
 
 **Özellikler:** takma ad + isteğe bağlı sunucu şifresi, kanal ağacı ve kanal değiştirme (çift tık), konuşan göstergesi,
-bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kişi bazlı
-yerel ses seviyesi, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
+sağ tık menüleri (kullanıcı: yerel ses seviyesi %0–200 / benim için sustur; kanal: katıl; kendin: mute/deafen),
+bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
 sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 
 **Tarayıcılar:** Chrome/Edge ve Firefox (masaüstü), Chrome (Android). Safari/iOS henüz desteklenmiyor
