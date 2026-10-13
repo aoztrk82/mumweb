@@ -21,10 +21,12 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
   kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
 
 **Özellikler:** takma ad + isteğe bağlı sunucu şifresi, kanal ağacı ve kanal değiştirme (çift tık), konuşan göstergesi,
-masaüstü Mumble'daki gibi sağ tık menüleri — kullanıcı: kanalına katıl, kendi kanalına taşı, kov, yasakla,
+boş kanalları gizleyen filtre, masaüstü Mumble'daki gibi sağ tık menüleri — kullanıcı: kanalına katıl, kendi kanalına taşı, kov, yasakla,
 sustur, sağır et, imtiyazlı konuşmacı, yerel sustur, mesajları görmezden gel, yerel ses seviyesi (%0–200), rumuz,
 açıklamayı görüntüle/sıfırla, avatarı kaldır, özel mesaj, bilgi, kaydet, arkadaş ekle (yönetim öğeleri sunucudaki
-yetkinize göre etkin olur); kanal: katıl, alt kanal oluştur; kendin: mute/deafen —
+yetkinize göre etkin olur); kanal: katıl, kanalı dinle, ekle, düzenle (ad, açıklama, sıra, kullanıcı sınırı), kaldır,
+bağla / bağlantıyı kaldır / tümünün bağlantısını kaldır, URL kopyala (giriş sonrası o kanala götüren web bağlantısı),
+mesaj gönder (alt kanallar dahil seçeneğiyle), filtrelerken gizle/iğnele; kendin: mute/deafen —
 bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
 sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 

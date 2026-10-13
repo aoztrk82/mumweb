@@ -265,6 +265,7 @@ func (c *Client) decode(t MsgType, payload []byte) (proto.Message, error) {
 // handle applies a message to the client state and, if emit is set, publishes an event.
 func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool) {
 	var ev Event
+	var extra []Event // additional events caused by the same message
 	switch m := msg.(type) {
 	case nil:
 		switch t {
@@ -308,8 +309,11 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 		ev = ServerConfigEvent{Info: c.info}
 		c.infoMu.Unlock()
 	case *pb.ChannelState:
-		if ch, ok := c.state.applyChannel(m); ok {
+		if ch, others, ok := c.state.applyChannel(m); ok {
 			ev = ChannelEvent{Channel: ch}
+			for _, o := range others {
+				extra = append(extra, ChannelEvent{Channel: o})
+			}
 		}
 	case *pb.ChannelRemove:
 		c.state.removeChannel(m.GetChannelId())
@@ -346,10 +350,14 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 	case *pb.ServerSync:
 		c.log.Warn("unexpected ServerSync after handshake")
 	}
-	if emit && ev != nil {
+	if !emit || ev == nil {
+		return
+	}
+	for _, e := range append([]Event{ev}, extra...) {
 		select {
-		case c.events <- ev:
+		case c.events <- e:
 		case <-c.ctx.Done():
+			return
 		}
 	}
 }
@@ -505,6 +513,45 @@ func (c *Client) SetSelf(mute, deaf bool) error {
 // SendText sends an (HTML) text message to the given channels and/or sessions.
 func (c *Client) SendText(message string, channels, sessions []uint32) error {
 	return c.send(&pb.TextMessage{Message: &message, ChannelId: channels, Session: sessions})
+}
+
+// SendTreeText sends a text message to a channel and all its sub-channels.
+func (c *Client) SendTreeText(message string, channel uint32) error {
+	return c.send(&pb.TextMessage{Message: &message, TreeId: []uint32{channel}})
+}
+
+// ChannelEdit holds the channel properties to change; nil fields are left as they are.
+type ChannelEdit struct {
+	Name        *string
+	Description *string
+	Position    *int32
+	MaxUsers    *uint32
+}
+
+// EditChannel changes channel properties (needs Write on the channel).
+func (c *Client) EditChannel(id uint32, e ChannelEdit) error {
+	return c.send(&pb.ChannelState{ChannelId: &id, Name: e.Name, Description: e.Description, Position: e.Position, MaxUsers: e.MaxUsers})
+}
+
+// RemoveChannel deletes a channel and its sub-channels (needs Write).
+func (c *Client) RemoveChannel(id uint32) error {
+	return c.send(&pb.ChannelRemove{ChannelId: &id})
+}
+
+// LinkChannels adds/removes links of a channel (needs LinkChannel on both ends).
+func (c *Client) LinkChannels(id uint32, add, remove []uint32) error {
+	return c.send(&pb.ChannelState{ChannelId: &id, LinksAdd: add, LinksRemove: remove})
+}
+
+// SetListening starts/stops listening to channels without being in them (needs Listen).
+func (c *Client) SetListening(add, remove []uint32) error {
+	sess := c.Session()
+	return c.send(&pb.UserState{Session: &sess, ListeningChannelAdd: add, ListeningChannelRemove: remove})
+}
+
+// RequestChannelDescription asks for a channel's full description (sent as ChannelState).
+func (c *Client) RequestChannelDescription(id uint32) error {
+	return c.send(&pb.RequestBlob{ChannelDescription: []uint32{id}})
 }
 
 // CreateChannel asks the server to create a sub-channel. Permanent channels need the

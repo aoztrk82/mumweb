@@ -377,6 +377,33 @@ sırasıyla ve izin mantığıyla (`MainWindow::qmUser_aboutToShow`, `updateMenu
   "Sunucudan atıldınız: test bitti".
 - Bilinen sınır: kendi açıklamasını düzenleme ve avatar gösterme yok (avatar yalnızca kaldırılabiliyor).
 
+## Ek — Masaüstü Mumble'daki kanal sağ tık menüsü (2026-10-13)
+
+Kullanıcının ekran görüntüsündeki kanal menüsü, masaüstü istemcinin sırası ve kurallarıyla
+(`qmChannel_aboutToShow` + `updateMenuPermissions`, v1.5.939; iki kural kümesi birlikte uygulanır):
+Kanala katıl, Kanalı dinle | Ekle…, Düzenle…, Kaldır… | Bağla, Bağlantıyı kaldır, Tümünün bağlantısını kaldır |
+URL'i kopyala, Mesaj gönder… | Filtrelerken gizle, Filtrelerken iğnele.
+- Gateway: `editChannel` (ad/açıklama/sıra/kullanıcı sınırı), `removeChannel`, `linkChannels` (bağla/kaldır her zaman
+  kendi kanalımız üzerinden, masaüstü gibi), `listen` (`listening_channel_add/remove`), `requestDescription`
+  (RequestBlob), `text` + `channelId` + `tree` (`tree_id`). Kanal mesajına `hasDescription`, `maxUsers`; kullanıcıya
+  `listening` eklendi.
+- **Düzeltme:** Mumble kanal bağlantıları çift yönlüdür (`Channel::link`) ama sunucu değişikliği tek kanal üzerinden
+  bildirir; durum artık karşı kanalı da günceller ve iki kanal için de olay yayınlar (birim + entegrasyon testi).
+  Kanal silinince diğer kanalların bağlantılarından ve dinleyici listelerinden de düşer.
+- URL'i kopyala: masaüstünün `mumble://` adresi yerine (Mumble'ın dış adresi gateway'de bilinmiyor) web adresi
+  `…/#kanal=/Yol/Alt`; bu bağlantıyla giriş yapan kişi ilk `ready`'de o kanala katılır.
+- Filtre: kanal listesinin başlığında huni düğmesi; açıkken kullanıcısı (veya dinleyicisi) olmayan kanallar gizlenir,
+  "iğnele" her zaman gösterir, "gizle" (kendi kanalımız değilse) her zaman gizler. Kanal başına ayarlar yerel.
+- Ağaç: dinleyiciler kulak ikonuyla kanalın altında, bağlı kanallarda zincir ikonu. Gönderilen kanal/özel mesajlarda
+  "Sen → #Kanal" / "Sen → Ad" etiketi (yalnızca özel mesajlar "özel" işaretli).
+- Doğrulama: Go `TestChannelActions` (oluştur, düzenle, açıklama, bağla/kaldır ve tarayıcıya giden iki tarafın sırası,
+  dinleme ve `listening` alanı, ağaç mesajı, sil), `TestLinksAreSymmetric`, `TestListeningChannels`. Tarayıcı
+  (SuperUser + ayrı bağlamda normal kullanıcı + bağlantıyla giren üçüncü kişi): menü içeriği, ekle, düzenle (form
+  yeniden açılınca değerler geri geliyor), bağla/kaldır/tümünü kaldır ikonları, dinleyici satırı ve onay işareti,
+  alt kanaldaki kullanıcıya ağaç mesajı, URL kopyala → yeni oturum doğrudan o kanalda, filtre + iğnele/gizle, kaldır;
+  normal kullanıcının menüsünde yönetim öğeleri pasif.
+- Bilinen sınır: kanal şifresi (ACL ile) ve kanal açıklamasını görüntüleme yok.
+
 ## Faz 9 kararı (2026-10-13)
 WASM Opus yedeği **yapılmayacak** (kullanıcı kararı). Gerekçe: WebKit kaynağına göre Safari 26+ (iOS 26 / macOS)
 WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (`AudioEncoderCocoa.cpp`,

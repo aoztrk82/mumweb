@@ -12,7 +12,11 @@ export type ClientMessage =
   | { t: 'joinChannel'; channelId: number }
   | { t: 'createChannel'; parent: number; name: string; temporary: boolean }
   | { t: 'setSelf'; mute?: boolean; deaf?: boolean }
-  | { t: 'text'; message: string; session?: number }
+  | { t: 'text'; message: string; session?: number; channelId?: number; tree?: boolean }
+  | { t: 'editChannel'; channelId: number; newName?: string; description?: string; position?: number; maxUsers?: number }
+  | { t: 'removeChannel' | 'requestDescription'; channelId: number }
+  | { t: 'linkChannels'; channelId: number; add?: number[]; remove?: number[] }
+  | { t: 'listen'; channelId: number; on: boolean }
   | { t: 'ping'; ts: number }
   | { t: 'queryPermissions'; channelId: number }
   | { t: 'moveUser'; session: number; channelId: number }
@@ -28,7 +32,11 @@ export interface ChannelInfo {
   name: string
   position: number
   description: string
+  /** A description exists (possibly not loaded yet: request it with requestDescription). */
+  hasDescription: boolean
   temporary: boolean
+  /** 0 = no limit. */
+  maxUsers: number
   links: number[]
 }
 
@@ -51,6 +59,8 @@ export interface UserInfo {
   hasTexture: boolean
   /** Certificate hash (public in Mumble), used to key local preferences. */
   hash?: string
+  /** Channels this user listens to without being in them. */
+  listening: number[]
 }
 
 export interface PacketStats {

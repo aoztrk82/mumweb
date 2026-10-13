@@ -1,6 +1,7 @@
 // Connects the gateway socket to the session state. UI components call these actions.
 import { tr } from '../i18n/tr'
 import { unlockAudio } from './audio/context'
+import { findChannelByPath, requestedChannelPath } from './channelPath'
 import { playJoin, playLeave } from './audio/notify'
 import { handleAudioFrame, removeSpeaker, silenceAll, startReceiver, stopReceiver } from './audio/receiver'
 import { encoderSupported, setAudioSender, startMicrophone, stopMicrophone } from './audio/transmitter'
@@ -127,6 +128,46 @@ export function userCommand(t: 'register' | 'resetComment' | 'resetTexture' | 'r
   socket?.send({ t, session: sessionId })
 }
 
+export function editChannel(channelId: number, patch: { newName?: string; description?: string; position?: number; maxUsers?: number }): void {
+  socket?.send({ t: 'editChannel', channelId, ...patch })
+}
+
+export function removeChannel(channelId: number): void {
+  socket?.send({ t: 'removeChannel', channelId })
+}
+
+export function requestDescription(channelId: number): void {
+  socket?.send({ t: 'requestDescription', channelId })
+}
+
+/** Links/unlinks channels (Mumble links are symmetric; we always edit our own channel). */
+export function linkChannels(channelId: number, add: number[], remove: number[]): void {
+  socket?.send({ t: 'linkChannels', channelId, add, remove })
+}
+
+export function setListening(channelId: number, on: boolean): void {
+  socket?.send({ t: 'listen', channelId, on })
+}
+
+/** Sends a text message to a channel, optionally including all its sub-channels. */
+export function sendChannelText(channelId: number, text: string, tree: boolean): boolean {
+  const message = textToHtml(text.trim())
+  if (!message) return false
+  if (session.messageLength > 0 && message.length > session.messageLength) {
+    session.addChat({ kind: 'error', body: tr.errors.denied.TextTooLong })
+    return false
+  }
+  socket?.send({ t: 'text', message, channelId, tree })
+  const c = session.channels.get(channelId)
+  session.addChat({
+    kind: 'text',
+    fromSelf: true,
+    target: tr.chat.channelTarget(c?.name ?? '', tree),
+    body: sanitizeHtml(message),
+  })
+  return true
+}
+
 /** Sends a private text message to one user. */
 export function sendPrivateText(sessionId: number, text: string): boolean {
   const message = textToHtml(text.trim())
@@ -139,8 +180,8 @@ export function sendPrivateText(sessionId: number, text: string): boolean {
   const to = session.users.get(sessionId)
   session.addChat({
     kind: 'text',
-    from: tr.chat.toUser(to ? displayName(to) : tr.chat.unknownUser),
     fromSelf: true,
+    target: to ? displayName(to) : tr.chat.unknownUser,
     private: true,
     body: sanitizeHtml(message),
   })
@@ -240,6 +281,14 @@ function handleMessage(m: ServerMessage): void {
       session.ready = true
       session.notice = null
       if (!session.joined && m.welcome) session.addChat({ kind: 'text', from: tr.chat.server, body: sanitizeHtml(m.welcome) })
+      if (!session.joined) {
+        // Shared channel link (#kanal=/Oyun): join that channel after the first login.
+        const path = requestedChannelPath()
+        const target = path ? findChannelByPath(path) : undefined
+        if (target !== undefined && target !== session.users.get(m.session)?.channelId) {
+          socket?.send({ t: 'joinChannel', channelId: target })
+        }
+      }
       if (!session.joined && session.users.get(m.session)?.userId === 0) {
         session.addChat({ kind: 'system', body: tr.chat.superUserNotice })
       }

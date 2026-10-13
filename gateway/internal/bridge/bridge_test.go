@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -461,4 +462,88 @@ func TestAdminActions(t *testing.T) {
 	if m := other.until("ready"); m == nil {
 		t.Fatal("other web users must still get in")
 	}
+}
+
+// TestChannelActions exercises the channel context-menu actions as SuperUser.
+func TestChannelActions(t *testing.T) {
+	addr := mumbleAddr(t)
+	pw := os.Getenv("MUMWEB_TEST_SUPERUSER_PASSWORD")
+	if pw == "" {
+		t.Skip("MUMWEB_TEST_SUPERUSER_PASSWORD not set")
+	}
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr, AllowSuperUser: true}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	name := "kanal-" + strconv.FormatInt(time.Now().UnixNano()%1e6, 36)
+
+	obs, err := mumble.Dial(context.Background(), mumble.Config{Addr: addr, Username: "gozcu-" + name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obs.Close()
+
+	su := dialBridge(t, url, map[string]any{"username": "SuperUser", "password": pw})
+	defer su.ws.CloseNow()
+	su.until("ready")
+
+	su.send(map[string]any{"t": "createChannel", "parent": 0, "name": name})
+	created := waitEvent(t, obs, func(e mumble.ChannelEvent) bool { return e.Channel.Name == name })
+	id := created.Channel.ID
+	isOurs := func(e mumble.ChannelEvent) bool { return e.Channel.ID == id }
+
+	// Edit: rename, description, position, max users.
+	su.send(map[string]any{"t": "editChannel", "channelId": id, "newName": name + "-2", "description": "<b>açıklama</b>", "position": 7, "maxUsers": 5})
+	waitEvent(t, obs, func(e mumble.ChannelEvent) bool {
+		c := e.Channel
+		return isOurs(e) && c.Name == name+"-2" && c.Description == "<b>açıklama</b>" && c.Position == 7 && c.MaxUsers == 5
+	})
+	su.send(map[string]any{"t": "requestDescription", "channelId": id})
+
+	// Link our channel (root) with it, then unlink. The browser must see both sides
+	// change, in order (links are symmetric but announced on one side only).
+	rootLinks := func() []any {
+		for {
+			m := su.until("channel")
+			if m["id"] == 0.0 {
+				lk, _ := m["links"].([]any)
+				return lk
+			}
+		}
+	}
+	su.send(map[string]any{"t": "linkChannels", "channelId": 0, "add": []uint32{id}})
+	waitEvent(t, obs, func(e mumble.ChannelEvent) bool { return isOurs(e) && slices.Contains(e.Channel.Links, 0) })
+	for !slices.Contains(rootLinks(), any(float64(id))) {
+	}
+	su.send(map[string]any{"t": "linkChannels", "channelId": 0, "remove": []uint32{id}})
+	waitEvent(t, obs, func(e mumble.ChannelEvent) bool { return isOurs(e) && !slices.Contains(e.Channel.Links, 0) })
+	if lk := rootLinks(); slices.Contains(lk, any(float64(id))) {
+		t.Fatalf("browser still sees root linked: %v", lk)
+	}
+
+	// A normal web user listens to the channel; the listening list is forwarded.
+	l := dialBridge(t, url, map[string]any{"username": "dinleyici-" + name})
+	defer l.ws.CloseNow()
+	ls := uint32(l.until("ready")["session"].(float64))
+	l.send(map[string]any{"t": "listen", "channelId": id, "on": true})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return e.User.Session == ls && slices.Contains(e.User.Listening, id) })
+	for {
+		m := su.until("user")
+		if m["session"] == float64(ls) {
+			if lst, _ := m["listening"].([]any); len(lst) == 1 && lst[0] == float64(id) {
+				break
+			}
+		}
+	}
+	l.send(map[string]any{"t": "listen", "channelId": id, "on": false})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return e.User.Session == ls && len(e.User.Listening) == 0 })
+
+	// Tree message to root reaches users in sub-channels.
+	su.send(map[string]any{"t": "text", "channelId": 0, "tree": true, "message": "herkese"})
+	if m := l.until("text"); m["message"] != "herkese" {
+		t.Fatalf("tree text %v", m)
+	}
+
+	// Remove.
+	su.send(map[string]any{"t": "removeChannel", "channelId": id})
+	waitEvent(t, obs, func(e mumble.ChannelRemoveEvent) bool { return e.ID == id })
 }

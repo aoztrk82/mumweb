@@ -156,6 +156,8 @@ func msgTypeOf(m proto.Message) (MsgType, bool) {
 		return MsgPermissionQuery, true
 	case *pb.UserRemove:
 		return MsgUserRemove, true
+	case *pb.ChannelRemove:
+		return MsgChannelRemove, true
 	case *pb.UserStats:
 		return MsgUserStats, true
 	case *pb.RequestBlob:

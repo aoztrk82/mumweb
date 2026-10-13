@@ -15,9 +15,11 @@ type Channel struct {
 	Name        string
 	Position    int32
 	Description string
-	Temporary   bool
-	MaxUsers    uint32
-	Links       []uint32
+	// HasDescriptionHash: a long description exists but must be fetched with RequestChannelDescription.
+	HasDescriptionHash bool
+	Temporary          bool
+	MaxUsers           uint32
+	Links              []uint32
 }
 
 // User is the merged state of a connected user.
@@ -35,9 +37,10 @@ type User struct {
 	PrioritySpeaker bool
 	Recording       bool
 	Comment         string
-	HasCommentHash  bool   // comment exists but must be fetched with RequestComment
-	HasTexture      bool   // user has an avatar (texture)
-	Hash            string // certificate hash
+	HasCommentHash  bool     // comment exists but must be fetched with RequestComment
+	HasTexture      bool     // user has an avatar (texture)
+	Hash            string   // certificate hash
+	Listening       []uint32 // channels this user listens to (channel listeners)
 }
 
 // State holds the channel and user maps. It is safe for concurrent use.
@@ -51,10 +54,12 @@ func newState() *State {
 	return &State{channels: map[uint32]*Channel{}, users: map[uint32]*User{}}
 }
 
-// applyChannel merges a (possibly partial) ChannelState and returns a copy of the result.
-func (s *State) applyChannel(m *pb.ChannelState) (Channel, bool) {
+// applyChannel merges a (possibly partial) ChannelState and returns a copy of the
+// result plus copies of other channels whose links changed: links are symmetric
+// (Mumble's Channel::link), but the server only announces them on one side.
+func (s *State) applyChannel(m *pb.ChannelState) (Channel, []Channel, bool) {
 	if m.ChannelId == nil {
-		return Channel{}, false
+		return Channel{}, nil, false
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -75,6 +80,13 @@ func (s *State) applyChannel(m *pb.ChannelState) (Channel, bool) {
 	}
 	if m.Description != nil {
 		c.Description = m.GetDescription()
+		c.HasDescriptionHash = false
+	}
+	if m.DescriptionHash != nil {
+		c.HasDescriptionHash = len(m.DescriptionHash) > 0
+		if !c.HasDescriptionHash {
+			c.Description = ""
+		}
 	}
 	if m.Temporary != nil {
 		c.Temporary = m.GetTemporary()
@@ -82,6 +94,7 @@ func (s *State) applyChannel(m *pb.ChannelState) (Channel, bool) {
 	if m.MaxUsers != nil {
 		c.MaxUsers = m.GetMaxUsers()
 	}
+	before := slices.Clone(c.Links)
 	if m.Links != nil {
 		c.Links = slices.Clone(m.Links)
 	}
@@ -93,13 +106,34 @@ func (s *State) applyChannel(m *pb.ChannelState) (Channel, bool) {
 	for _, l := range m.LinksRemove {
 		c.Links = slices.DeleteFunc(c.Links, func(x uint32) bool { return x == l })
 	}
-	return c.clone(), true
+
+	// Mirror link changes on the other side.
+	var others []Channel
+	for _, l := range c.Links {
+		if o := s.channels[l]; o != nil && !slices.Contains(before, l) && !slices.Contains(o.Links, id) {
+			o.Links = append(o.Links, id)
+			others = append(others, o.clone())
+		}
+	}
+	for _, l := range before {
+		if o := s.channels[l]; o != nil && !slices.Contains(c.Links, l) && slices.Contains(o.Links, id) {
+			o.Links = slices.DeleteFunc(o.Links, func(x uint32) bool { return x == id })
+			others = append(others, o.clone())
+		}
+	}
+	return c.clone(), others, true
 }
 
 func (s *State) removeChannel(id uint32) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.channels, id)
+	for _, c := range s.channels {
+		c.Links = slices.DeleteFunc(c.Links, func(x uint32) bool { return x == id })
+	}
+	for _, u := range s.users {
+		u.Listening = slices.DeleteFunc(u.Listening, func(x uint32) bool { return x == id })
+	}
 }
 
 // applyUser merges a (possibly partial) UserState and returns a copy of the result.
@@ -166,7 +200,15 @@ func (s *State) applyUser(m *pb.UserState) (User, bool) {
 	if m.Hash != nil {
 		u.Hash = m.GetHash()
 	}
-	return *u, true
+	for _, id := range m.ListeningChannelAdd {
+		if !slices.Contains(u.Listening, id) {
+			u.Listening = append(u.Listening, id)
+		}
+	}
+	for _, id := range m.ListeningChannelRemove {
+		u.Listening = slices.DeleteFunc(u.Listening, func(x uint32) bool { return x == id })
+	}
+	return u.clone(), true
 }
 
 func (s *State) removeUser(session uint32) {
@@ -193,7 +235,7 @@ func (s *State) Users() []User {
 	defer s.mu.RUnlock()
 	out := make([]User, 0, len(s.users))
 	for _, u := range s.users {
-		out = append(out, *u)
+		out = append(out, u.clone())
 	}
 	slices.SortFunc(out, func(a, b User) int { return cmp.Compare(a.Session, b.Session) })
 	return out
@@ -207,7 +249,13 @@ func (s *State) User(session uint32) (User, bool) {
 	if !ok {
 		return User{}, false
 	}
-	return *u, true
+	return u.clone(), true
+}
+
+func (u *User) clone() User {
+	out := *u
+	out.Listening = slices.Clone(u.Listening)
+	return out
 }
 
 func (c *Channel) clone() Channel {

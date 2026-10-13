@@ -52,6 +52,17 @@ type clientMsg struct {
 	Reason          string  `json:"reason"`
 	PrioritySpeaker *bool   `json:"prioritySpeaker"`
 
+	// channel actions (editChannel, removeChannel, linkChannels, listen, requestDescription)
+	// and tree text messages
+	Description *string  `json:"description"`
+	NewName     *string  `json:"newName"`
+	Position    *int32   `json:"position"`
+	MaxUsers    *uint32  `json:"maxUsers"`
+	Add         []uint32 `json:"add"`
+	Remove      []uint32 `json:"remove"`
+	On          *bool    `json:"on"`
+	Tree        bool     `json:"tree"`
+
 	// setSelf
 	Mute *bool `json:"mute"`
 	Deaf *bool `json:"deaf"`
@@ -93,7 +104,9 @@ type channelMsg struct {
 	Name        string   `json:"name"`
 	Position    int32    `json:"position"`
 	Description string   `json:"description"`
+	HasDesc     bool     `json:"hasDescription"`
 	Temporary   bool     `json:"temporary"`
+	MaxUsers    uint32   `json:"maxUsers"`
 	Links       []uint32 `json:"links"`
 }
 
@@ -103,23 +116,24 @@ type channelRemoveMsg struct {
 }
 
 type userMsg struct {
-	T               string  `json:"t"` // "user"
-	Session         uint32  `json:"session"`
-	Name            string  `json:"name"`
-	ChannelID       uint32  `json:"channelId"`
-	Mute            bool    `json:"mute"`
-	Deaf            bool    `json:"deaf"`
-	Suppress        bool    `json:"suppress"`
-	SelfMute        bool    `json:"selfMute"`
-	SelfDeaf        bool    `json:"selfDeaf"`
-	PrioritySpeaker bool    `json:"prioritySpeaker"`
-	Recording       bool    `json:"recording"`
-	Registered      bool    `json:"registered"`
-	UserID          *uint32 `json:"userId,omitempty"` // registration id; 0 = SuperUser
-	Comment         string  `json:"comment,omitempty"`
-	HasComment      bool    `json:"hasComment"`
-	HasTexture      bool    `json:"hasTexture"`
-	Hash            string  `json:"hash,omitempty"` // certificate hash (public in Mumble)
+	T               string   `json:"t"` // "user"
+	Session         uint32   `json:"session"`
+	Name            string   `json:"name"`
+	ChannelID       uint32   `json:"channelId"`
+	Mute            bool     `json:"mute"`
+	Deaf            bool     `json:"deaf"`
+	Suppress        bool     `json:"suppress"`
+	SelfMute        bool     `json:"selfMute"`
+	SelfDeaf        bool     `json:"selfDeaf"`
+	PrioritySpeaker bool     `json:"prioritySpeaker"`
+	Recording       bool     `json:"recording"`
+	Registered      bool     `json:"registered"`
+	UserID          *uint32  `json:"userId,omitempty"` // registration id; 0 = SuperUser
+	Comment         string   `json:"comment,omitempty"`
+	HasComment      bool     `json:"hasComment"`
+	HasTexture      bool     `json:"hasTexture"`
+	Hash            string   `json:"hash,omitempty"` // certificate hash (public in Mumble)
+	Listening       []uint32 `json:"listening"`      // channels this user listens to
 }
 
 type permissionsMsg struct {
@@ -207,7 +221,8 @@ const (
 func newChannelMsg(c mumble.Channel) channelMsg {
 	m := channelMsg{
 		T: "channel", ID: c.ID, Name: c.Name, Position: c.Position,
-		Description: c.Description, Temporary: c.Temporary, Links: c.Links,
+		Description: c.Description, HasDesc: c.Description != "" || c.HasDescriptionHash,
+		Temporary: c.Temporary, MaxUsers: c.MaxUsers, Links: c.Links,
 	}
 	if m.Links == nil {
 		m.Links = []uint32{}
@@ -227,6 +242,10 @@ func newUserMsg(u mumble.User) userMsg {
 		PrioritySpeaker: u.PrioritySpeaker, Recording: u.Recording,
 		Registered: u.Registered, Comment: u.Comment,
 		HasComment: u.Comment != "" || u.HasCommentHash, HasTexture: u.HasTexture, Hash: u.Hash,
+		Listening: u.Listening,
+	}
+	if m.Listening == nil {
+		m.Listening = []uint32{}
 	}
 	if u.Registered {
 		id := u.UserID

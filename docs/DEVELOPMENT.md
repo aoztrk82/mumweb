@@ -175,6 +175,10 @@ Yerel ortamda Mumble'ın yönetici hesabı **SuperUser** web'den de kullanılabi
 4. Kullanıcılara **sağ tıklayarak** masaüstü Mumble'daki yönetim menüsünü kullanabilirsiniz: kov, yasakla
    (yalnızca sertifika), sustur/sağır et, imtiyazlı konuşmacı, kendi kanalına taşı, kaydet, açıklamayı sıfırla,
    bilgi, özel mesaj. Rumuz, arkadaş ve "mesajları görmezden gel" yalnızca sizin tarayıcınızda saklanır.
+5. Kanallara **sağ tıklayarak**: dinle, ekle, düzenle, kaldır, bağla/bağlantıyı kaldır, URL kopyala, mesaj gönder,
+   filtrelerken gizle/iğnele. Kanal listesinin üstündeki huni düğmesi boş kanalları gizler. Kopyalanan URL
+   (`https://mumweb.test/#kanal=/Oyun`) ile giriş yapan kişi doğrudan o kanala katılır. Kanal şifresi (ACL) henüz
+   web'den ayarlanamıyor.
 
 SuperUser Mumble'da **konuşamaz** (tasarım gereği); ses testi için normal bir takma adla, yönetim için SuperUser ile
 (ör. gizli pencerede) girin. Normal (kayıtsız) kullanıcılar Mumble'ın varsayılan izinleriyle kanal oluşturamaz; denerlerse sohbette

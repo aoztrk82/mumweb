@@ -374,6 +374,12 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 		if m.Session != nil { // private message
 			return s.mc.SendText(m.Message, nil, []uint32{*m.Session})
 		}
+		if m.ChannelID != nil { // to a specific channel, optionally with sub-channels
+			if m.Tree {
+				return s.mc.SendTreeText(m.Message, *m.ChannelID)
+			}
+			return s.mc.SendText(m.Message, []uint32{*m.ChannelID}, nil)
+		}
 		u, _ := s.mc.State().User(s.mc.Session())
 		return s.mc.SendText(m.Message, []uint32{u.ChannelID}, nil)
 	case "queryPermissions":
@@ -381,6 +387,8 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 			return fmt.Errorf("%w: queryPermissions without channelId", errProtocol)
 		}
 		return s.mc.QueryPermissions(*m.ChannelID)
+	case "editChannel", "removeChannel", "linkChannels", "listen", "requestDescription":
+		return s.channelAction(m)
 	case "moveUser", "setUser", "kick", "ban", "register", "resetComment", "resetTexture", "requestComment", "userStats":
 		return s.userAction(m)
 	case "ping":
@@ -395,6 +403,42 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 		s.log.Debug("ignoring unknown message", "t", m.T)
 		return nil
 	}
+}
+
+// channelAction handles channel management commands; the server checks permissions.
+func (s *session) channelAction(m clientMsg) error {
+	if m.ChannelID == nil {
+		return fmt.Errorf("%w: %s without channelId", errProtocol, m.T)
+	}
+	id := *m.ChannelID
+	switch m.T {
+	case "editChannel":
+		e := mumble.ChannelEdit{Description: m.Description, Position: m.Position, MaxUsers: m.MaxUsers}
+		if m.NewName != nil {
+			name := strings.TrimSpace(*m.NewName)
+			if name == "" || len(name) > maxChannelNameLen || !utf8.ValidString(name) {
+				return fmt.Errorf("%w: bad channel name", errProtocol)
+			}
+			e.Name = &name
+		}
+		if e.Description != nil && len(*e.Description) > maxJSONSize {
+			return fmt.Errorf("%w: description too long", errProtocol)
+		}
+		return s.mc.EditChannel(id, e)
+	case "removeChannel":
+		s.log.Info("channel removal requested", "channel", id)
+		return s.mc.RemoveChannel(id)
+	case "linkChannels":
+		return s.mc.LinkChannels(id, m.Add, m.Remove)
+	case "listen":
+		if m.On != nil && *m.On {
+			return s.mc.SetListening([]uint32{id}, nil)
+		}
+		return s.mc.SetListening(nil, []uint32{id})
+	case "requestDescription":
+		return s.mc.RequestChannelDescription(id)
+	}
+	return nil
 }
 
 // userAction handles commands that target another user. The Mumble server

@@ -19,8 +19,11 @@ export type DialogState =
       danger?: boolean
       /** Allow submitting an empty value (e.g. clearing a nickname, no kick reason). */
       allowEmpty?: boolean
-      onSubmit: (value: string) => void
+      /** Optional checkbox shown under the input (e.g. "send to sub-channels"). */
+      checkbox?: string
+      onSubmit: (value: string, checked: boolean) => void
     }
+  | { kind: 'editChannel'; channelId: number }
   | { kind: 'comment'; session: number }
   | { kind: 'info'; session: number }
 

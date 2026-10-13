@@ -2,7 +2,8 @@
   import { tr } from '../i18n/tr'
   import { joinChannel } from '../lib/client'
   import type { ChannelInfo } from '../lib/protocol'
-  import { channelUsers, childChannels, session } from '../lib/stores/session.svelte'
+  import { channelFilter } from '../lib/stores/channelFilter.svelte'
+  import { channelListeners, channelUsers, childChannels, session, subtreeHasUsers } from '../lib/stores/session.svelte'
   import { openMenu, ui } from '../lib/stores/ui.svelte'
   import { userPref } from '../lib/stores/userPrefs.svelte'
   import { volumePref } from '../lib/stores/volumes.svelte'
@@ -12,7 +13,27 @@
   let { channel, depth = 0 }: { channel: ChannelInfo; depth?: number } = $props()
 
   const users = $derived(channelUsers(channel.id))
-  const children = $derived(childChannels(channel.id))
+  const listeners = $derived(channelListeners(channel.id))
+  const children = $derived(
+    childChannels(channel.id).filter((c) => {
+      // Desktop "filter": hide channels without users unless pinned; "hide" mode hides even with users.
+      if (!channelFilter.enabled) return true
+      const mode = channelFilter.modes.get(c.id)
+      if (mode === 'pin') return true
+      const hasSelf = session.self && (session.self.channelId === c.id || isAncestor(c.id, session.self.channelId))
+      if (mode === 'hide') return !!hasSelf
+      return hasSelf || subtreeHasUsers(c.id)
+    }),
+  )
+
+  function isAncestor(ancestor: number, id: number): boolean {
+    let c = session.channels.get(id)
+    while (c && c.parent !== null) {
+      if (c.parent === ancestor) return true
+      c = session.channels.get(c.parent)
+    }
+    return false
+  }
   const isCurrent = $derived(session.self?.channelId === channel.id)
 
   function onKey(e: KeyboardEvent) {
@@ -36,6 +57,7 @@
   >
     <Icon name="channel" size={15} />
     <span class="name">{channel.name}</span>
+    {#if channel.links.length}<span class="dim-icon" title={tr.channelMenu.linked}><Icon name="link" size={13} /></span>{/if}
     {#if users.length}<span class="count">{users.length}</span>{/if}
   </div>
 
@@ -78,6 +100,17 @@
           >
             {@render content()}
           </div>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+
+  {#if listeners.length}
+    <ul class="users">
+      {#each listeners as l (l.session)}
+        <li class="row user listener" title={tr.channelMenu.listeners}>
+          <span class="avatar"><Icon name="ear" size={14} /></span>
+          <span class="name">{userPref(l).nickname || l.name}</span>
         </li>
       {/each}
     </ul>
@@ -178,6 +211,14 @@
   }
   .red {
     color: var(--danger);
+  }
+  .listener {
+    color: var(--text-dim);
+    font-style: italic;
+  }
+  .dim-icon {
+    color: var(--text-dim);
+    display: inline-flex;
   }
   .heart {
     color: #e5484d;

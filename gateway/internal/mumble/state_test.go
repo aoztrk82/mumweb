@@ -1,6 +1,7 @@
 package mumble
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -23,7 +24,7 @@ func TestApplyUserPartial(t *testing.T) {
 		t.Fatal("not applied")
 	}
 	want := User{Session: 7, Name: "Mehmet", ChannelID: 3, SelfMute: true, SelfDeaf: true}
-	if u != want {
+	if !reflect.DeepEqual(u, want) {
 		t.Fatalf("got %+v, want %+v", u, want)
 	}
 
@@ -59,7 +60,7 @@ func TestApplyChannelPartialAndLinks(t *testing.T) {
 		Name:      proto.String("Oyun"),
 		Links:     []uint32{1, 2},
 	})
-	c, _ := s.applyChannel(&pb.ChannelState{
+	c, _, _ := s.applyChannel(&pb.ChannelState{
 		ChannelId:   proto.Uint32(3),
 		Position:    proto.Int32(5),
 		LinksAdd:    []uint32{4, 2},
@@ -78,5 +79,46 @@ func TestApplyChannelPartialAndLinks(t *testing.T) {
 	s.removeChannel(3)
 	if len(s.Channels()) != 0 {
 		t.Fatal("channel not removed")
+	}
+}
+
+func TestListeningChannels(t *testing.T) {
+	s := newState()
+	s.applyUser(&pb.UserState{Session: proto.Uint32(1), ListeningChannelAdd: []uint32{3, 4}})
+	u, _ := s.applyUser(&pb.UserState{Session: proto.Uint32(1), ListeningChannelAdd: []uint32{4, 5}, ListeningChannelRemove: []uint32{3}})
+	if !slices.Equal(u.Listening, []uint32{4, 5}) {
+		t.Fatalf("listening %v", u.Listening)
+	}
+	s.applyChannel(&pb.ChannelState{ChannelId: proto.Uint32(4)})
+	s.removeChannel(4)
+	if got, _ := s.User(1); !slices.Equal(got.Listening, []uint32{5}) {
+		t.Fatalf("after channel removal %v", got.Listening)
+	}
+}
+
+func TestLinksAreSymmetric(t *testing.T) {
+	s := newState()
+	for _, id := range []uint32{0, 1, 2} {
+		s.applyChannel(&pb.ChannelState{ChannelId: proto.Uint32(id)})
+	}
+	_, others, _ := s.applyChannel(&pb.ChannelState{ChannelId: proto.Uint32(0), LinksAdd: []uint32{1, 2}})
+	if len(others) != 2 {
+		t.Fatalf("others %+v", others)
+	}
+	byID := func(id uint32) Channel {
+		for _, c := range s.Channels() {
+			if c.ID == id {
+				return c
+			}
+		}
+		return Channel{}
+	}
+	if !slices.Equal(byID(1).Links, []uint32{0}) || !slices.Equal(byID(2).Links, []uint32{0}) {
+		t.Fatalf("not mirrored: %+v", s.Channels())
+	}
+	// A full links list replacing the old one also unlinks the other side.
+	s.applyChannel(&pb.ChannelState{ChannelId: proto.Uint32(0), Links: []uint32{2}})
+	if len(byID(1).Links) != 0 || !slices.Equal(byID(2).Links, []uint32{0}) {
+		t.Fatalf("after replace: %+v", s.Channels())
 	}
 }

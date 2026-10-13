@@ -10,6 +10,8 @@ export interface ChatEntry {
   /** Sender name for text entries. */
   from?: string
   fromSelf?: boolean
+  /** Recipient of our own message ("Takma", "#Oyun"), shown as "Sen → …". */
+  target?: string
   private?: boolean
   /** Sanitized HTML for text entries, plain text otherwise. */
   body: string
@@ -87,4 +89,22 @@ export function channelUsers(channelId: number): UserInfo[] {
   const out: UserInfo[] = []
   for (const u of session.users.values()) if (u.channelId === channelId) out.push(u)
   return out.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+}
+
+/** Users listening to a channel without being in it. */
+export function channelListeners(channelId: number): UserInfo[] {
+  const out: UserInfo[] = []
+  for (const u of session.users.values()) if (u.listening?.includes(channelId)) out.push(u)
+  return out.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+}
+
+/** Whether a channel or any of its sub-channels has users (or listeners) in it. */
+export function subtreeHasUsers(channelId: number): boolean {
+  for (const u of session.users.values()) {
+    if (u.channelId === channelId || u.listening?.includes(channelId)) return true
+  }
+  for (const c of session.channels.values()) {
+    if (c.parent === channelId && subtreeHasUsers(c.id)) return true
+  }
+  return false
 }

@@ -5,15 +5,21 @@
     banUser,
     joinChannel,
     kickUser,
+    linkChannels,
     moveUser,
     queryPermissions,
+    removeChannel,
+    sendChannelText,
     sendPrivateText,
+    setListening,
     setUser,
     toggleDeaf,
     toggleMute,
     userCommand,
   } from '../lib/client'
+  import { channelUrl } from '../lib/channelPath'
   import { channelPerms, has, Perm, rootPerms } from '../lib/permissions'
+  import { channelFilter } from '../lib/stores/channelFilter.svelte'
   import { session } from '../lib/stores/session.svelte'
   import { closeMenu, ui } from '../lib/stores/ui.svelte'
   import { displayName, updateUserPref, userPref } from '../lib/stores/userPrefs.svelte'
@@ -34,6 +40,13 @@
   // Permissions as the desktop client evaluates them: target user's channel and root.
   const p = $derived(user ? channelPerms(user.channelId, queryPermissions) : 0)
   const root = $derived(user ? rootPerms() : 0)
+  // Channel menu (MainWindow::qmChannel_aboutToShow + updateMenuPermissions).
+  const home = $derived(session.self ? session.channels.get(session.self.channelId) : undefined)
+  const cp = $derived(channel ? channelPerms(channel.id, queryPermissions) : 0)
+  const homep = $derived(home ? channelPerms(home.id, queryPermissions) : 0)
+  const isHome = $derived(!!channel && channel.id === home?.id)
+  const linkedToHome = $derived(!!channel && !!home && home.links.includes(channel.id))
+  const listening = $derived(!!channel && !!session.self?.listening.includes(channel.id))
   const otherChannel = $derived(!!user && !isSelf && !!session.self && session.self.channelId !== user.channelId)
 
   // Keep the menu inside the viewport and focus its first control.
@@ -132,6 +145,36 @@
     if (!user) return
     userCommand('userStats', user.session)
     ui.dialog = { kind: 'info', session: user.session }
+  }
+
+  function confirmRemove() {
+    if (channel && confirm(tr.channelMenu.removeConfirm(channel.name))) removeChannel(channel.id)
+  }
+
+  function askChannelMessage() {
+    if (!channel) return
+    const id = channel.id
+    ui.dialog = {
+      kind: 'prompt',
+      title: tr.channelMenu.messageTitle(channel.name),
+      label: tr.userMenu.messageLabel,
+      value: '',
+      multiline: true,
+      checkbox: tr.channelMenu.messageTree,
+      confirm: tr.userMenu.send,
+      onSubmit: (v, tree) => sendChannelText(id, v, tree),
+    }
+  }
+
+  async function copyUrl() {
+    if (!channel) return
+    const url = channelUrl(channel.id)
+    try {
+      await navigator.clipboard.writeText(url)
+      session.addChat({ kind: 'system', body: tr.chat.linkCopied })
+    } catch {
+      session.addChat({ kind: 'system', body: tr.chat.linkCopyFailed(url) })
+    }
   }
 
   function register() {
@@ -280,16 +323,66 @@
       {/if}
     {:else if channel}
       <div class="title"><Icon name="channel" size={14} /> {channel.name}</div>
+      {#if !isHome}
+        <button role="menuitem" disabled={!has(cp, Perm.Write, Perm.Enter)} onclick={() => act(() => joinChannel(channel.id))}>
+          {tr.channels.join}
+        </button>
+      {/if}
+      {@render check(tr.channelMenu.listen, listening, true, () => setListening(channel.id, !listening))}
+      <hr />
       <button
         role="menuitem"
-        disabled={session.self?.channelId === channel.id}
-        onclick={() => act(() => joinChannel(channel.id))}
+        disabled={!has(cp, Perm.Write, Perm.MakeChannel, Perm.MakeTempChannel)}
+        onclick={() => act(() => (ui.createIn = channel.id))}
       >
-        {tr.channels.join}
+        {tr.channelMenu.add}
       </button>
-      <button role="menuitem" onclick={() => act(() => (ui.createIn = channel.id))}>
-        {tr.channels.create}
+      <button
+        role="menuitem"
+        disabled={!(has(cp, Perm.Write) || has(rootPerms(), Perm.Write))}
+        onclick={() => act(() => (ui.dialog = { kind: 'editChannel', channelId: channel.id }))}
+      >
+        {tr.channelMenu.edit}
       </button>
+      <button role="menuitem" disabled={channel.id === 0 || !has(cp, Perm.Write)} onclick={() => act(confirmRemove)}>
+        {tr.channelMenu.remove}
+      </button>
+      <hr />
+      <button
+        role="menuitem"
+        disabled={isHome || linkedToHome || !has(cp, Perm.Write, Perm.LinkChannel) || !has(homep, Perm.Write, Perm.LinkChannel)}
+        onclick={() => act(() => home && linkChannels(home.id, [channel.id], []))}
+      >
+        {tr.channelMenu.link}
+      </button>
+      <button
+        role="menuitem"
+        disabled={isHome || !linkedToHome || !(has(cp, Perm.Write, Perm.LinkChannel) || has(homep, Perm.Write, Perm.LinkChannel))}
+        onclick={() => act(() => home && linkChannels(home.id, [], [channel.id]))}
+      >
+        {tr.channelMenu.unlink}
+      </button>
+      <button
+        role="menuitem"
+        disabled={!home || home.links.length === 0 || !has(homep, Perm.Write, Perm.LinkChannel)}
+        onclick={() => act(() => home && linkChannels(home.id, [], [...home.links]))}
+      >
+        {tr.channelMenu.unlinkAll}
+      </button>
+      <hr />
+      <button role="menuitem" onclick={() => act(copyUrl)}>{tr.channelMenu.copyUrl}</button>
+      <button role="menuitem" disabled={!has(cp, Perm.Write, Perm.TextMessage)} onclick={() => act(askChannelMessage)}>
+        {tr.channelMenu.sendMessage}
+      </button>
+      {#if channel.id !== 0}
+        <hr />
+        {@render check(tr.channelMenu.hideWhenFiltering, channelFilter.modes.get(channel.id) === 'hide', true, () =>
+          channelFilter.setMode(channel.id, 'hide'),
+        )}
+        {@render check(tr.channelMenu.pinWhenFiltering, channelFilter.modes.get(channel.id) === 'pin', true, () =>
+          channelFilter.setMode(channel.id, 'pin'),
+        )}
+      {/if}
     {/if}
   </div>
 {/if}

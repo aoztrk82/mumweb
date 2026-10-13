@@ -11,6 +11,8 @@
   import { tr } from './i18n/tr'
   import { session } from './lib/stores/session.svelte'
   import { closeMenu } from './lib/stores/ui.svelte'
+  import { channelFilter } from './lib/stores/channelFilter.svelte'
+  import Icon from './components/Icon.svelte'
 
   const root = $derived(session.channels.get(0))
   let tab = $state<'channels' | 'chat'>('channels')
@@ -29,6 +31,18 @@
     </nav>
     <main class="panes" data-tab={tab}>
       <aside class="channels" aria-label={tr.channels.title} onscroll={closeMenu}>
+        <div class="tree-head">
+          <span>{tr.channels.title}</span>
+          <button
+            class="icon-btn"
+            class:active={channelFilter.enabled}
+            aria-pressed={channelFilter.enabled}
+            title={tr.channelMenu.filter}
+            onclick={() => channelFilter.toggle()}
+          >
+            <Icon name="filter" size={15} />
+          </button>
+        </div>
         {#if root}
           <ul class="tree"><ChannelTree channel={root} /></ul>
         {/if}
@@ -61,6 +75,28 @@
     overflow-y: auto;
     border-right: 1px solid var(--border);
     padding: 0.5rem;
+  }
+  .tree-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.1rem 0.5rem 0.4rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-dim);
+  }
+  .icon-btn {
+    display: inline-grid;
+    place-items: center;
+    padding: 0.25rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-dim);
+  }
+  .icon-btn.active {
+    color: var(--accent);
+    border-color: var(--accent);
   }
   .tree {
     list-style: none;
