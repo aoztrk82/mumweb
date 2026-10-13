@@ -142,6 +142,8 @@ func msgTypeOf(m proto.Message) (MsgType, bool) {
 		return MsgPing, true
 	case *pb.UserState:
 		return MsgUserState, true
+	case *pb.ChannelState:
+		return MsgChannelState, true
 	case *pb.TextMessage:
 		return MsgTextMessage, true
 	case *pb.PermissionQuery:

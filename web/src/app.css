@@ -1,12 +1,119 @@
+/* Dark theme is the default; [data-theme='light'] switches to light. */
 :root {
-  font-family: system-ui, sans-serif;
-  color-scheme: light dark;
+  --bg: #15171c;
+  --bg-elev: #1d2027;
+  --bg-hover: #262a33;
+  --bg-active: #2e3440;
+  --border: #2f333d;
+  --text: #e6e8ec;
+  --text-dim: #9aa1ad;
+  --accent: #5b8def;
+  --accent-text: #ffffff;
+  --speaking: #3ecf7a;
+  --danger: #ef5b5b;
+  --warn: #e6b450;
+  --radius: 8px;
+  --gutter: 16px;
+
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--bg);
 }
 
+:root[data-theme='light'] {
+  --bg: #f5f6f8;
+  --bg-elev: #ffffff;
+  --bg-hover: #eceef2;
+  --bg-active: #e1e5ec;
+  --border: #d9dde4;
+  --text: #1c1f24;
+  --text-dim: #5f6773;
+  --accent: #2f6fe0;
+  --speaking: #18a558;
+  --danger: #d23c3c;
+  --warn: #b7851d;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
 }
 
-main {
-  padding: 1rem;
+#app {
+  height: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.8rem;
+}
+
+button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+  background: var(--accent);
+}
+
+input[type='text'],
+input[type='password'],
+textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.65rem;
+  width: 100%;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }

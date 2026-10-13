@@ -137,9 +137,17 @@ type pongMsg struct {
 }
 
 type errorMsg struct {
-	T       string `json:"t"` // "error"
+	T       string `json:"t"`    // "error"
+	Code    string `json:"code"` // see errCode* constants
 	Message string `json:"message"`
 }
+
+// Error codes for errorMsg.
+const (
+	errCodeInvalidCert       = "invalid_certificate"
+	errCodeMumbleUnavailable = "mumble_unavailable"
+	errCodeDisconnected      = "disconnected"
+)
 
 func newChannelMsg(c mumble.Channel) channelMsg {
 	m := channelMsg{

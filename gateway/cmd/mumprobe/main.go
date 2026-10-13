@@ -33,6 +33,7 @@ func main() {
 	fingerprint := flag.String("fingerprint", "", "pin server certificate SHA-256 fingerprint")
 	say := flag.String("say", "", "send this text message to the current channel after connecting")
 	join := flag.Int("join", -1, "move to this channel ID after connecting")
+	mkchannel := flag.String("mkchannel", "", "create a sub-channel of the root with this name (needs permission, e.g. SuperUser)")
 	tx := flag.Duration("tx", 0, "transmit Opus silence for this long (e.g. 2s) to exercise the voice path")
 	exit := flag.Bool("exit", false, "exit after the initial dump and -say/-join/-tx actions")
 	debug := flag.Bool("debug", false, "debug logging")
@@ -86,6 +87,11 @@ func main() {
 	if *join >= 0 {
 		if err := c.JoinChannel(uint32(*join)); err != nil {
 			fatal("join", err)
+		}
+	}
+	if *mkchannel != "" {
+		if err := c.CreateChannel(0, *mkchannel); err != nil {
+			fatal("mkchannel", err)
 		}
 	}
 	if *say != "" {
@@ -163,8 +169,8 @@ func logEvent(c *mumble.Client, ev mumble.Event, speaking map[uint32]int) {
 			ts, e.Actor, userName(c, e.Actor), e.Channels, e.Sessions, e.Message)
 	case mumble.UserEvent:
 		u := e.User
-		fmt.Printf("%s user %d %q channel=%d mute=%v deaf=%v selfMute=%v selfDeaf=%v registered=%v\n",
-			ts, u.Session, u.Name, u.ChannelID, u.Mute, u.Deaf, u.SelfMute, u.SelfDeaf, u.Registered)
+		fmt.Printf("%s user %d %q channel=%d mute=%v deaf=%v selfMute=%v selfDeaf=%v registered=%v hash=%.12s\n",
+			ts, u.Session, u.Name, u.ChannelID, u.Mute, u.Deaf, u.SelfMute, u.SelfDeaf, u.Registered, u.Hash)
 	case mumble.UserRemoveEvent:
 		fmt.Printf("%s userRemove %d reason=%q ban=%v\n", ts, e.Session, e.Reason, e.Ban)
 	case mumble.ChannelEvent:

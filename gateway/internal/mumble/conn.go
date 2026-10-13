@@ -475,3 +475,8 @@ func (c *Client) SetSelf(mute, deaf bool) error {
 func (c *Client) SendText(message string, channels, sessions []uint32) error {
 	return c.send(&pb.TextMessage{Message: &message, ChannelId: channels, Session: sessions})
 }
+
+// CreateChannel asks the server to create a permanent sub-channel (needs MakeChannel permission).
+func (c *Client) CreateChannel(parent uint32, name string) error {
+	return c.send(&pb.ChannelState{Parent: &parent, Name: &name})
+}

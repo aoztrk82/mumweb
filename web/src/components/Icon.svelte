@@ -1,0 +1,28 @@
+<script lang="ts">
+  // Minimal inline icon set (stroke icons, 24x24 viewBox).
+  type Name = 'mic' | 'micOff' | 'headphones' | 'headphonesOff' | 'logout' | 'user' | 'shield' | 'send' | 'channel'
+  let { name, size = 18 }: { name: Name; size?: number } = $props()
+</script>
+
+<svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+  stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  {#if name === 'mic' || name === 'micOff'}
+    <rect x="9" y="2" width="6" height="12" rx="3" />
+    <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4" />
+    {#if name === 'micOff'}<path d="M3 3l18 18" />{/if}
+  {:else if name === 'headphones' || name === 'headphonesOff'}
+    <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+    <path d="M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z" />
+    {#if name === 'headphonesOff'}<path d="M3 3l18 18" />{/if}
+  {:else if name === 'logout'}
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+  {:else if name === 'user'}
+    <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+  {:else if name === 'shield'}
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
+  {:else if name === 'send'}
+    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" />
+  {:else if name === 'channel'}
+    <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" />
+  {/if}
+</svg>

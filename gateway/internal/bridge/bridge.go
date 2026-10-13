@@ -22,6 +22,7 @@ import (
 
 const (
 	helloTimeout      = 10 * time.Second
+	browserIdle       = 60 * time.Second // browsers ping every 20 s
 	wsWriteTimeout    = 10 * time.Second
 	maxUsernameLen    = 128
 	audioPacketsPerS  = 100
@@ -138,7 +139,7 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 	cert, err := s.identity(ctx, username, hello.Cert)
 	if err != nil {
 		s.log.Warn("certificate error", "err", err)
-		_ = s.sendJSON(ctx, errorMsg{T: "error", Message: "invalid certificate"})
+		_ = s.sendJSON(ctx, errorMsg{T: "error", Code: errCodeInvalidCert, Message: "invalid certificate"})
 		return websocket.StatusPolicyViolation, "invalid certificate"
 	}
 
@@ -161,7 +162,7 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 			return websocket.StatusNormalClosure, "rejected"
 		}
 		s.log.Warn("mumble connect failed", "err", err)
-		_ = s.sendJSON(ctx, errorMsg{T: "error", Message: "cannot reach Mumble server"})
+		_ = s.sendJSON(ctx, errorMsg{T: "error", Code: errCodeMumbleUnavailable, Message: "cannot reach Mumble server"})
 		return websocket.StatusTryAgainLater, "mumble unavailable"
 	}
 	s.mc = mc
@@ -279,7 +280,7 @@ func (s *session) pumpEvents(ctx context.Context) error {
 	if errors.As(err, &rej) {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: rej.Type.String(), Message: rej.Reason})
 	} else {
-		_ = s.sendJSON(ctx, errorMsg{T: "error", Message: "disconnected from Mumble server"})
+		_ = s.sendJSON(ctx, errorMsg{T: "error", Code: errCodeDisconnected, Message: "disconnected from Mumble server"})
 	}
 	// Unblock readLoop so the session ends.
 	_ = s.ws.Close(websocket.StatusTryAgainLater, "mumble disconnected")
@@ -293,7 +294,9 @@ func (s *session) readLoop(ctx context.Context) error {
 	var audio tokenBucket
 	dropped := 0
 	for {
-		typ, data, err := s.ws.Read(ctx)
+		rctx, cancel := context.WithTimeout(ctx, browserIdle)
+		typ, data, err := s.ws.Read(rctx)
+		cancel()
 		if err != nil {
 			return err
 		}
