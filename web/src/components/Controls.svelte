@@ -22,6 +22,11 @@
     setPushToTalk(on)
   }
 
+  function pttPointerDown(e: PointerEvent) {
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    setPtt(true)
+  }
+
   // Keyboard push-to-talk (ignored while typing in a text field).
   $effect(() => {
     const key = audioSettings.prefs.pttKey
@@ -50,7 +55,23 @@
   <div class="mic-warning" role="alert">{mic.state === 'denied' ? tr.audio.micDenied : tr.audio.micUnavailable}</div>
 {/if}
 
-<div class="controls">
+{#if mic.state === 'on' && mode === 'ptt'}
+  <!-- Large push-to-talk button for touch screens (shown at <= 640 px). -->
+  <button
+    class="ptt-big"
+    class:talking={pttDown}
+    disabled={!session.ready}
+    onpointerdown={pttPointerDown}
+    onpointerup={() => setPtt(false)}
+    onpointercancel={() => setPtt(false)}
+    oncontextmenu={(e) => e.preventDefault()}
+  >
+    <Icon name="mic" size={22} />
+    {pttDown ? tr.controls.talking : tr.controls.holdToTalk}
+  </button>
+{/if}
+
+<div class="controls" class:ptt-mode={mode === 'ptt'}>
   <button
     class:on={muted}
     onclick={toggleMute}
@@ -87,10 +108,7 @@
         class="ptt"
         class:talking={pttDown}
         title={tr.controls.pttKeyHint(keyName(audioSettings.prefs.pttKey))}
-        onpointerdown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId)
-          setPtt(true)
-        }}
+        onpointerdown={pttPointerDown}
         onpointerup={() => setPtt(false)}
         onpointercancel={() => setPtt(false)}
         oncontextmenu={(e) => e.preventDefault()}
@@ -139,6 +157,7 @@
   .mode button {
     border-radius: 0;
     font-size: 0.85rem;
+    white-space: nowrap;
   }
   .mode button:first-child {
     border-radius: var(--radius) 0 0 var(--radius);
@@ -175,15 +194,64 @@
   .spacer {
     flex: 1;
   }
+  .ptt-big {
+    display: none;
+  }
   .mic-warning {
     padding: 0.45rem var(--gutter);
     font-size: 0.85rem;
     color: var(--warn);
     border-top: 1px solid var(--border);
   }
-  @media (max-width: 640px) {
+  @media (max-width: 900px) {
     .label {
       display: none;
+    }
+  }
+  @media (max-width: 640px) {
+    .controls {
+      flex-wrap: nowrap;
+      gap: 0.3rem;
+    }
+    .label,
+    .ptt,
+    .talking-label {
+      display: none;
+    }
+    .controls > button {
+      padding: 0.5rem 0.6rem;
+    }
+    .mode button {
+      padding: 0.45rem 0.4rem;
+      font-size: 0.8rem;
+    }
+    .controls :global(.meter) {
+      min-width: 20px;
+    }
+    .ptt-mode :global(.meter) {
+      display: none;
+    }
+    .ptt-big {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.6rem;
+      width: 100%;
+      min-height: 72px;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: var(--bg-active);
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+      -webkit-touch-callout: none;
+    }
+    .ptt-big.talking {
+      background: var(--speaking);
+      color: #08130c;
     }
   }
 </style>

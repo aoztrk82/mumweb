@@ -54,6 +54,14 @@ body {
 
 #app {
   height: 100%;
+  /* Notches / home indicator when installed as a standalone app. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+html,
+body,
+#app {
+  height: 100dvh;
 }
 
 button,

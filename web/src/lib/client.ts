@@ -1,6 +1,7 @@
 // Connects the gateway socket to the session state. UI components call these actions.
 import { tr } from '../i18n/tr'
 import { unlockAudio } from './audio/context'
+import { playJoin, playLeave } from './audio/notify'
 import { handleAudioFrame, removeSpeaker, silenceAll, startReceiver, stopReceiver } from './audio/receiver'
 import { encoderSupported, setAudioSender, startMicrophone, stopMicrophone } from './audio/transmitter'
 import { loadCert, saveCert } from './certStore'
@@ -22,6 +23,10 @@ export function connect(username: string, password: string): void {
   session.notice = null
   session.joined = false
   session.clearChat()
+  openSocket(username, password)
+}
+
+function openSocket(username: string, password: string): void {
   socket = new ReconnectingSocket(gatewayUrl(), {
     hello: async () => ({ t: 'hello', username, password, cert: await loadCert() }),
     message: handleMessage,
@@ -49,6 +54,16 @@ async function startAudio(): Promise<void> {
     console.error('audio setup failed', e)
     session.audioUnsupported = true
   }
+}
+
+/** Reconnects with the same credentials (e.g. after changing the certificate). */
+export function reconnect(): void {
+  if (!credentials.username) return
+  const { username, password } = credentials
+  socket?.stop()
+  socket = null
+  session.joined = true // keep the main view while reconnecting
+  openSocket(username, password)
 }
 
 export function disconnect(): void {
@@ -148,6 +163,7 @@ function handleMessage(m: ServerMessage): void {
       removeSpeaker(m.session)
       if (prev && session.ready && prev.channelId === session.self?.channelId) {
         session.addChat({ kind: 'system', body: tr.chat.left(prev.name) })
+        playLeave()
       }
       break
     }
@@ -199,6 +215,11 @@ function announceMovement(prev: UserInfo | undefined, u: UserInfo): void {
   if (mine === undefined || u.session === session.selfSession) return
   const was = prev?.channelId === mine
   const is = u.channelId === mine
-  if (!was && is) session.addChat({ kind: 'system', body: tr.chat.joined(u.name) })
-  else if (was && !is) session.addChat({ kind: 'system', body: tr.chat.left(u.name) })
+  if (!was && is) {
+    session.addChat({ kind: 'system', body: tr.chat.joined(u.name) })
+    playJoin()
+  } else if (was && !is) {
+    session.addChat({ kind: 'system', body: tr.chat.left(u.name) })
+    playLeave()
+  }
 }

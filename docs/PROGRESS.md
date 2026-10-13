@@ -213,6 +213,36 @@ mumprobe `-tx`/`-play` buna göre düzeltildi; Faz 5'te tarayıcı da `örnek sa
   konuşma göstergesinin hemen sönmesi; gerçek mikrofonla yankı engelleme (Chrome'un AEC'si WebAudio çıkışını
   her platformda referans almayabilir; kulaklıksız kullanımda yankı olursa not edilmeli).
 
+## Faz 6 — Cilalama (2026-10-13)
+
+- Ayarlar ekranı: mikrofon, hoparlör/kulaklık (`AudioContext.setSinkId`; desteklemeyen tarayıcıda açıklama),
+  gürültü engelleme (mikrofonu yeniden açar), konuşma modu, PTT tuşu atama, VAD eşiği (canlı seviye çubuğu ile),
+  tema (koyu varsayılan / açık), giriş-çıkış sesleri, sertifika: dışa aktar (PEM: sertifika + anahtar),
+  içe aktar (PEM), sıfırla (uyarı ile); değişiklik sonrası "Şimdi yeniden bağlan".
+  Not: masaüstü Mumble'ın `.p12` dışa aktarımı desteklenmiyor (PEM'e çevrilmesi gerekir, ör. `openssl pkcs12 -nodes`).
+- Mobil (≤ 640 px): sekmeli düzen + PTT modunda kontrol çubuğunun üstünde tam genişlikte 72 px bas-konuş butonu
+  (dokunmatik, pointer capture, uzun basma menüsü kapalı); kontrol çubuğu ikonlara iner, yatay taşma yok.
+  641–900 px'de buton etiketleri gizlenir, çubuk tek satır.
+- Bildirim sesleri: kanalımıza biri girince yükselen, çıkınca alçalan kısa iki ton (WebAudio ile sentez,
+  sağırken çalmaz, kapatılabilir).
+- PWA: `manifest.webmanifest` (standalone, tr), ikonlar (192, 512, maskable 512, apple-touch 180; SVG'den üretildi),
+  `sw.js` yalnızca statik dosyaları önbelleğe alır (gezinme: önce ağ; `/assets/*`: önce önbellek; `/ws`, `/healthz` hariç).
+  Gateway: `.webmanifest` MIME tipi, `/assets/*` için 1 yıl `immutable`, diğerleri `no-cache`, `nosniff`.
+- Bağlantı durumu çubuğu ve Türkçe hata/reject metinleri Faz 3'te yapılmıştı.
+
+### Doğrulama
+- Vitest: PEM paketi ayrıştırma (gidiş-dönüş, RSA anahtar, eksik parça).
+- Uçtan uca (headless Chromium):
+  - Chrome `Page.getInstallabilityErrors` → boş, manifest hatası yok, service worker aktif.
+  - Biri kanala girip çıkınca 4 osilatör (2 ton × 2); "sesler" kapalıyken 0.
+  - Tema açık → `data-theme="light"`, arka plan değişiyor.
+  - Sertifika: dışa aktarılan PEM'de sertifika + anahtar var; sıfırla → yeni kimlik (hash değişti);
+    içe aktar → yeniden bağlanınca **orijinal hash geri geldi**.
+  - Android Chrome emülasyonu (390×800, dokunmatik): büyük PTT butonuna 1,2 sn dokunma → 66 paket + terminator.
+  - 800 px ve 390 px'de kontrol çubuğu tek satır, sayfa yatay taşmıyor (PTT ve VAD modlarında).
+- **Bekleyen manuel doğrulama:** gerçek Android Chrome'da "Ana ekrana ekle" → tam ekran açılış ve bas-konuş
+  (HTTPS gerekir; Faz 7 dağıtımından sonra).
+
 ## Açık konular
 - Production'da Mumble autoban ayarı (Faz 7): en az `autobanSuccessfulConnections=false`. Başarısız girişler
   (yanlış şifre) hâlâ gateway IP'si adına sayılır; 120 sn'de 10 yanlış şifre tüm web kullanıcılarını 5 dk keser.

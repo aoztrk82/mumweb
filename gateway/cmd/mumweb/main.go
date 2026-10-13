@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
@@ -90,9 +91,28 @@ func newMux(dist fs.FS, ws http.Handler) *http.ServeMux {
 			_, _ = w.Write([]byte(noBuildPage))
 		})
 	} else {
-		mux.Handle("GET /", http.FileServerFS(dist))
+		mux.Handle("GET /", cacheHeaders(http.FileServerFS(dist)))
 	}
 	return mux
+}
+
+func init() {
+	// Not in Go's built-in table; browsers want this type for the PWA manifest.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
+
+// cacheHeaders lets browsers keep hashed build assets forever and revalidate
+// everything else (index.html, sw.js, manifest), so updates show up promptly.
+func cacheHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func env(key, def string) string {
