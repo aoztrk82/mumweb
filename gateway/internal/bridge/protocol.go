@@ -4,10 +4,13 @@ package bridge
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
+	"net"
 	"slices"
 
 	"github.com/aoztrk82/mumweb/gateway/internal/mumble"
+	pb "github.com/aoztrk82/mumweb/gateway/proto/mumbleproto"
 )
 
 // Size limits for incoming WebSocket messages.
@@ -43,6 +46,12 @@ type clientMsg struct {
 	Name      string  `json:"name"`
 	Temporary bool    `json:"temporary"`
 
+	// user actions (moveUser, setUser, kick, ban, register, resetComment,
+	// resetTexture, requestComment, userStats) and private text
+	Session         *uint32 `json:"session"`
+	Reason          string  `json:"reason"`
+	PrioritySpeaker *bool   `json:"prioritySpeaker"`
+
 	// setSelf
 	Mute *bool `json:"mute"`
 	Deaf *bool `json:"deaf"`
@@ -70,6 +79,7 @@ type certMsg struct {
 type readyMsg struct {
 	T            string `json:"t"` // "ready"
 	Session      uint32 `json:"session"`
+	Permissions  uint64 `json:"permissions"` // ACL bits in the root channel
 	Welcome      string `json:"welcome"`
 	MaxBandwidth uint32 `json:"maxBandwidth"`
 	AllowHTML    bool   `json:"allowHtml"`
@@ -93,19 +103,59 @@ type channelRemoveMsg struct {
 }
 
 type userMsg struct {
-	T               string `json:"t"` // "user"
-	Session         uint32 `json:"session"`
-	Name            string `json:"name"`
-	ChannelID       uint32 `json:"channelId"`
-	Mute            bool   `json:"mute"`
-	Deaf            bool   `json:"deaf"`
-	Suppress        bool   `json:"suppress"`
-	SelfMute        bool   `json:"selfMute"`
-	SelfDeaf        bool   `json:"selfDeaf"`
-	PrioritySpeaker bool   `json:"prioritySpeaker"`
-	Recording       bool   `json:"recording"`
-	Registered      bool   `json:"registered"`
-	Comment         string `json:"comment,omitempty"`
+	T               string  `json:"t"` // "user"
+	Session         uint32  `json:"session"`
+	Name            string  `json:"name"`
+	ChannelID       uint32  `json:"channelId"`
+	Mute            bool    `json:"mute"`
+	Deaf            bool    `json:"deaf"`
+	Suppress        bool    `json:"suppress"`
+	SelfMute        bool    `json:"selfMute"`
+	SelfDeaf        bool    `json:"selfDeaf"`
+	PrioritySpeaker bool    `json:"prioritySpeaker"`
+	Recording       bool    `json:"recording"`
+	Registered      bool    `json:"registered"`
+	UserID          *uint32 `json:"userId,omitempty"` // registration id; 0 = SuperUser
+	Comment         string  `json:"comment,omitempty"`
+	HasComment      bool    `json:"hasComment"`
+	HasTexture      bool    `json:"hasTexture"`
+	Hash            string  `json:"hash,omitempty"` // certificate hash (public in Mumble)
+}
+
+type permissionsMsg struct {
+	T           string `json:"t"` // "permissions"
+	ChannelID   uint32 `json:"channelId"`
+	Permissions uint32 `json:"permissions"`
+	Flush       bool   `json:"flush"`
+}
+
+type userStatsMsg struct {
+	T          string       `json:"t"` // "userStats"
+	Session    uint32       `json:"session"`
+	Release    string       `json:"release,omitempty"`
+	OS         string       `json:"os,omitempty"`
+	OSVersion  string       `json:"osVersion,omitempty"`
+	Version    string       `json:"version,omitempty"`
+	OnlineSecs *uint32      `json:"onlineSecs,omitempty"`
+	IdleSecs   *uint32      `json:"idleSecs,omitempty"`
+	Address    string       `json:"address,omitempty"`
+	Bandwidth  *uint32      `json:"bandwidth,omitempty"`
+	TCPPingAvg float32      `json:"tcpPingAvg"`
+	UDPPingAvg float32      `json:"udpPingAvg"`
+	TCPPackets uint32       `json:"tcpPackets"`
+	UDPPackets uint32       `json:"udpPackets"`
+	Opus       bool         `json:"opus"`
+	StrongCert bool         `json:"strongCertificate"`
+	CertCount  int          `json:"certificates"`
+	FromClient *packetStats `json:"fromClient,omitempty"`
+	FromServer *packetStats `json:"fromServer,omitempty"`
+}
+
+type packetStats struct {
+	Good   uint32 `json:"good"`
+	Late   uint32 `json:"late"`
+	Lost   uint32 `json:"lost"`
+	Resync uint32 `json:"resync"`
 }
 
 type userRemoveMsg struct {
@@ -170,13 +220,52 @@ func newChannelMsg(c mumble.Channel) channelMsg {
 }
 
 func newUserMsg(u mumble.User) userMsg {
-	return userMsg{
+	m := userMsg{
 		T: "user", Session: u.Session, Name: u.Name, ChannelID: u.ChannelID,
 		Mute: u.Mute, Deaf: u.Deaf, Suppress: u.Suppress,
 		SelfMute: u.SelfMute, SelfDeaf: u.SelfDeaf,
 		PrioritySpeaker: u.PrioritySpeaker, Recording: u.Recording,
 		Registered: u.Registered, Comment: u.Comment,
+		HasComment: u.Comment != "" || u.HasCommentHash, HasTexture: u.HasTexture, Hash: u.Hash,
 	}
+	if u.Registered {
+		id := u.UserID
+		m.UserID = &id
+	}
+	return m
+}
+
+func newUserStatsMsg(st *pb.UserStats) userStatsMsg {
+	m := userStatsMsg{
+		T: "userStats", Session: st.GetSession(),
+		OnlineSecs: st.Onlinesecs, IdleSecs: st.Idlesecs, Bandwidth: st.Bandwidth,
+		TCPPingAvg: st.GetTcpPingAvg(), UDPPingAvg: st.GetUdpPingAvg(),
+		TCPPackets: st.GetTcpPackets(), UDPPackets: st.GetUdpPackets(),
+		Opus: st.GetOpus(), StrongCert: st.GetStrongCertificate(), CertCount: len(st.Certificates),
+	}
+	if v := st.GetVersion(); v != nil {
+		m.Release, m.OS, m.OSVersion = v.GetRelease(), v.GetOs(), v.GetOsVersion()
+		if v2 := v.GetVersionV2(); v2 != 0 {
+			m.Version = fmt.Sprintf("%d.%d.%d", v2>>48, (v2>>32)&0xffff, (v2>>16)&0xffff)
+		} else if v1 := v.GetVersionV1(); v1 != 0 {
+			m.Version = fmt.Sprintf("%d.%d.%d", v1>>16, (v1>>8)&0xff, v1&0xff)
+		}
+	}
+	if a := st.GetAddress(); len(a) == 16 {
+		ip := net.IP(a)
+		if v4 := ip.To4(); v4 != nil {
+			ip = v4
+		}
+		m.Address = ip.String()
+	}
+	conv := func(s *pb.UserStats_Stats) *packetStats {
+		if s == nil {
+			return nil
+		}
+		return &packetStats{Good: s.GetGood(), Late: s.GetLate(), Lost: s.GetLost(), Resync: s.GetResync()}
+	}
+	m.FromClient, m.FromServer = conv(st.FromClient), conv(st.FromServer)
+	return m
 }
 
 func newTextMsg(e mumble.TextEvent) textMsg {

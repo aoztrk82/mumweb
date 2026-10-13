@@ -172,7 +172,12 @@ Yerel ortamda Mumble'ın yönetici hesabı **SuperUser** web'den de kullanılabi
    herkes çıkınca silinir.
 3. Kanala geçmek için çift tıklayın veya **sağ tık → Kanala katıl**.
 
-Normal (kayıtsız) kullanıcılar Mumble'ın varsayılan izinleriyle kanal oluşturamaz; denerlerse sohbette
+4. Kullanıcılara **sağ tıklayarak** masaüstü Mumble'daki yönetim menüsünü kullanabilirsiniz: kov, yasakla
+   (yalnızca sertifika), sustur/sağır et, imtiyazlı konuşmacı, kendi kanalına taşı, kaydet, açıklamayı sıfırla,
+   bilgi, özel mesaj. Rumuz, arkadaş ve "mesajları görmezden gel" yalnızca sizin tarayıcınızda saklanır.
+
+SuperUser Mumble'da **konuşamaz** (tasarım gereği); ses testi için normal bir takma adla, yönetim için SuperUser ile
+(ör. gizli pencerede) girin. Normal (kayıtsız) kullanıcılar Mumble'ın varsayılan izinleriyle kanal oluşturamaz; denerlerse sohbette
 "Bu işlem için yetkiniz yok." görürler. Bu davranış sunucunun ACL ayarlarından gelir.
 
 > Web'den SuperUser girişi `MUMWEB_ALLOW_SUPERUSER` ile açılıp kapanır. Yerel ortamda **açık**, production

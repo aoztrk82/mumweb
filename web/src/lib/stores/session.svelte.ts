@@ -33,6 +33,12 @@ class SessionState {
   welcome = $state('')
   maxBandwidth = $state(0)
   messageLength = $state(0)
+  /** Our permissions in the root channel (from ServerSync). */
+  rootPermissions = $state(0)
+  /** Permissions per channel as answered by PermissionQuery. */
+  channelPermissions = new SvelteMap<number, number>()
+  /** Last UserStats answer, shown by the information dialog. */
+  userStats = $state<import('../protocol').UserStats | null>(null)
 
   channels = new SvelteMap<number, ChannelInfo>()
   users = new SvelteMap<number, UserInfo>()
@@ -55,6 +61,7 @@ class SessionState {
     this.channels.clear()
     this.users.clear()
     this.speaking.clear()
+    this.channelPermissions.clear()
   }
 
   addChat(e: Omit<ChatEntry, 'id' | 'time'>): void {

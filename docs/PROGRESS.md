@@ -349,6 +349,34 @@ Windows + Firefox'ta yerel testte: "mikrofon kullanılamıyor" uyarısı ve sağ
   ikonu), sağ tık → "Oyun Odası" oluşturuldu (gözlemci istemci de gördü), menüden katılındı; kayıtsız kullanıcı kalıcı
   ve geçici kanal denemesinde "Bu işlem için yetkiniz yok." (Mumble varsayılan ACL'i).
 
+## Ek — Masaüstü Mumble'daki kullanıcı sağ tık menüsü (2026-10-13)
+
+Kullanıcının paylaştığı ekran görüntüsündeki (SuperUser olarak başka kullanıcıya sağ tık) 18 öğe, masaüstü istemcinin
+sırasıyla ve izin mantığıyla (`MainWindow::qmUser_aboutToShow`, `updateMenuPermissions`, v1.5.939) uygulandı.
+- İzinler: kök izinler `ServerSync.permissions` (`ready.permissions`), kanal izinleri `PermissionQuery` (istek üzerine,
+  `flush` ile sıfırlanır). Sunucu SuperUser'a izin bilgisi göndermez; SuperUser = `All & ~(Speak|Whisper)`
+  (`ChanACL::effectivePermissions`). Tarayıcıya `userId`, `hash`, `hasComment`, `hasTexture` eklendi.
+- Gateway komutları: `moveUser`, `setUser` (mute/deaf/prioritySpeaker), `kick`, `ban`, `register`, `resetComment`,
+  `resetTexture`, `requestComment` (RequestBlob), `userStats` (UserStats → `userStats` mesajı), özel `text`
+  (`session`), `queryPermissions`.
+- **Önemli bulgu — ban:** sunucunun `msgUserRemove(ban)`'ı kullanıcının IP'sini de yasaklar; tüm web kullanıcıları
+  gateway IP'sini paylaştığı için bu hepsini dışarıda bırakır. Web'deki "Yasakla" bu yüzden ban listesini çekip
+  `100::/128` (RFC 6666, hiçbir istemciyle eşleşmez) adresli + sertifika hash'li bir kayıt ekleyip geri yazar ve
+  kullanıcıyı kovar. Masaüstünden yapılan ban'lar için README'ye uyarı eklendi.
+- Yerel tercihler (sertifika hash'ine göre, yoksa ada göre): rumuz (ağaçta rumuz, ipucunda gerçek ad), mesajları
+  görmezden gel (sohbete düşmez), arkadaş (kalp ikonu; ad değişirse "güncelle"). İmtiyazlı konuşmacı ikonu eklendi.
+- Pencereler: kov/yasakla sebebi, rumuz, özel mesaj (Ctrl+Enter), açıklama (DOMPurify), bilgi (istemci, OS,
+  süreler, adres, ping, sertifika, paketler).
+- SuperUser ile girince sohbette "SuperUser konuşamaz" bilgisi.
+- Doğrulama: Go entegrasyon testi `TestAdminActions` (normal kullanıcıyla izin sorgusu, sustur/sağır/imtiyazlı,
+  taşı ve geri, özel mesajın yalnız hedefe gitmesi, bilgi, kaydet, kov; ban sonrası yasaklı sertifika geri giremiyor,
+  **başka web kullanıcısı girebiliyor**; sunucu logu `Host: "[100:]"`). Tarayıcı (Chromium, iki ayrı bağlam):
+  menü içeriği masaüstüyle aynı sırada; taşı, sustur, sağır et, imtiyazlı (ikon), rumuz, özel mesaj iki tarafta,
+  görmezden gelinen mesaj görünmüyor, bilgi penceresi, açıklama görüntüle (`<script>` temizlendi) ve sıfırla (sonra
+  pasif), arkadaş (kalp), kaydet (kayıtlı), normal kullanıcının menüsünde yönetim öğeleri yok/pasif, kov → hedefte
+  "Sunucudan atıldınız: test bitti".
+- Bilinen sınır: kendi açıklamasını düzenleme ve avatar gösterme yok (avatar yalnızca kaldırılabiliyor).
+
 ## Faz 9 kararı (2026-10-13)
 WASM Opus yedeği **yapılmayacak** (kullanıcı kararı). Gerekçe: WebKit kaynağına göre Safari 26+ (iOS 26 / macOS)
 WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (`AudioEncoderCocoa.cpp`,

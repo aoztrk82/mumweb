@@ -48,6 +48,17 @@ type DeniedEvent struct {
 // ServerConfigEvent carries updated server information.
 type ServerConfigEvent struct{ Info ServerInfo }
 
+// PermissionEvent carries our effective permissions in a channel (ACL bit mask).
+// Flush means cached permissions for all channels are stale.
+type PermissionEvent struct {
+	ChannelID   uint32
+	Permissions uint32
+	Flush       bool
+}
+
+// UserStatsEvent is the answer to RequestUserStats.
+type UserStatsEvent struct{ Stats *pb.UserStats }
+
 // AudioEvent is a received voice packet.
 type AudioEvent struct{ Packet AudioPacket }
 
@@ -59,3 +70,5 @@ func (TextEvent) isEvent()          {}
 func (DeniedEvent) isEvent()        {}
 func (ServerConfigEvent) isEvent()  {}
 func (AudioEvent) isEvent()         {}
+func (PermissionEvent) isEvent()    {}
+func (UserStatsEvent) isEvent()     {}

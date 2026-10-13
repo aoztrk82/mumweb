@@ -6,6 +6,7 @@
   import CreateChannel from './components/CreateChannel.svelte'
   import Login from './components/Login.svelte'
   import Settings from './components/Settings.svelte'
+  import UserDialogs from './components/UserDialogs.svelte'
   import StatusBar from './components/StatusBar.svelte'
   import { tr } from './i18n/tr'
   import { session } from './lib/stores/session.svelte'
@@ -41,6 +42,7 @@
   <Settings bind:open={settingsOpen} />
   <ContextMenu />
   <CreateChannel />
+  <UserDialogs />
 {/if}
 
 <style>

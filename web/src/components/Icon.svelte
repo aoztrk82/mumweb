@@ -1,6 +1,6 @@
 <script lang="ts">
   // Minimal inline icon set (stroke icons, 24x24 viewBox).
-  type Name = 'mic' | 'micOff' | 'headphones' | 'headphonesOff' | 'logout' | 'user' | 'shield' | 'send' | 'channel' | 'settings'
+  type Name = 'mic' | 'micOff' | 'headphones' | 'headphonesOff' | 'logout' | 'user' | 'shield' | 'send' | 'channel' | 'settings' | 'heart' | 'megaphone'
   let { name, size = 18 }: { name: Name; size?: number } = $props()
 </script>
 
@@ -25,6 +25,10 @@
   {:else if name === 'settings'}
     <circle cx="12" cy="12" r="3" />
     <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+  {:else if name === 'heart'}
+    <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z" />
+  {:else if name === 'megaphone'}
+    <path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1zM16 9a4 4 0 0 1 0 6M19 6a8 8 0 0 1 0 12" />
   {:else if name === 'channel'}
     <path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18" />
   {/if}

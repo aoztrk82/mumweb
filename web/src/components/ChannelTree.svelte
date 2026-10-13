@@ -4,6 +4,7 @@
   import type { ChannelInfo } from '../lib/protocol'
   import { channelUsers, childChannels, session } from '../lib/stores/session.svelte'
   import { openMenu, ui } from '../lib/stores/ui.svelte'
+  import { userPref } from '../lib/stores/userPrefs.svelte'
   import { volumePref } from '../lib/stores/volumes.svelte'
   import ChannelTree from './ChannelTree.svelte'
   import Icon from './Icon.svelte'
@@ -44,13 +45,19 @@
         {@const isSelf = u.session === session.selfSession}
         {@const speaking = session.speaking.has(u.session)}
         {@const pref = volumePref(u.name)}
+        {@const up = userPref(u)}
         {#snippet content()}
           <span class="avatar" class:speaking title={speaking ? tr.channels.speaking : undefined}><Icon name="user" size={14} /></span>
-          <span class="name">{u.name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}</span>
+          <span class="name" title={up.nickname ? tr.channels.realName(u.name) : undefined}>
+            {up.nickname || u.name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}
+          </span>
           {#if !isSelf && (pref.muted || pref.volume !== 1)}
             <span class="dim small">{pref.muted ? '0%' : `${Math.round(pref.volume * 100)}%`}</span>
           {/if}
           <span class="flags">
+            {#if up.friend}<span class="heart" title={tr.channels.friend}><Icon name="heart" size={14} /></span>{/if}
+            {#if up.ignoreMessages}<span title={tr.channels.ignored}>✕</span>{/if}
+            {#if u.prioritySpeaker}<span title={tr.channels.prioritySpeaker}><Icon name="megaphone" size={14} /></span>{/if}
             {#if u.registered}<span title={tr.channels.registered}><Icon name="shield" size={14} /></span>{/if}
             {#if u.mute || u.suppress}<span class="red" title={tr.channels.serverMuted}><Icon name="micOff" size={14} /></span>
             {:else if u.selfMute}<span title={tr.channels.muted}><Icon name="micOff" size={14} /></span>{/if}
@@ -171,5 +178,8 @@
   }
   .red {
     color: var(--danger);
+  }
+  .heart {
+    color: #e5484d;
   }
 </style>

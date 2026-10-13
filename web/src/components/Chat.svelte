@@ -44,7 +44,7 @@
       <div class="msg {m.kind}" class:own={m.fromSelf}>
         <time datetime={m.time.toISOString()}>{timeFmt.format(m.time)}</time>
         {#if m.kind === 'text'}
-          <span class="from">{m.fromSelf ? tr.chat.you : m.from}{#if m.private}&nbsp;<em>({tr.chat.private})</em>{/if}:</span>
+          <span class="from">{m.fromSelf && !m.private ? tr.chat.you : m.from}{#if m.private}&nbsp;<em>({tr.chat.private})</em>{/if}:</span>
           <!-- Sanitized with DOMPurify in sanitize.ts -->
           <span class="body">{@html m.body}</span>
         {:else}

@@ -1,9 +1,22 @@
 <script lang="ts">
   import { tick } from 'svelte'
   import { tr } from '../i18n/tr'
-  import { joinChannel, toggleDeaf, toggleMute } from '../lib/client'
+  import {
+    banUser,
+    joinChannel,
+    kickUser,
+    moveUser,
+    queryPermissions,
+    sendPrivateText,
+    setUser,
+    toggleDeaf,
+    toggleMute,
+    userCommand,
+  } from '../lib/client'
+  import { channelPerms, has, Perm, rootPerms } from '../lib/permissions'
   import { session } from '../lib/stores/session.svelte'
   import { closeMenu, ui } from '../lib/stores/ui.svelte'
+  import { displayName, updateUserPref, userPref } from '../lib/stores/userPrefs.svelte'
   import { setVolumePref, volumePref } from '../lib/stores/volumes.svelte'
   import Icon from './Icon.svelte'
 
@@ -16,6 +29,12 @@
   const isSelf = $derived(user !== undefined && user.session === session.selfSession)
   const pref = $derived(user ? volumePref(user.name) : { volume: 1, muted: false })
   const percent = $derived(Math.round(pref.volume * 100))
+  const uPref = $derived(user ? userPref(user) : {})
+  const name = $derived(user ? displayName(user) : '')
+  // Permissions as the desktop client evaluates them: target user's channel and root.
+  const p = $derived(user ? channelPerms(user.channelId, queryPermissions) : 0)
+  const root = $derived(user ? rootPerms() : 0)
+  const otherChannel = $derived(!!user && !isSelf && !!session.self && session.self.channelId !== user.channelId)
 
   // Keep the menu inside the viewport and focus its first control.
   $effect(() => {
@@ -57,7 +76,75 @@
     fn()
     closeMenu()
   }
+
+  function askReason(kind: 'kick' | 'ban') {
+    if (!user) return
+    const target = user.session
+    const n = name
+    ui.dialog = {
+      kind: 'prompt',
+      title: kind === 'kick' ? tr.userMenu.kickTitle(n) : tr.userMenu.banTitle(n),
+      label: tr.userMenu.reason,
+      value: '',
+      hint: kind === 'ban' ? tr.userMenu.banHint : undefined,
+      confirm: kind === 'kick' ? tr.userMenu.kickConfirm : tr.userMenu.banConfirm,
+      danger: true,
+      allowEmpty: true,
+      onSubmit: (reason) => (kind === 'kick' ? kickUser(target, reason) : banUser(target, reason)),
+    }
+  }
+
+  function askNickname() {
+    if (!user) return
+    const u = user
+    ui.dialog = {
+      kind: 'prompt',
+      title: tr.userMenu.nicknameTitle(u.name),
+      label: tr.userMenu.nicknameLabel,
+      value: userPref(u).nickname ?? '',
+      confirm: tr.userMenu.save,
+      allowEmpty: true,
+      onSubmit: (v) => updateUserPref(u, { nickname: v.trim() || undefined }),
+    }
+  }
+
+  function askMessage() {
+    if (!user) return
+    const target = user.session
+    ui.dialog = {
+      kind: 'prompt',
+      title: tr.userMenu.messageTitle(name),
+      label: tr.userMenu.messageLabel,
+      value: '',
+      multiline: true,
+      confirm: tr.userMenu.send,
+      onSubmit: (v) => sendPrivateText(target, v),
+    }
+  }
+
+  function viewComment() {
+    if (!user) return
+    if (!user.comment) userCommand('requestComment', user.session)
+    ui.dialog = { kind: 'comment', session: user.session }
+  }
+
+  function showInfo() {
+    if (!user) return
+    userCommand('userStats', user.session)
+    ui.dialog = { kind: 'info', session: user.session }
+  }
+
+  function register() {
+    if (user && confirm(tr.userMenu.registerConfirm(name))) userCommand('register', user.session)
+  }
 </script>
+
+{#snippet check(label: string, checked: boolean, enabled: boolean, toggle: () => void)}
+  <button role="menuitemcheckbox" aria-checked={checked} disabled={!enabled} onclick={() => act(toggle)}>
+    <span class="box" class:checked aria-hidden="true">{checked ? '✓' : ''}</span>
+    {label}
+  </button>
+{/snippet}
 
 <svelte:window
   onpointerdowncapture={onPointerDown}
@@ -78,8 +165,110 @@
     oncontextmenu={(e) => e.preventDefault()}
   >
     {#if user}
-      <div class="title"><Icon name="user" size={14} /> {user.name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}</div>
+      <div class="title">
+        <Icon name="user" size={14} /> {name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}
+      </div>
+
+      {#if otherChannel}
+        <button role="menuitem" onclick={() => act(() => joinChannel(user.channelId))}>{tr.userMenu.joinUserChannel}</button>
+        <button role="menuitem" onclick={() => act(() => moveUser(user.session, session.self!.channelId))}>
+          {tr.userMenu.moveToMyChannel}
+        </button>
+        <hr />
+      {/if}
+
+      {#if has(root, Perm.Kick, Perm.Ban, Perm.Write)}
+        <button role="menuitem" disabled={isSelf} onclick={() => act(() => askReason('kick'))}>{tr.userMenu.kick}</button>
+      {/if}
+      {#if has(root, Perm.Ban, Perm.Write)}
+        <button role="menuitem" disabled={isSelf} onclick={() => act(() => askReason('ban'))}>{tr.userMenu.ban}</button>
+      {/if}
+      {@render check(
+        tr.userMenu.mute,
+        user.mute || user.suppress,
+        has(p, Perm.Write, Perm.MuteDeafen) && (!isSelf || user.mute || user.suppress),
+        () => setUser(user.session, { mute: !(user.mute || user.suppress) }),
+      )}
+      {@render check(
+        tr.userMenu.deafen,
+        user.deaf,
+        has(p, Perm.Write, Perm.MuteDeafen) && (!isSelf || user.deaf),
+        () => setUser(user.session, { deaf: !user.deaf }),
+      )}
+      {@render check(tr.userMenu.prioritySpeaker, user.prioritySpeaker, has(p, Perm.Write, Perm.MuteDeafen), () =>
+        setUser(user.session, { prioritySpeaker: !user.prioritySpeaker }),
+      )}
+      {@render check(tr.userMenu.localMute, pref.muted, !isSelf, () =>
+        setVolumePref(user.name, { ...pref, muted: !pref.muted }),
+      )}
+      {@render check(tr.userMenu.ignoreMessages, !!uPref.ignoreMessages, !isSelf, () =>
+        updateUserPref(user, { ignoreMessages: !uPref.ignoreMessages }),
+      )}
+
+      {#if !isSelf}
+        <hr />
+        <label class="slider">
+          <span>{tr.userMenu.localVolume}: {pref.muted ? tr.channels.mutedForMe : `${percent}%`}</span>
+          <input type="range" min="0" max="200" step="5" value={percent} oninput={setVolume} disabled={pref.muted} />
+        </label>
+        <hr />
+      {/if}
+
+      <button role="menuitem" disabled={isSelf} onclick={() => act(askNickname)}>{tr.userMenu.nickname}</button>
+      {#if !isSelf}
+        <button role="menuitem" disabled={!user.hasComment} onclick={() => act(viewComment)}>{tr.userMenu.viewComment}</button>
+        <button
+          role="menuitem"
+          disabled={!user.hasComment || !has(root, Perm.ResetUserContent, Perm.Write)}
+          onclick={() => act(() => userCommand('resetComment', user.session))}
+        >
+          {tr.userMenu.resetComment}
+        </button>
+        <button
+          role="menuitem"
+          disabled={!user.hasTexture || !has(root, Perm.ResetUserContent, Perm.Write)}
+          onclick={() => act(() => userCommand('resetTexture', user.session))}
+        >
+          {tr.userMenu.removeAvatar}
+        </button>
+      {/if}
+      <button role="menuitem" disabled={!has(p, Perm.Write, Perm.TextMessage)} onclick={() => act(askMessage)}>
+        {tr.userMenu.sendMessage}
+      </button>
+      <button
+        role="menuitem"
+        disabled={!(has(root, Perm.Write, Perm.Register) || has(p, Perm.Write, Perm.Enter) || isSelf)}
+        onclick={() => act(showInfo)}
+      >
+        {tr.userMenu.info}
+      </button>
+
+      {#if !user.registered && user.hash && has(root, isSelf ? Perm.SelfRegister : Perm.Register, Perm.Write)}
+        <hr />
+        <button role="menuitem" onclick={() => act(register)}>{tr.userMenu.register}</button>
+      {/if}
+
+      {#if user.hash && (uPref.friend || !isSelf)}
+        <hr />
+        {#if !uPref.friend}
+          <button role="menuitem" onclick={() => act(() => updateUserPref(user, { friend: user.name }))}>
+            <Icon name="heart" size={16} />
+            {tr.userMenu.addFriend}
+          </button>
+        {:else}
+          {#if uPref.friend !== user.name}
+            <button role="menuitem" onclick={() => act(() => updateUserPref(user, { friend: user.name }))}>
+              {tr.userMenu.updateFriend}
+            </button>
+          {/if}
+          <button role="menuitem" onclick={() => act(() => updateUserPref(user, { friend: undefined }))}>
+            {tr.userMenu.removeFriend}
+          </button>
+        {/if}
+      {/if}
+
       {#if isSelf}
+        <hr />
         <button role="menuitem" onclick={() => act(toggleMute)}>
           <Icon name={user.selfMute ? 'mic' : 'micOff'} size={16} />
           {user.selfMute ? tr.controls.unmute : tr.controls.mute}
@@ -87,26 +276,6 @@
         <button role="menuitem" onclick={() => act(toggleDeaf)}>
           <Icon name={user.selfDeaf ? 'headphones' : 'headphonesOff'} size={16} />
           {user.selfDeaf ? tr.controls.undeafen : tr.controls.deafen}
-        </button>
-      {:else}
-        <label class="slider">
-          <span>{tr.channels.volume}: {pref.muted ? tr.channels.mutedForMe : `${percent}%`}</span>
-          <input type="range" min="0" max="200" step="5" value={percent} oninput={setVolume} disabled={pref.muted} />
-        </label>
-        <button
-          role="menuitemcheckbox"
-          aria-checked={pref.muted}
-          onclick={() => setVolumePref(user.name, { ...pref, muted: !pref.muted })}
-        >
-          <span class="box" class:checked={pref.muted} aria-hidden="true">{pref.muted ? '✓' : ''}</span>
-          {tr.channels.localMute}
-        </button>
-        <button
-          role="menuitem"
-          disabled={!pref.muted && pref.volume === 1}
-          onclick={() => setVolumePref(user.name, { volume: 1, muted: false })}
-        >
-          {tr.channels.resetVolume}
         </button>
       {/if}
     {:else if channel}
@@ -128,6 +297,8 @@
 <style>
   .menu {
     position: fixed;
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
     z-index: 50;
     min-width: 220px;
     max-width: min(300px, calc(100vw - 16px));
@@ -140,6 +311,15 @@
     flex-direction: column;
     gap: 0.15rem;
     font-size: 0.9rem;
+  }
+  hr {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 0.2rem 0;
+    width: 100%;
+  }
+  button:disabled {
+    opacity: 0.45;
   }
   .title {
     display: flex;

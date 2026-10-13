@@ -90,6 +90,9 @@ type Client struct {
 
 	writeMu sync.Mutex
 
+	banMu       sync.Mutex
+	pendingBans []pendingBan
+
 	ctx    context.Context
 	cancel context.CancelCauseFunc
 	wg     sync.WaitGroup
@@ -272,8 +275,8 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 				return
 			}
 			ev = AudioEvent{Packet: p}
-		case MsgCryptSetup, MsgPermissionQuery, MsgSuggestConfig:
-			// Expected and intentionally unused (UDP crypto, ACL hints, client suggestions).
+		case MsgCryptSetup, MsgSuggestConfig:
+			// Expected and intentionally unused (UDP crypto, client suggestions).
 		default:
 			c.log.Debug("ignoring message", "type", t.String(), "len", len(payload))
 		}
@@ -321,6 +324,9 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 	case *pb.TextMessage:
 		ev = TextEvent{Actor: m.GetActor(), Sessions: m.Session, Channels: m.ChannelId, Trees: m.TreeId, Message: m.GetMessage()}
 	case *pb.PermissionDenied:
+		if m.GetPermission()&PermBan != 0 {
+			c.dropPendingBans()
+		}
 		ev = DeniedEvent{
 			Type:       m.GetType(),
 			Reason:     m.GetReason(),
@@ -329,6 +335,12 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 			Session:    m.GetSession(),
 			Name:       m.GetName(),
 		}
+	case *pb.PermissionQuery:
+		ev = PermissionEvent{ChannelID: m.GetChannelId(), Permissions: m.GetPermissions(), Flush: m.GetFlush()}
+	case *pb.UserStats:
+		ev = UserStatsEvent{Stats: m}
+	case *pb.BanList:
+		c.completeBans(m)
 	case *pb.Reject:
 		c.cancel(&RejectError{Type: m.GetType(), Reason: m.GetReason()})
 	case *pb.ServerSync:
@@ -504,4 +516,144 @@ func (c *Client) CreateChannel(parent uint32, name string, temporary bool) error
 		m.Temporary = &temporary
 	}
 	return c.send(m)
+}
+
+// ACL permission bits (Mumble src/ACL.h).
+const (
+	PermWrite            = 0x1
+	PermTraverse         = 0x2
+	PermEnter            = 0x4
+	PermSpeak            = 0x8
+	PermMuteDeafen       = 0x10
+	PermMove             = 0x20
+	PermMakeChannel      = 0x40
+	PermLinkChannel      = 0x80
+	PermWhisper          = 0x100
+	PermTextMessage      = 0x200
+	PermMakeTempChannel  = 0x400
+	PermListen           = 0x800
+	PermKick             = 0x10000
+	PermBan              = 0x20000
+	PermRegister         = 0x40000
+	PermSelfRegister     = 0x80000
+	PermResetUserContent = 0x100000
+)
+
+// QueryPermissions asks for our permissions in a channel; the answer arrives as PermissionEvent.
+func (c *Client) QueryPermissions(channelID uint32) error {
+	return c.send(&pb.PermissionQuery{ChannelId: &channelID})
+}
+
+// UpdateUser sends an administrative UserState change for another (or our own) session.
+// Only the non-nil fields are sent; the server checks permissions.
+type UserUpdate struct {
+	ChannelID       *uint32
+	Mute            *bool
+	Deaf            *bool
+	PrioritySpeaker *bool
+	ResetComment    bool
+	ResetTexture    bool
+	Register        bool
+}
+
+func (c *Client) UpdateUser(session uint32, u UserUpdate) error {
+	m := &pb.UserState{Session: &session, ChannelId: u.ChannelID, Mute: u.Mute, Deaf: u.Deaf, PrioritySpeaker: u.PrioritySpeaker}
+	if u.ResetComment {
+		m.Comment = proto.String("")
+	}
+	if u.ResetTexture {
+		m.Texture = []byte{}
+	}
+	if u.Register {
+		m.UserId = proto.Uint32(0) // the server assigns the real id
+	}
+	return c.send(m)
+}
+
+// SetComment sets our own comment (HTML).
+func (c *Client) SetComment(comment string) error {
+	sess := c.Session()
+	return c.send(&pb.UserState{Session: &sess, Comment: &comment})
+}
+
+// Kick removes a user from the server (needs Kick or Ban on the root channel).
+func (c *Client) Kick(session uint32, reason string) error {
+	return c.send(&pb.UserRemove{Session: &session, Reason: &reason})
+}
+
+// RequestComment asks for a user's full comment (sent as UserState).
+func (c *Client) RequestComment(session uint32) error {
+	return c.send(&pb.RequestBlob{SessionComment: []uint32{session}})
+}
+
+// RequestUserStats asks for statistics about a user (answer: UserStatsEvent).
+func (c *Client) RequestUserStats(session uint32) error {
+	return c.send(&pb.UserStats{Session: &session, StatsOnly: proto.Bool(false)})
+}
+
+// banAddress is 100:: (RFC 6666 discard-only prefix). A ban entry needs a non-zero
+// address; with a /128 mask this one never matches a real peer, so the entry
+// effectively bans by certificate hash only.
+var banAddress = append([]byte{0x01, 0x00}, make([]byte, 14)...)
+
+type pendingBan struct {
+	session uint32
+	name    string
+	hash    string
+	reason  string
+}
+
+// BanByCertificate bans a user by certificate hash only, then kicks them.
+//
+// Mumble's own kick-ban (UserRemove with ban=true) also bans the user's IP address.
+// All web users reach the server from the gateway's address, so that would lock out
+// every web user. Instead the ban list is fetched, extended with a hash-only entry and
+// written back (needs the Ban permission on the root channel).
+func (c *Client) BanByCertificate(session uint32, reason string) error {
+	u, ok := c.state.User(session)
+	if !ok {
+		return fmt.Errorf("mumble: unknown session %d", session)
+	}
+	if u.Hash == "" {
+		return errors.New("mumble: user has no certificate to ban")
+	}
+	c.banMu.Lock()
+	c.pendingBans = append(c.pendingBans, pendingBan{session: session, name: u.Name, hash: u.Hash, reason: reason})
+	c.banMu.Unlock()
+	return c.send(&pb.BanList{Query: proto.Bool(true)})
+}
+
+// completeBans handles the BanList reply to our query: append pending entries, write
+// the list back and kick the banned users.
+func (c *Client) completeBans(list *pb.BanList) {
+	c.banMu.Lock()
+	pending := c.pendingBans
+	c.pendingBans = nil
+	c.banMu.Unlock()
+	if len(pending) == 0 {
+		return
+	}
+	bans := list.GetBans()
+	for _, p := range pending {
+		bans = append(bans, &pb.BanList_BanEntry{
+			Address:  banAddress,
+			Mask:     proto.Uint32(128),
+			Name:     proto.String(p.name),
+			Hash:     proto.String(p.hash),
+			Reason:   proto.String(p.reason),
+			Duration: proto.Uint32(0),
+		})
+	}
+	if err := c.send(&pb.BanList{Bans: bans}); err != nil {
+		return
+	}
+	for _, p := range pending {
+		_ = c.Kick(p.session, p.reason)
+	}
+}
+
+func (c *Client) dropPendingBans() {
+	c.banMu.Lock()
+	c.pendingBans = nil
+	c.banMu.Unlock()
 }

@@ -26,6 +26,7 @@ const (
 	wsWriteTimeout    = 10 * time.Second
 	maxUsernameLen    = 128
 	maxChannelNameLen = 128
+	maxReasonLen      = 512
 	audioPacketsPerS  = 100
 	audioPacketsBurst = 150
 )
@@ -252,7 +253,7 @@ func (s *session) sendInitialState(ctx context.Context) error {
 	}
 	info := s.mc.Info()
 	return s.sendJSON(ctx, readyMsg{
-		T: "ready", Session: info.Session, Welcome: info.WelcomeText,
+		T: "ready", Session: info.Session, Permissions: info.Permissions, Welcome: info.WelcomeText,
 		MaxBandwidth: info.MaxBandwidth, AllowHTML: info.AllowHTML, MessageLen: info.MessageLength,
 	})
 }
@@ -277,6 +278,10 @@ func (s *session) pumpEvents(ctx context.Context) error {
 			err = s.sendJSON(ctx, newTextMsg(e))
 		case mumble.DeniedEvent:
 			err = s.sendJSON(ctx, deniedMsg{T: "denied", Type: e.Type.String(), Reason: e.Reason})
+		case mumble.PermissionEvent:
+			err = s.sendJSON(ctx, permissionsMsg{T: "permissions", ChannelID: e.ChannelID, Permissions: e.Permissions, Flush: e.Flush})
+		case mumble.UserStatsEvent:
+			err = s.sendJSON(ctx, newUserStatsMsg(e.Stats))
 		case mumble.ServerConfigEvent:
 			// Already reflected in "ready"; later changes are rare and not forwarded.
 		}
@@ -366,8 +371,18 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 		if m.Message == "" {
 			return nil
 		}
+		if m.Session != nil { // private message
+			return s.mc.SendText(m.Message, nil, []uint32{*m.Session})
+		}
 		u, _ := s.mc.State().User(s.mc.Session())
 		return s.mc.SendText(m.Message, []uint32{u.ChannelID}, nil)
+	case "queryPermissions":
+		if m.ChannelID == nil {
+			return fmt.Errorf("%w: queryPermissions without channelId", errProtocol)
+		}
+		return s.mc.QueryPermissions(*m.ChannelID)
+	case "moveUser", "setUser", "kick", "ban", "register", "resetComment", "resetTexture", "requestComment", "userStats":
+		return s.userAction(m)
 	case "ping":
 		var ts float64
 		if m.TS != nil {
@@ -380,6 +395,48 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 		s.log.Debug("ignoring unknown message", "t", m.T)
 		return nil
 	}
+}
+
+// userAction handles commands that target another user. The Mumble server
+// enforces permissions; denials come back as "denied".
+func (s *session) userAction(m clientMsg) error {
+	if m.Session == nil {
+		return fmt.Errorf("%w: %s without session", errProtocol, m.T)
+	}
+	target := *m.Session
+	reason := strings.TrimSpace(m.Reason)
+	if len(reason) > maxReasonLen {
+		reason = reason[:maxReasonLen]
+	}
+	switch m.T {
+	case "moveUser":
+		if m.ChannelID == nil {
+			return fmt.Errorf("%w: moveUser without channelId", errProtocol)
+		}
+		return s.mc.UpdateUser(target, mumble.UserUpdate{ChannelID: m.ChannelID})
+	case "setUser":
+		return s.mc.UpdateUser(target, mumble.UserUpdate{Mute: m.Mute, Deaf: m.Deaf, PrioritySpeaker: m.PrioritySpeaker})
+	case "kick":
+		s.log.Info("kick requested", "target", target)
+		return s.mc.Kick(target, reason)
+	case "ban":
+		s.log.Info("ban requested (certificate only)", "target", target)
+		if err := s.mc.BanByCertificate(target, reason); err != nil {
+			s.log.Warn("ban failed", "err", err)
+		}
+		return nil
+	case "register":
+		return s.mc.UpdateUser(target, mumble.UserUpdate{Register: true})
+	case "resetComment":
+		return s.mc.UpdateUser(target, mumble.UserUpdate{ResetComment: true})
+	case "resetTexture":
+		return s.mc.UpdateUser(target, mumble.UserUpdate{ResetTexture: true})
+	case "requestComment":
+		return s.mc.RequestComment(target)
+	case "userStats":
+		return s.mc.RequestUserStats(target)
+	}
+	return nil
 }
 
 func (s *session) sendJSON(ctx context.Context, v any) error {

@@ -350,3 +350,115 @@ func TestCreateChannel(t *testing.T) {
 		}
 	}
 }
+
+// TestAdminActions exercises the user context-menu actions as SuperUser.
+func TestAdminActions(t *testing.T) {
+	addr := mumbleAddr(t)
+	pw := os.Getenv("MUMWEB_TEST_SUPERUSER_PASSWORD")
+	if pw == "" {
+		t.Skip("MUMWEB_TEST_SUPERUSER_PASSWORD not set")
+	}
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr, AllowSuperUser: true}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	suffix := strconv.FormatInt(time.Now().UnixNano()%1e6, 36)
+
+	obs, err := mumble.Dial(context.Background(), mumble.Config{Addr: addr, Username: "gozcu-" + suffix})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer obs.Close()
+
+	su := dialBridge(t, url, map[string]any{"username": "SuperUser", "password": pw})
+	defer su.ws.CloseNow()
+	ready := su.until("ready")
+	if perms := uint32(ready["permissions"].(float64)); perms&(mumble.PermKick|mumble.PermBan|mumble.PermWrite) == 0 {
+		t.Fatalf("root permissions %#x", perms)
+	}
+	victim := dialBridge(t, url, map[string]any{"username": "kurban-" + suffix})
+	defer victim.ws.CloseNow()
+	vs := uint32(victim.until("ready")["session"].(float64))
+
+	// The server never sends PermissionQuery answers to SuperUser (it has every
+	// permission), so ask as the ordinary user.
+	victim.send(map[string]any{"t": "queryPermissions", "channelId": 0})
+	if m := victim.until("permissions"); m["channelId"] != 0.0 || uint32(m["permissions"].(float64))&mumble.PermEnter == 0 {
+		t.Fatalf("permissions %v", m)
+	}
+	isVictim := func(e mumble.UserEvent) bool { return e.User.Session == vs }
+
+	su.send(map[string]any{"t": "setUser", "session": vs, "mute": true})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && e.User.Mute })
+	su.send(map[string]any{"t": "setUser", "session": vs, "deaf": true})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && e.User.Deaf })
+	su.send(map[string]any{"t": "setUser", "session": vs, "mute": false, "deaf": false})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && !e.User.Mute && !e.User.Deaf })
+	su.send(map[string]any{"t": "setUser", "session": vs, "prioritySpeaker": true})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && e.User.PrioritySpeaker })
+
+	// Move to another channel (any non-root channel), then back.
+	var target uint32
+	for _, c := range obs.State().Channels() {
+		if c.ID != 0 {
+			target = c.ID
+			break
+		}
+	}
+	if target != 0 {
+		su.send(map[string]any{"t": "moveUser", "session": vs, "channelId": target})
+		waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && e.User.ChannelID == target })
+		su.send(map[string]any{"t": "moveUser", "session": vs, "channelId": 0})
+		waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && e.User.ChannelID == 0 })
+	}
+
+	// Private message reaches only the victim.
+	su.send(map[string]any{"t": "text", "session": vs, "message": "gizli"})
+	if m := victim.until("text"); m["message"] != "gizli" || m["private"] != true {
+		t.Fatalf("private text %v", m)
+	}
+
+	// User information.
+	su.send(map[string]any{"t": "userStats", "session": vs})
+	st := su.until("userStats")
+	if st["session"] != float64(vs) || st["os"] != "Web" || st["version"] != "1.5.0" {
+		t.Fatalf("userStats %v", st)
+	}
+
+	// Register the victim.
+	su.send(map[string]any{"t": "register", "session": vs})
+	waitEvent(t, obs, func(e mumble.UserEvent) bool { return isVictim(e) && e.User.Registered })
+
+	// Kick.
+	su.send(map[string]any{"t": "kick", "session": vs, "reason": "test"})
+	if m := victim.until("userRemove"); m["session"] != float64(vs) || m["reason"] != "test" {
+		t.Fatalf("kick %v", m)
+	}
+
+	// Ban by certificate only: the banned identity cannot return, others (same gateway IP) can.
+	v2 := dialBridge(t, url, map[string]any{"username": "yasakli-" + suffix, "cert": nil})
+	cert := v2.until("cert")
+	v2s := uint32(v2.until("ready")["session"].(float64))
+	su.send(map[string]any{"t": "ban", "session": v2s, "reason": "yasak"})
+	if m := v2.until("userRemove"); m["session"] != float64(v2s) {
+		t.Fatalf("ban kick %v", m)
+	}
+	v2.ws.CloseNow()
+
+	again := dialBridge(t, url, map[string]any{"username": "yasakli2-" + suffix, "cert": map[string]any{"pem": cert["pem"], "key": cert["key"]}})
+	for {
+		m, _ := again.next()
+		if m["t"] == "ready" {
+			t.Fatal("banned certificate was let back in")
+		}
+		if m["t"] == "error" || m["t"] == "reject" {
+			break
+		}
+	}
+	again.ws.CloseNow()
+
+	other := dialBridge(t, url, map[string]any{"username": "masum-" + suffix})
+	defer other.ws.CloseNow()
+	if m := other.until("ready"); m == nil {
+		t.Fatal("other web users must still get in")
+	}
+}

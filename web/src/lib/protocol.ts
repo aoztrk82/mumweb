@@ -12,8 +12,13 @@ export type ClientMessage =
   | { t: 'joinChannel'; channelId: number }
   | { t: 'createChannel'; parent: number; name: string; temporary: boolean }
   | { t: 'setSelf'; mute?: boolean; deaf?: boolean }
-  | { t: 'text'; message: string }
+  | { t: 'text'; message: string; session?: number }
   | { t: 'ping'; ts: number }
+  | { t: 'queryPermissions'; channelId: number }
+  | { t: 'moveUser'; session: number; channelId: number }
+  | { t: 'setUser'; session: number; mute?: boolean; deaf?: boolean; prioritySpeaker?: boolean }
+  | { t: 'kick' | 'ban'; session: number; reason: string }
+  | { t: 'register' | 'resetComment' | 'resetTexture' | 'requestComment' | 'userStats'; session: number }
 
 // --- gateway -> browser ---
 
@@ -39,12 +44,46 @@ export interface UserInfo {
   prioritySpeaker: boolean
   recording: boolean
   registered: boolean
+  /** Registration id when registered; 0 = SuperUser. */
+  userId?: number
   comment?: string
+  hasComment: boolean
+  hasTexture: boolean
+  /** Certificate hash (public in Mumble), used to key local preferences. */
+  hash?: string
+}
+
+export interface PacketStats {
+  good: number
+  late: number
+  lost: number
+  resync: number
+}
+
+export interface UserStats {
+  session: number
+  release?: string
+  os?: string
+  osVersion?: string
+  version?: string
+  onlineSecs?: number
+  idleSecs?: number
+  address?: string
+  bandwidth?: number
+  tcpPingAvg: number
+  udpPingAvg: number
+  tcpPackets: number
+  udpPackets: number
+  opus: boolean
+  strongCertificate: boolean
+  certificates: number
+  fromClient?: PacketStats
+  fromServer?: PacketStats
 }
 
 export type ServerMessage =
   | ({ t: 'cert' } & CertPair)
-  | { t: 'ready'; session: number; welcome: string; maxBandwidth: number; allowHtml: boolean; messageLength: number }
+  | { t: 'ready'; session: number; permissions: number; welcome: string; maxBandwidth: number; allowHtml: boolean; messageLength: number }
   | ({ t: 'channel' } & ChannelInfo)
   | { t: 'channelRemove'; id: number }
   | ({ t: 'user' } & UserInfo)
@@ -53,6 +92,8 @@ export type ServerMessage =
   | { t: 'denied'; type: string; reason: string }
   | { t: 'reject'; reason: string; message: string }
   | { t: 'pong'; ts: number }
+  | { t: 'permissions'; channelId: number; permissions: number; flush: boolean }
+  | ({ t: 'userStats' } & UserStats)
   | { t: 'error'; code: 'invalid_certificate' | 'mumble_unavailable' | 'disconnected'; message: string }
 
 // --- binary audio frames (little endian) ---

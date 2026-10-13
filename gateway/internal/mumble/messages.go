@@ -127,6 +127,12 @@ func newMessage(t MsgType) proto.Message {
 		return &pb.CodecVersion{}
 	case MsgServerConfig:
 		return &pb.ServerConfig{}
+	case MsgPermissionQuery:
+		return &pb.PermissionQuery{}
+	case MsgUserStats:
+		return &pb.UserStats{}
+	case MsgBanList:
+		return &pb.BanList{}
 	}
 	return nil
 }
@@ -148,6 +154,14 @@ func msgTypeOf(m proto.Message) (MsgType, bool) {
 		return MsgTextMessage, true
 	case *pb.PermissionQuery:
 		return MsgPermissionQuery, true
+	case *pb.UserRemove:
+		return MsgUserRemove, true
+	case *pb.UserStats:
+		return MsgUserStats, true
+	case *pb.RequestBlob:
+		return MsgRequestBlob, true
+	case *pb.BanList:
+		return MsgBanList, true
 	}
 	return 0, false
 }

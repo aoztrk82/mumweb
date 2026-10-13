@@ -33,6 +33,7 @@ func main() {
 	fingerprint := flag.String("fingerprint", "", "pin server certificate SHA-256 fingerprint")
 	say := flag.String("say", "", "send this text message to the current channel after connecting")
 	join := flag.Int("join", -1, "move to this channel ID after connecting")
+	comment := flag.String("comment", "", "set our own user comment (HTML) after connecting")
 	mkchannel := flag.String("mkchannel", "", "create a sub-channel of the root with this name (needs permission, e.g. SuperUser)")
 	tx := flag.Duration("tx", 0, "transmit Opus silence for this long (e.g. 2s) to exercise the voice path")
 	play := flag.String("play", "", "transmit Opus packets from a file of [uint16 BE length][packet] records, paced in real time")
@@ -89,6 +90,11 @@ func main() {
 	if *join >= 0 {
 		if err := c.JoinChannel(uint32(*join)); err != nil {
 			fatal("join", err)
+		}
+	}
+	if *comment != "" {
+		if err := c.SetComment(*comment); err != nil {
+			fatal("comment", err)
 		}
 	}
 	if *mkchannel != "" {

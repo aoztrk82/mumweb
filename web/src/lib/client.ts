@@ -8,6 +8,7 @@ import { loadCert, saveCert } from './certStore'
 import type { ServerMessage, UserInfo } from './protocol'
 import { sanitizeHtml, textToHtml } from './sanitize'
 import { session } from './stores/session.svelte'
+import { displayName, userPref } from './stores/userPrefs.svelte'
 import { gatewayUrl, ReconnectingSocket } from './ws'
 
 let socket: ReconnectingSocket | null = null
@@ -37,7 +38,10 @@ function openSocket(username: string, password: string): void {
       session.retryIn = retryIn
       if (s === 'reconnecting') session.ready = false
     },
-    opened: () => session.resetServerState(),
+    opened: () => {
+      session.resetServerState()
+      queried.clear()
+    },
   })
   socket.start()
 }
@@ -91,6 +95,58 @@ export function createChannel(parent: number, name: string, temporary: boolean):
   socket?.send({ t: 'createChannel', parent, name: name.trim(), temporary })
 }
 
+const queried = new Set<number>()
+
+/** Asks for our permissions in a channel (at most once until the server flushes them). */
+export function queryPermissions(channelId: number): void {
+  if (queried.has(channelId)) return
+  queried.add(channelId)
+  socket?.send({ t: 'queryPermissions', channelId })
+}
+
+export function moveUser(sessionId: number, channelId: number): void {
+  socket?.send({ t: 'moveUser', session: sessionId, channelId })
+}
+
+/** Server-side mute/deafen/priority speaker for another user (needs MuteDeafen). */
+export function setUser(sessionId: number, patch: { mute?: boolean; deaf?: boolean; prioritySpeaker?: boolean }): void {
+  socket?.send({ t: 'setUser', session: sessionId, ...patch })
+}
+
+export function kickUser(sessionId: number, reason: string): void {
+  socket?.send({ t: 'kick', session: sessionId, reason })
+}
+
+/** Bans by certificate only (see gateway: an IP ban would hit every web user). */
+export function banUser(sessionId: number, reason: string): void {
+  socket?.send({ t: 'ban', session: sessionId, reason })
+}
+
+export function userCommand(t: 'register' | 'resetComment' | 'resetTexture' | 'requestComment' | 'userStats', sessionId: number): void {
+  if (t === 'userStats') session.userStats = null
+  socket?.send({ t, session: sessionId })
+}
+
+/** Sends a private text message to one user. */
+export function sendPrivateText(sessionId: number, text: string): boolean {
+  const message = textToHtml(text.trim())
+  if (!message) return false
+  if (session.messageLength > 0 && message.length > session.messageLength) {
+    session.addChat({ kind: 'error', body: tr.errors.denied.TextTooLong })
+    return false
+  }
+  socket?.send({ t: 'text', message, session: sessionId })
+  const to = session.users.get(sessionId)
+  session.addChat({
+    kind: 'text',
+    from: tr.chat.toUser(to ? displayName(to) : tr.chat.unknownUser),
+    fromSelf: true,
+    private: true,
+    body: sanitizeHtml(message),
+  })
+  return true
+}
+
 export function setSelf(mute: boolean, deaf: boolean): void {
   socket?.send({ t: 'setSelf', mute, deaf })
 }
@@ -129,7 +185,8 @@ export function sendAudioFrame(buf: ArrayBuffer): void {
 }
 
 function userName(sessionId: number): string {
-  return session.users.get(sessionId)?.name ?? tr.chat.unknownUser
+  const u = session.users.get(sessionId)
+  return u ? displayName(u) : tr.chat.unknownUser
 }
 
 function handleMessage(m: ServerMessage): void {
@@ -175,19 +232,41 @@ function handleMessage(m: ServerMessage): void {
 
     case 'ready':
       session.selfSession = m.session
+      session.rootPermissions = m.permissions
+      queried.clear()
       session.welcome = m.welcome
       session.maxBandwidth = m.maxBandwidth
       session.messageLength = m.messageLength
       session.ready = true
       session.notice = null
       if (!session.joined && m.welcome) session.addChat({ kind: 'text', from: tr.chat.server, body: sanitizeHtml(m.welcome) })
+      if (!session.joined && session.users.get(m.session)?.userId === 0) {
+        session.addChat({ kind: 'system', body: tr.chat.superUserNotice })
+      }
       session.joined = true
       socket?.established()
       break
 
-    case 'text':
+    case 'text': {
+      const sender = session.users.get(m.from)
+      if (sender && userPref(sender).ignoreMessages) break
       session.addChat({ kind: 'text', from: userName(m.from), private: m.private, body: sanitizeHtml(m.message) })
       break
+    }
+
+    case 'permissions':
+      if (m.flush) {
+        session.channelPermissions.clear()
+        queried.clear()
+      }
+      session.channelPermissions.set(m.channelId, m.permissions)
+      break
+
+    case 'userStats': {
+      const { t: _t, ...st } = m
+      session.userStats = st
+      break
+    }
 
     case 'denied': {
       // "Text" denials carry a human-readable reason from the server.

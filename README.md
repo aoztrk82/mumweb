@@ -21,8 +21,10 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
   kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
 
 **Özellikler:** takma ad + isteğe bağlı sunucu şifresi, kanal ağacı ve kanal değiştirme (çift tık), konuşan göstergesi,
-sağ tık menüleri (kullanıcı: yerel ses seviyesi %0–200 / benim için sustur; kanal: katıl, alt kanal oluştur
-[sunucu yetkisi gerekir]; kendin: mute/deafen),
+masaüstü Mumble'daki gibi sağ tık menüleri — kullanıcı: kanalına katıl, kendi kanalına taşı, kov, yasakla,
+sustur, sağır et, imtiyazlı konuşmacı, yerel sustur, mesajları görmezden gel, yerel ses seviyesi (%0–200), rumuz,
+açıklamayı görüntüle/sıfırla, avatarı kaldır, özel mesaj, bilgi, kaydet, arkadaş ekle (yönetim öğeleri sunucudaki
+yetkinize göre etkin olur); kanal: katıl, alt kanal oluştur; kendin: mute/deafen —
 bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
 sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 
@@ -64,6 +66,18 @@ Tüm web kullanıcıları Mumble'a gateway'in **tek IP'sinden** bağlanır. Mumb
 kullanıcılarını** 5 dakika kilitler. Compose dosyası bu yüzden `autobanSuccessfulConnections=false` ayarlar
 (yalnızca başarısız denemeler sayılır). Başarısız denemeler (yanlış şifre) yine gateway IP'si adına sayılır;
 gateway kendi tarafında IP başına dakikada 10 yeni bağlantıya izin verir.
+
+### Yasaklama (ban) ve web kullanıcıları (önemli)
+
+Mumble'ın kendi "Yasakla" işlemi kullanıcının sertifikasıyla birlikte **IP adresini** de yasaklar. Web kullanıcıları
+sunucuya gateway'in IP'sinden bağlandığı için **masaüstü istemciden bir web kullanıcısını yasaklamak tüm web
+kullanıcılarını yasaklar.** mumweb arayüzündeki "Yasakla…" bu yüzden yalnızca sertifikayı yasaklar (ban listesine
+`100::/128` adresli, hiçbir istemciyle eşleşmeyen bir kayıtla). Masaüstünden yanlışlıkla gateway IP'si yasaklanırsa
+masaüstü istemcide *Sunucu → Yasak listesi* üzerinden o kaydı silin. Not: sertifika yasağı, kişi yeni bir sertifika
+oluşturursa (tarayıcı verisini silerse) aşılabilir.
+
+`SuperUser` hesabı Mumble'da tasarım gereği konuşamaz (yalnızca yönetim içindir). Web'den SuperUser girişi
+`MUMWEB_ALLOW_SUPERUSER` ile açılır; production'da kapalıdır.
 
 ## Mevcut bir kurulumla kullanım
 

@@ -7,7 +7,26 @@ export interface MenuTarget {
   y: number
 }
 
+export type DialogState =
+  | {
+      kind: 'prompt'
+      title: string
+      label: string
+      value: string
+      hint?: string
+      multiline?: boolean
+      confirm: string
+      danger?: boolean
+      /** Allow submitting an empty value (e.g. clearing a nickname, no kick reason). */
+      allowEmpty?: boolean
+      onSubmit: (value: string) => void
+    }
+  | { kind: 'comment'; session: number }
+  | { kind: 'info'; session: number }
+
 class UiState {
+  /** Open user dialog, if any. */
+  dialog = $state<DialogState | null>(null)
   /** Open context menu, if any. */
   menu = $state<MenuTarget | null>(null)
   /** Parent channel of the open "create channel" dialog, if any. */

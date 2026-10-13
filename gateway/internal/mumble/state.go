@@ -35,6 +35,8 @@ type User struct {
 	PrioritySpeaker bool
 	Recording       bool
 	Comment         string
+	HasCommentHash  bool   // comment exists but must be fetched with RequestComment
+	HasTexture      bool   // user has an avatar (texture)
 	Hash            string // certificate hash
 }
 
@@ -147,6 +149,19 @@ func (s *State) applyUser(m *pb.UserState) (User, bool) {
 	}
 	if m.Comment != nil {
 		u.Comment = m.GetComment()
+		u.HasCommentHash = false
+	}
+	if m.CommentHash != nil {
+		u.HasCommentHash = len(m.CommentHash) > 0
+		if !u.HasCommentHash {
+			u.Comment = ""
+		}
+	}
+	if m.Texture != nil {
+		u.HasTexture = len(m.Texture) > 0
+	}
+	if m.TextureHash != nil {
+		u.HasTexture = len(m.TextureHash) > 0
 	}
 	if m.Hash != nil {
 		u.Hash = m.GetHash()
