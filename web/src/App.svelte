@@ -8,7 +8,7 @@
   import Settings from './components/Settings.svelte'
   import UserDialogs from './components/UserDialogs.svelte'
   import StatusBar from './components/StatusBar.svelte'
-  import { tr } from './i18n/tr'
+  import { t } from './i18n/index.svelte'
   import { session } from './lib/stores/session.svelte'
   import { closeMenu } from './lib/stores/ui.svelte'
   import { channelFilter } from './lib/stores/channelFilter.svelte'
@@ -24,20 +24,20 @@
 {:else}
   <div class="app">
     <StatusBar />
-    {#if session.audioUnsupported}<div class="banner" role="alert">{tr.audio.unsupported}</div>{/if}
-    <nav class="tabs" aria-label="Görünüm">
-      <button class:active={tab === 'channels'} onclick={() => (tab = 'channels')}>{tr.channels.title}</button>
-      <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')}>{tr.chat.title}</button>
+    {#if session.audioUnsupported}<div class="banner" role="alert">{t.audio.unsupported}</div>{/if}
+    <nav class="tabs" aria-label={t.nav}>
+      <button class:active={tab === 'channels'} onclick={() => (tab = 'channels')}>{t.channels.title}</button>
+      <button class:active={tab === 'chat'} onclick={() => (tab = 'chat')}>{t.chat.title}</button>
     </nav>
     <main class="panes" data-tab={tab}>
-      <aside class="channels" aria-label={tr.channels.title} onscroll={closeMenu}>
+      <aside class="channels" aria-label={t.channels.title} onscroll={closeMenu}>
         <div class="tree-head">
-          <span>{tr.channels.title}</span>
+          <span>{t.channels.title}</span>
           <button
             class="icon-btn"
             class:active={channelFilter.enabled}
             aria-pressed={channelFilter.enabled}
-            title={tr.channelMenu.filter}
+            title={t.channelMenu.filter}
             onclick={() => channelFilter.toggle()}
           >
             <Icon name="filter" size={15} />
@@ -47,7 +47,7 @@
           <ul class="tree"><ChannelTree channel={root} /></ul>
         {/if}
       </aside>
-      <section class="chat-pane" aria-label={tr.chat.title}>
+      <section class="chat-pane" aria-label={t.chat.title}>
         <Chat />
       </section>
     </main>

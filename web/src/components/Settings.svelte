@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import { canSelectOutput, setOutputDevice } from '../lib/audio/context'
   import { listDevices, restartMicrophone } from '../lib/audio/transmitter'
   import { clearCert, loadCert, saveCert } from '../lib/certStore'
@@ -81,19 +81,19 @@
     if (!file) return
     const pair = parsePemBundle(await file.text())
     if (!pair) {
-      certMessage = { text: tr.settings.certImportInvalid, error: true }
+      certMessage = { text: t.settings.certImportInvalid, error: true }
       return
     }
     await saveCert(pair)
     hasCert = true
-    certMessage = { text: tr.settings.certImported, reconnect: session.joined }
+    certMessage = { text: t.settings.certImported, reconnect: session.joined }
   }
 
   async function resetCert() {
-    if (!confirm(tr.settings.certResetConfirm)) return
+    if (!confirm(t.settings.certResetConfirm)) return
     await clearCert()
     hasCert = false
-    certMessage = { text: tr.settings.certResetDone, reconnect: session.joined }
+    certMessage = { text: t.settings.certResetDone, reconnect: session.joined }
   }
 </script>
 
@@ -101,88 +101,88 @@
 
 <dialog bind:this={dialog} onclose={() => (open = false)} aria-labelledby="settings-title">
   <header>
-    <h2 id="settings-title">{tr.settings.title}</h2>
-    <button type="button" onclick={() => (open = false)}>{tr.settings.close}</button>
+    <h2 id="settings-title">{t.settings.title}</h2>
+    <button type="button" onclick={() => (open = false)}>{t.settings.close}</button>
   </header>
 
   <section>
-    <h3>{tr.settings.sectionAudio}</h3>
+    <h3>{t.settings.sectionAudio}</h3>
     <label class="field">
-      <span>{tr.settings.input}</span>
+      <span>{t.settings.input}</span>
       <select value={p.inputDeviceId} onchange={chooseInput}>
-        <option value="">{tr.settings.defaultDevice}</option>
+        <option value="">{t.settings.defaultDevice}</option>
         {#each inputs as d (d.deviceId)}<option value={d.deviceId}>{d.label || d.deviceId.slice(0, 8)}</option>{/each}
       </select>
     </label>
 
     <label class="field">
-      <span>{tr.settings.output}</span>
+      <span>{t.settings.output}</span>
       {#if canSelectOutput}
         <select value={p.outputDeviceId} onchange={chooseOutput}>
-          <option value="">{tr.settings.defaultDevice}</option>
+          <option value="">{t.settings.defaultDevice}</option>
           {#each outputs as d (d.deviceId)}<option value={d.deviceId}>{d.label || d.deviceId.slice(0, 8)}</option>{/each}
         </select>
       {:else}
-        <small>{tr.settings.outputUnsupported}</small>
+        <small>{t.settings.outputUnsupported}</small>
       {/if}
     </label>
 
     <label class="check">
       <input type="checkbox" checked={p.noiseSuppression} onchange={toggleNoise} />
-      {tr.settings.noiseSuppression}
+      {t.settings.noiseSuppression}
     </label>
 
     <div class="field">
-      <span>{tr.settings.mode}</span>
-      <div class="segmented" role="radiogroup" aria-label={tr.settings.mode}>
-        <label><input type="radio" name="mode" checked={p.mode === 'ptt'} onchange={() => audioSettings.update({ mode: 'ptt' })} /> {tr.controls.modePtt}</label>
-        <label><input type="radio" name="mode" checked={p.mode === 'vad'} onchange={() => audioSettings.update({ mode: 'vad' })} /> {tr.controls.modeVad}</label>
+      <span>{t.settings.mode}</span>
+      <div class="segmented" role="radiogroup" aria-label={t.settings.mode}>
+        <label><input type="radio" name="mode" checked={p.mode === 'ptt'} onchange={() => audioSettings.update({ mode: 'ptt' })} /> {t.controls.modePtt}</label>
+        <label><input type="radio" name="mode" checked={p.mode === 'vad'} onchange={() => audioSettings.update({ mode: 'vad' })} /> {t.controls.modeVad}</label>
       </div>
     </div>
 
     {#if p.mode === 'ptt'}
       <div class="field">
-        <span>{tr.settings.pttKey}</span>
+        <span>{t.settings.pttKey}</span>
         <div class="row">
-          <kbd>{capturingKey ? tr.settings.pttKeyPress : keyName(p.pttKey)}</kbd>
-          <button type="button" onclick={() => (capturingKey = true)} disabled={capturingKey}>{tr.settings.pttKeyChange}</button>
+          <kbd>{capturingKey ? t.settings.pttKeyPress : keyName(p.pttKey)}</kbd>
+          <button type="button" onclick={() => (capturingKey = true)} disabled={capturingKey}>{t.settings.pttKeyChange}</button>
         </div>
       </div>
     {:else}
       <div class="field">
-        <span>{tr.settings.vadThreshold}</span>
+        <span>{t.settings.vadThreshold}</span>
         <div class="meter-row"><LevelMeter /></div>
-        <small>{tr.settings.vadHint}</small>
+        <small>{t.settings.vadHint}</small>
       </div>
     {/if}
   </section>
 
   <section>
-    <h3>{tr.settings.sectionAppearance}</h3>
+    <h3>{t.settings.sectionAppearance}</h3>
     <div class="field">
-      <span>{tr.settings.theme}</span>
-      <div class="segmented" role="radiogroup" aria-label={tr.settings.theme}>
-        <label><input type="radio" name="theme" checked={prefs.value.theme === 'dark'} onchange={() => prefs.update({ theme: 'dark' })} /> {tr.settings.themeDark}</label>
-        <label><input type="radio" name="theme" checked={prefs.value.theme === 'light'} onchange={() => prefs.update({ theme: 'light' })} /> {tr.settings.themeLight}</label>
+      <span>{t.settings.theme}</span>
+      <div class="segmented" role="radiogroup" aria-label={t.settings.theme}>
+        <label><input type="radio" name="theme" checked={prefs.value.theme === 'dark'} onchange={() => prefs.update({ theme: 'dark' })} /> {t.settings.themeDark}</label>
+        <label><input type="radio" name="theme" checked={prefs.value.theme === 'light'} onchange={() => prefs.update({ theme: 'light' })} /> {t.settings.themeLight}</label>
       </div>
     </div>
     <label class="check">
       <input type="checkbox" checked={prefs.value.sounds} onchange={(e) => prefs.update({ sounds: e.currentTarget.checked })} />
-      {tr.settings.sounds}
+      {t.settings.sounds}
     </label>
   </section>
 
   <section>
-    <h3>{tr.settings.sectionTokens}</h3>
-    <p class="help">{tr.settings.tokensHelp}</p>
+    <h3>{t.settings.sectionTokens}</h3>
+    <p class="help">{t.settings.tokensHelp}</p>
     {#if tokens.remembered.size === 0}
-      <p class="help">{tr.settings.tokensNone}</p>
+      <p class="help">{t.settings.tokensNone}</p>
     {:else}
       <ul class="tokens">
         {#each [...tokens.remembered] as tk (tk)}
           <li>
             <code>{tk.length > 2 ? tk.slice(0, 2) + '•'.repeat(Math.min(8, tk.length - 2)) : '••'}</code>
-            <button type="button" onclick={() => { tokens.remove(tk); syncTokens() }}>{tr.settings.tokenRemove}</button>
+            <button type="button" onclick={() => { tokens.remove(tk); syncTokens() }}>{t.settings.tokenRemove}</button>
           </li>
         {/each}
       </ul>
@@ -190,20 +190,20 @@
   </section>
 
   <section>
-    <h3>{tr.settings.sectionIdentity}</h3>
-    <p class="help">{tr.settings.certHelp}</p>
-    <p class="help">{hasCert ? tr.settings.certPresent : tr.settings.certNone}</p>
+    <h3>{t.settings.sectionIdentity}</h3>
+    <p class="help">{t.settings.certHelp}</p>
+    <p class="help">{hasCert ? t.settings.certPresent : t.settings.certNone}</p>
     <div class="row wrap">
-      <button type="button" onclick={exportCert} disabled={!hasCert}>{tr.settings.certExport}</button>
-      <button type="button" onclick={() => fileInput?.click()}>{tr.settings.certImport}</button>
-      <button type="button" class="danger" onclick={resetCert} disabled={!hasCert}>{tr.settings.certReset}</button>
+      <button type="button" onclick={exportCert} disabled={!hasCert}>{t.settings.certExport}</button>
+      <button type="button" onclick={() => fileInput?.click()}>{t.settings.certImport}</button>
+      <button type="button" class="danger" onclick={resetCert} disabled={!hasCert}>{t.settings.certReset}</button>
       <input bind:this={fileInput} type="file" accept=".pem,.crt,.key,.txt,application/x-pem-file" hidden onchange={importCert} />
     </div>
     {#if certMessage}
       <p class="msg" class:error={certMessage.error} role="status">
         {certMessage.text}
         {#if certMessage.reconnect}
-          <button type="button" onclick={() => { reconnect(); open = false }}>{tr.settings.reconnectNow}</button>
+          <button type="button" onclick={() => { reconnect(); open = false }}>{t.settings.reconnectNow}</button>
         {/if}
       </p>
     {/if}

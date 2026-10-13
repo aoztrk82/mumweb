@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import { rmsToMeter } from '../lib/audio/frames'
   import { audioSettings } from '../lib/stores/audioSettings.svelte'
   import { mic } from '../lib/stores/mic.svelte'
@@ -10,7 +10,7 @@
   const above = $derived(level >= threshold)
 </script>
 
-<div class="meter" class:vad title={vad ? tr.controls.threshold : tr.controls.level}>
+<div class="meter" class:vad title={vad ? t.controls.threshold : t.controls.level}>
   <div class="fill" class:above={vad && above} style:width="{level * 100}%"></div>
   {#if vad}
     <div class="mark" style:left="{threshold * 100}%"></div>
@@ -20,7 +20,7 @@
       max="1"
       step="0.01"
       value={threshold}
-      aria-label={tr.controls.threshold}
+      aria-label={t.controls.threshold}
       oninput={(e) => audioSettings.update({ vadThreshold: Number(e.currentTarget.value) })}
     />
   {/if}

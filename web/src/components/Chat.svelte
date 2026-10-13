@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte'
-  import { tr } from '../i18n/tr'
+  import { locale, t } from '../i18n/index.svelte'
   import { sendText } from '../lib/client'
   import { session } from '../lib/stores/session.svelte'
   import Icon from './Icon.svelte'
@@ -9,7 +9,7 @@
   let log: HTMLElement | undefined = $state()
   let stickToBottom = true
 
-  const timeFmt = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  const timeFmt = $derived(new Intl.DateTimeFormat(locale(), { hour: '2-digit', minute: '2-digit' }))
 
   function onScroll() {
     if (!log) return
@@ -44,7 +44,7 @@
       <div class="msg {m.kind}" class:own={m.fromSelf}>
         <time datetime={m.time.toISOString()}>{timeFmt.format(m.time)}</time>
         {#if m.kind === 'text'}
-          <span class="from">{m.fromSelf ? (m.target ? tr.chat.toUser(m.target) : tr.chat.you) : m.from}{#if m.private}&nbsp;<em>({tr.chat.private})</em>{/if}:</span>
+          <span class="from">{m.fromSelf ? (m.target ? t.chat.toUser(m.target) : t.chat.you) : m.from}{#if m.private}&nbsp;<em>({t.chat.private})</em>{/if}:</span>
           <!-- Sanitized with DOMPurify in sanitize.ts -->
           <span class="body">{@html m.body}</span>
         {:else}
@@ -55,18 +55,18 @@
   </div>
 
   <form class="compose" onsubmit={submit}>
-    <label class="visually-hidden" for="chat-input">{tr.chat.title}</label>
+    <label class="visually-hidden" for="chat-input">{t.chat.title}</label>
     <textarea
       id="chat-input"
       rows="1"
       bind:value={draft}
       onkeydown={onKey}
-      placeholder={tr.chat.placeholder(session.currentChannel?.name ?? '')}
+      placeholder={t.chat.placeholder(session.currentChannel?.name ?? '')}
       disabled={!session.ready}
     ></textarea>
-    <button class="primary" type="submit" disabled={!session.ready || !draft.trim()} title={tr.chat.send}>
+    <button class="primary" type="submit" disabled={!session.ready || !draft.trim()} title={t.chat.send}>
       <Icon name="send" />
-      <span class="visually-hidden">{tr.chat.send}</span>
+      <span class="visually-hidden">{t.chat.send}</span>
     </button>
   </form>
 </section>

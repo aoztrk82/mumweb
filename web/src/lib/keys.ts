@@ -1,22 +1,18 @@
-// Human-readable names for KeyboardEvent.code values.
+import { t } from '../i18n/index.svelte'
+
+// Human-readable names for KeyboardEvent.code values (translated ones live in the i18n files).
 const NAMES: Record<string, string> = {
-  Space: 'Boşluk',
-  ControlLeft: 'Sol Ctrl',
-  ControlRight: 'Sağ Ctrl',
-  ShiftLeft: 'Sol Shift',
-  ShiftRight: 'Sağ Shift',
-  AltLeft: 'Sol Alt',
-  AltRight: 'Sağ Alt (AltGr)',
   CapsLock: 'Caps Lock',
-  Backquote: '"',
+  Backquote: '`',
   Tab: 'Tab',
 }
 
 export function keyName(code: string): string {
+  if (t.keys[code]) return t.keys[code]
   if (NAMES[code]) return NAMES[code]
   if (code.startsWith('Key')) return code.slice(3)
   if (code.startsWith('Digit')) return code.slice(5)
-  if (code.startsWith('Numpad')) return 'Num ' + code.slice(6)
+  if (code.startsWith('Numpad')) return `${t.keys.numpad} ${code.slice(6)}`
   return code
 }
 

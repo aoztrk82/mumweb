@@ -1,5 +1,5 @@
 // Connects the gateway socket to the session state. UI components call these actions.
-import { tr } from '../i18n/tr'
+import { t } from '../i18n/index.svelte'
 import { unlockAudio } from './audio/context'
 import { findChannelByPath, requestedChannelPath } from './channelPath'
 import { playJoin, playLeave } from './audio/notify'
@@ -113,13 +113,13 @@ function askChannelPassword(channelId: number, error?: string): void {
   if (!c) return
   ui.dialog = {
     kind: 'prompt',
-    title: tr.channelMenu.passwordTitle(c.name),
-    label: tr.channelMenu.passwordLabel,
+    title: t.channelMenu.passwordTitle(c.name),
+    label: t.channelMenu.passwordLabel,
     value: '',
     password: true,
-    checkbox: tr.channelMenu.passwordRemember,
+    checkbox: t.channelMenu.passwordRemember,
     error,
-    confirm: tr.channelMenu.passwordJoin,
+    confirm: t.channelMenu.passwordJoin,
     onSubmit: (pw, remember) => {
       const token = pw.trim()
       if (!token) return
@@ -204,7 +204,7 @@ export function sendChannelText(channelId: number, text: string, tree: boolean):
   const message = textToHtml(text.trim())
   if (!message) return false
   if (session.messageLength > 0 && message.length > session.messageLength) {
-    session.addChat({ kind: 'error', body: tr.errors.denied.TextTooLong })
+    session.addChat({ kind: 'error', body: t.errors.denied.TextTooLong })
     return false
   }
   socket?.send({ t: 'text', message, channelId, tree })
@@ -212,7 +212,7 @@ export function sendChannelText(channelId: number, text: string, tree: boolean):
   session.addChat({
     kind: 'text',
     fromSelf: true,
-    target: tr.chat.channelTarget(c?.name ?? '', tree),
+    target: t.chat.channelTarget(c?.name ?? '', tree),
     body: sanitizeHtml(message),
   })
   return true
@@ -223,7 +223,7 @@ export function sendPrivateText(sessionId: number, text: string): boolean {
   const message = textToHtml(text.trim())
   if (!message) return false
   if (session.messageLength > 0 && message.length > session.messageLength) {
-    session.addChat({ kind: 'error', body: tr.errors.denied.TextTooLong })
+    session.addChat({ kind: 'error', body: t.errors.denied.TextTooLong })
     return false
   }
   socket?.send({ t: 'text', message, session: sessionId })
@@ -231,7 +231,7 @@ export function sendPrivateText(sessionId: number, text: string): boolean {
   session.addChat({
     kind: 'text',
     fromSelf: true,
-    target: to ? displayName(to) : tr.chat.unknownUser,
+    target: to ? displayName(to) : t.chat.unknownUser,
     private: true,
     body: sanitizeHtml(message),
   })
@@ -262,7 +262,7 @@ export function sendText(text: string): boolean {
   const message = textToHtml(text.trim())
   if (!message) return false
   if (session.messageLength > 0 && message.length > session.messageLength) {
-    session.addChat({ kind: 'error', body: tr.errors.denied.TextTooLong })
+    session.addChat({ kind: 'error', body: t.errors.denied.TextTooLong })
     return false
   }
   socket?.send({ t: 'text', message })
@@ -277,7 +277,7 @@ export function sendAudioFrame(buf: ArrayBuffer): void {
 
 function userName(sessionId: number): string {
   const u = session.users.get(sessionId)
-  return u ? displayName(u) : tr.chat.unknownUser
+  return u ? displayName(u) : t.chat.unknownUser
 }
 
 function handleMessage(m: ServerMessage): void {
@@ -309,14 +309,14 @@ function handleMessage(m: ServerMessage): void {
     case 'userRemove': {
       if (m.session === session.selfSession) {
         // Kicked or banned: don't reconnect.
-        fail(m.ban ? tr.errors.banned(m.reason) : tr.errors.kicked(m.reason))
+        fail(m.ban ? t.errors.banned(m.reason) : t.errors.kicked(m.reason))
         return
       }
       const prev = session.users.get(m.session)
       session.users.delete(m.session)
       removeSpeaker(m.session)
       if (prev && session.ready && prev.channelId === session.self?.channelId) {
-        session.addChat({ kind: 'system', body: tr.chat.left(prev.name) })
+        session.addChat({ kind: 'system', body: t.chat.left(prev.name) })
         playLeave()
       }
       break
@@ -331,7 +331,7 @@ function handleMessage(m: ServerMessage): void {
       session.messageLength = m.messageLength
       session.ready = true
       session.notice = null
-      if (!session.joined && m.welcome) session.addChat({ kind: 'text', from: tr.chat.server, body: sanitizeHtml(m.welcome) })
+      if (!session.joined && m.welcome) session.addChat({ kind: 'text', from: t.chat.server, body: sanitizeHtml(m.welcome) })
       if (!session.joined) {
         // Shared channel link (#kanal=/Oyun): join that channel after the first login.
         const path = requestedChannelPath()
@@ -341,7 +341,7 @@ function handleMessage(m: ServerMessage): void {
         }
       }
       if (!session.joined && session.users.get(m.session)?.userId === 0) {
-        session.addChat({ kind: 'system', body: tr.chat.superUserNotice })
+        session.addChat({ kind: 'system', body: t.chat.superUserNotice })
       }
       session.joined = true
       socket?.established()
@@ -380,28 +380,28 @@ function handleMessage(m: ServerMessage): void {
           tokens.remove(pendingJoin.token)
           pendingJoin = null
           syncTokens()
-          askChannelPassword(m.channelId, tr.channelMenu.passwordWrong)
+          askChannelPassword(m.channelId, t.channelMenu.passwordWrong)
         } else {
           askChannelPassword(m.channelId)
         }
         break
       }
       // "Text" denials carry a human-readable reason from the server.
-      const msg = m.type === 'Text' && m.reason ? m.reason : (tr.errors.denied[m.type] ?? tr.errors.generic)
+      const msg = m.type === 'Text' && m.reason ? m.reason : (t.errors.denied[m.type] ?? t.errors.generic)
       session.addChat({ kind: 'error', body: msg })
       break
     }
 
     case 'reject':
-      fail(tr.errors.reject[m.reason] ?? (m.message || tr.errors.reject.None))
+      fail(t.errors.reject[m.reason] ?? (m.message || t.errors.reject.None))
       break
 
     case 'error':
       if (m.code === 'invalid_certificate') {
-        fail(tr.errors.invalidCertificate)
+        fail(t.errors.invalidCertificate)
       } else {
         // The gateway closes the socket next; the reconnect loop takes over.
-        session.notice = m.code === 'mumble_unavailable' ? tr.errors.mumbleUnavailable : tr.errors.disconnected
+        session.notice = m.code === 'mumble_unavailable' ? t.errors.mumbleUnavailable : t.errors.disconnected
       }
       break
 
@@ -417,10 +417,10 @@ function announceMovement(prev: UserInfo | undefined, u: UserInfo): void {
   const was = prev?.channelId === mine
   const is = u.channelId === mine
   if (!was && is) {
-    session.addChat({ kind: 'system', body: tr.chat.joined(u.name) })
+    session.addChat({ kind: 'system', body: t.chat.joined(u.name) })
     playJoin()
   } else if (was && !is) {
-    session.addChat({ kind: 'system', body: tr.chat.left(u.name) })
+    session.addChat({ kind: 'system', body: t.chat.left(u.name) })
     playLeave()
   }
 }

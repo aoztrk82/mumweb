@@ -33,6 +33,9 @@ mesaj gönder (alt kanallar dahil seçeneğiyle), filtrelerken gizle/iğnele; ke
 bas-konuş (ayarlanabilir tuş, mobilde büyük buton) ve ses algılama (ayarlanabilir eşik), mute/deafen, kanal sohbeti (HTML temizlenir), otomatik yeniden bağlanma, giriş/çıkış sesleri, koyu/açık tema,
 sertifika dışa/içe aktarma, ana ekrana eklenebilir (PWA).
 
+**Arayüz dili:** İngilizce ve Türkçe. Tarayıcı diline göre açılır (ikisi de değilse Türkçe); giriş ekranında ve durum çubuğunda
+daima görünen EN / TR düğmesiyle değiştirilir.
+
 **Tarayıcılar:** Chrome/Edge ve Firefox (masaüstü), Chrome (Android). Safari/iOS henüz desteklenmiyor
 (WebCodecs Opus eksik; bkz. plan Faz 9).
 

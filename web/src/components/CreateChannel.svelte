@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import { createChannel } from '../lib/client'
   import { session } from '../lib/stores/session.svelte'
   import { ui } from '../lib/stores/ui.svelte'
@@ -31,20 +31,20 @@
 
 <dialog bind:this={dialog} onclose={() => (ui.createIn = null)} aria-labelledby="create-title">
   <form onsubmit={submit}>
-    <h2 id="create-title">{tr.channels.createTitle(parent?.name ?? '')}</h2>
+    <h2 id="create-title">{t.channels.createTitle(parent?.name ?? '')}</h2>
     <label class="field">
-      <span>{tr.channels.createName}</span>
+      <span>{t.channels.createName}</span>
       <!-- svelte-ignore a11y_autofocus -->
       <input type="text" bind:value={name} maxlength="100" required autofocus />
     </label>
     <label class="check">
       <input type="checkbox" bind:checked={temporary} />
-      {tr.channels.createTemporary}
+      {t.channels.createTemporary}
     </label>
-    <p class="hint">{tr.channels.createHint}</p>
+    <p class="hint">{t.channels.createHint}</p>
     <div class="actions">
-      <button type="button" onclick={() => (ui.createIn = null)}>{tr.channels.cancel}</button>
-      <button type="submit" class="primary" disabled={!name.trim()}>{tr.channels.createSubmit}</button>
+      <button type="button" onclick={() => (ui.createIn = null)}>{t.channels.cancel}</button>
+      <button type="submit" class="primary" disabled={!name.trim()}>{t.channels.createSubmit}</button>
     </div>
   </form>
 </dialog>

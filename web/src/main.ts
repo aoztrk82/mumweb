@@ -1,9 +1,11 @@
 import { mount } from 'svelte'
 import './app.css'
 import App from './App.svelte'
+import { apply as applyLang, language } from './i18n/index.svelte'
 import { applyTheme, prefs } from './lib/stores/prefs.svelte'
 
 applyTheme(prefs.value.theme)
+applyLang(language.current)
 
 const app = mount(App, {
   target: document.getElementById('app')!,

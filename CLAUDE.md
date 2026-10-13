@@ -43,14 +43,14 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
 | `gateway/proto` | Official `Mumble.proto` / `MumbleUDP.proto` + generated Go (do not hand-edit `*.pb.go`) |
 | `web/src/lib` | WS client (`client.ts`), protocol (`protocol.ts`), audio pipeline (`audio/`), stores (`stores/`) |
 | `web/src/components` | Svelte 5 components (runes) |
-| `web/src/i18n` | UI strings (`tr.ts`; English still to be added, see TODO A1) |
+| `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `index.svelte.ts` (reactive `t`, language detection) |
 | `deploy/` | Production compose + Caddyfile, dev compose, `local/` HTTPS test environment |
 | `docs/` | English docs; Turkish mirror in `docs/tr/` |
 
 ## Conventions
 
 - **Language:** English is primary for code, comments, commit messages, docs and deploy files. Turkish is an
-  additional language: `README.tr.md` and `docs/tr/`. The web UI is currently Turkish only (`web/src/i18n/tr.ts`).
+  additional language: `README.tr.md` and `docs/tr/`. The web UI has English and Turkish dictionaries (`web/src/i18n/`); every user-visible string goes through `t` and must exist in both.
 - **Commits:** Conventional Commits (`feat:`, `fix(gateway):`, `docs:`, `style:`…), small and focused, imperative
   subject.
 - **Go:** `gofmt`, standard library first, no new dependency without a reason. Never log passwords, certificate

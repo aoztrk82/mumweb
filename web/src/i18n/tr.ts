@@ -1,6 +1,26 @@
-// Turkish UI strings. All user-visible text lives here.
+// Turkish UI strings. All user-visible text lives here. `en.ts` must mirror this shape.
 export const tr = {
   appName: 'mumweb',
+
+  lang: {
+    label: 'Dil',
+    tr: 'Türkçe',
+    en: 'English',
+  },
+
+  keys: {
+    Space: 'Boşluk',
+    ControlLeft: 'Sol Ctrl',
+    ControlRight: 'Sağ Ctrl',
+    ShiftLeft: 'Sol Shift',
+    ShiftRight: 'Sağ Shift',
+    AltLeft: 'Sol Alt',
+    AltRight: 'Sağ Alt (AltGr)',
+    numpad: 'Num',
+  } as Record<string, string>,
+
+  nav: 'Görünüm',
+  appDescription: 'Tarayıcıdan Mumble sesli sohbet sunucusuna bağlanın.',
 
   login: {
     title: 'Sesli sohbete katıl',
@@ -275,3 +295,5 @@ export const tr = {
     } as Record<string, string>,
   },
 }
+
+export type Translations = typeof tr

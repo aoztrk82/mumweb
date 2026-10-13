@@ -154,7 +154,8 @@ does its job and exits; visible with `docker compose ps -a`).
 
 ### 6.1 From the browser
 
-> The interface is currently Turkish; button names below are given in English (for example **Connect** is "Bağlan").
+> The interface follows the browser language; switch with the **EN / TR** button at the top right. Button names
+> below are the English ones.
 
 1. In Chrome, Edge or Firefox open **<https://mumweb.test>**. The address bar should show a lock and no warning.
 2. Type a nickname and click **Connect**. The browser asks for microphone permission; allow it.

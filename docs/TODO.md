@@ -11,10 +11,11 @@ Last updated: 2026-10-13. Detailed history and verification notes: [PROGRESS.md]
       versions are `README.tr.md` and `docs/tr/*`, each page linking to its counterpart.
 - [x] Turkish values in the deploy files (compose welcome text default, `.env.example`, `certs` service error).
 - [x] Commit messages and code comments are English (checked; the only Turkish left in code is user interface text).
-- [ ] **Interface language.** Add `web/src/i18n/en.ts` next to `tr.ts`, choose the language from the browser
-      language and from Settings, keep Turkish. Strings still outside `i18n/`: `web/index.html` description,
-      `manifest.webmanifest`, aria-labels in `App.svelte` / `Controls.svelte`, key names in `lib/keys.ts`, the
-      gateway's "UI not built" placeholder page. Decision needed: default language (English suggested).
+- [x] **Interface language.** `web/src/i18n/en.ts` next to `tr.ts`; the language follows the browser (Turkish when
+      it is neither English nor Turkish) and an EN / TR switch sits on the login screen and in the status bar.
+      The static `index.html` / `manifest.webmanifest` text is English.
+- [ ] Decide whether the fallback for other browser languages should be English instead of Turkish
+      (`FALLBACK` in `web/src/i18n/index.svelte.ts`), and whether to add more languages.
 - [ ] If `MUMWEB_PLAN.md` is added to the repo, translate it to English and correct `frame_number` to "+2 / 20 ms".
 - [ ] README polish before the public announcement: screenshots / a short demo GIF of the web UI, a demo or
       feature video, release badge, CI badge, a "Why mumweb?" comparison with other Mumble web clients.

@@ -1,8 +1,8 @@
 {
-  "name": "mumweb — Sesli sohbet",
+  "name": "mumweb — Mumble in your browser",
   "short_name": "mumweb",
-  "description": "Tarayıcıdan Mumble sunucusuna bağlanın.",
-  "lang": "tr",
+  "description": "Connect to a Mumble voice chat server from your browser.",
+  "lang": "en",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

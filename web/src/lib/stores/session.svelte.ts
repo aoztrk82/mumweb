@@ -1,5 +1,6 @@
 // Reactive state of the current Mumble session (channels, users, chat, connection).
 import { SvelteMap, SvelteSet } from 'svelte/reactivity'
+import { locale } from '../../i18n/index.svelte'
 import type { ChannelInfo, UserInfo } from '../protocol'
 import type { ConnStatus } from '../ws'
 
@@ -84,20 +85,20 @@ export const session = new SessionState()
 export function childChannels(parent: number): ChannelInfo[] {
   const out: ChannelInfo[] = []
   for (const c of session.channels.values()) if (c.parent === parent) out.push(c)
-  return out.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name, 'tr'))
+  return out.sort((a, b) => a.position - b.position || a.name.localeCompare(b.name, locale()))
 }
 
 export function channelUsers(channelId: number): UserInfo[] {
   const out: UserInfo[] = []
   for (const u of session.users.values()) if (u.channelId === channelId) out.push(u)
-  return out.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+  return out.sort((a, b) => a.name.localeCompare(b.name, locale()))
 }
 
 /** Users listening to a channel without being in it. */
 export function channelListeners(channelId: number): UserInfo[] {
   const out: UserInfo[] = []
   for (const u of session.users.values()) if (u.listening?.includes(channelId)) out.push(u)
-  return out.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+  return out.sort((a, b) => a.name.localeCompare(b.name, locale()))
 }
 
 /** Whether a channel or any of its sub-channels has users (or listeners) in it. */

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import { joinChannel } from '../lib/client'
   import type { ChannelInfo } from '../lib/protocol'
   import { channelFilter } from '../lib/stores/channelFilter.svelte'
@@ -50,7 +50,7 @@
     role="button"
     tabindex="0"
     aria-haspopup="menu"
-    title={tr.channels.joinHint}
+    title={t.channels.joinHint}
     ondblclick={() => joinChannel(channel.id)}
     oncontextmenu={(e) => openMenu(e, 'channel', channel.id)}
     onkeydown={onKey}
@@ -58,11 +58,11 @@
     <Icon name="channel" size={15} />
     <span class="name">{channel.name}</span>
     {#if channel.restricted}
-      <span class="dim-icon" class:red={!channel.canEnter} title={channel.canEnter ? tr.channelMenu.unlocked : tr.channelMenu.locked}>
+      <span class="dim-icon" class:red={!channel.canEnter} title={channel.canEnter ? t.channelMenu.unlocked : t.channelMenu.locked}>
         <Icon name={channel.canEnter ? 'unlock' : 'lock'} size={13} />
       </span>
     {/if}
-    {#if channel.links.length}<span class="dim-icon" title={tr.channelMenu.linked}><Icon name="link" size={13} /></span>{/if}
+    {#if channel.links.length}<span class="dim-icon" title={t.channelMenu.linked}><Icon name="link" size={13} /></span>{/if}
     {#if users.length}<span class="count">{users.length}</span>{/if}
   </div>
 
@@ -74,22 +74,22 @@
         {@const pref = volumePref(u.name)}
         {@const up = userPref(u)}
         {#snippet content()}
-          <span class="avatar" class:speaking title={speaking ? tr.channels.speaking : undefined}><Icon name="user" size={14} /></span>
-          <span class="name" title={up.nickname ? tr.channels.realName(u.name) : undefined}>
-            {up.nickname || u.name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}
+          <span class="avatar" class:speaking title={speaking ? t.channels.speaking : undefined}><Icon name="user" size={14} /></span>
+          <span class="name" title={up.nickname ? t.channels.realName(u.name) : undefined}>
+            {up.nickname || u.name}{#if isSelf}&nbsp;<span class="dim">{t.channels.you}</span>{/if}
           </span>
           {#if !isSelf && (pref.muted || pref.volume !== 1)}
             <span class="dim small">{pref.muted ? '0%' : `${Math.round(pref.volume * 100)}%`}</span>
           {/if}
           <span class="flags">
-            {#if up.friend}<span class="heart" title={tr.channels.friend}><Icon name="heart" size={14} /></span>{/if}
-            {#if up.ignoreMessages}<span title={tr.channels.ignored}>✕</span>{/if}
-            {#if u.prioritySpeaker}<span title={tr.channels.prioritySpeaker}><Icon name="megaphone" size={14} /></span>{/if}
-            {#if u.registered}<span title={tr.channels.registered}><Icon name="shield" size={14} /></span>{/if}
-            {#if u.mute || u.suppress}<span class="red" title={tr.channels.serverMuted}><Icon name="micOff" size={14} /></span>
-            {:else if u.selfMute}<span title={tr.channels.muted}><Icon name="micOff" size={14} /></span>{/if}
-            {#if u.deaf}<span class="red" title={tr.channels.serverDeafened}><Icon name="headphonesOff" size={14} /></span>
-            {:else if u.selfDeaf}<span title={tr.channels.deafened}><Icon name="headphonesOff" size={14} /></span>{/if}
+            {#if up.friend}<span class="heart" title={t.channels.friend}><Icon name="heart" size={14} /></span>{/if}
+            {#if up.ignoreMessages}<span title={t.channels.ignored}>✕</span>{/if}
+            {#if u.prioritySpeaker}<span title={t.channels.prioritySpeaker}><Icon name="megaphone" size={14} /></span>{/if}
+            {#if u.registered}<span title={t.channels.registered}><Icon name="shield" size={14} /></span>{/if}
+            {#if u.mute || u.suppress}<span class="red" title={t.channels.serverMuted}><Icon name="micOff" size={14} /></span>
+            {:else if u.selfMute}<span title={t.channels.muted}><Icon name="micOff" size={14} /></span>{/if}
+            {#if u.deaf}<span class="red" title={t.channels.serverDeafened}><Icon name="headphonesOff" size={14} /></span>
+            {:else if u.selfDeaf}<span title={t.channels.deafened}><Icon name="headphonesOff" size={14} /></span>{/if}
           </span>
         {/snippet}
         <li>
@@ -100,7 +100,7 @@
             role="button"
             tabindex="0"
             aria-haspopup="menu"
-            title={isSelf ? undefined : tr.channels.userHint}
+            title={isSelf ? undefined : t.channels.userHint}
             oncontextmenu={(e) => openMenu(e, 'user', u.session)}
           >
             {@render content()}
@@ -113,7 +113,7 @@
   {#if listeners.length}
     <ul class="users">
       {#each listeners as l (l.session)}
-        <li class="row user listener" title={tr.channelMenu.listeners}>
+        <li class="row user listener" title={t.channelMenu.listeners}>
           <span class="avatar"><Icon name="ear" size={14} /></span>
           <span class="name">{userPref(l).nickname || l.name}</span>
         </li>

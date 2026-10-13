@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import { setPushToTalk, startMicrophone } from '../lib/audio/transmitter'
   import { disconnect, toggleDeaf, toggleMute } from '../lib/client'
   import { isTyping, keyName } from '../lib/keys'
@@ -54,14 +54,14 @@
 {#if mic.state === 'denied' || mic.state === 'unavailable'}
   <div class="mic-warning" role="alert">
     <span>
-      {mic.state === 'denied' ? tr.audio.micDenied : (tr.audio.micErrors[mic.errorName] ?? tr.audio.micUnavailable)}
+      {mic.state === 'denied' ? t.audio.micDenied : (t.audio.micErrors[mic.errorName] ?? t.audio.micUnavailable)}
       {#if mic.errorDetail}
         <small class="detail">
-          ({mic.errorName}: {mic.errorDetail}){#if mic.inputCount >= 0} · {tr.audio.micInputCount(mic.inputCount)}{/if}
+          ({mic.errorName}: {mic.errorDetail}){#if mic.inputCount >= 0} · {t.audio.micInputCount(mic.inputCount)}{/if}
         </small>
       {/if}
     </span>
-    <button type="button" onclick={() => startMicrophone()}>{tr.audio.micRetry}</button>
+    <button type="button" onclick={() => startMicrophone()}>{t.audio.micRetry}</button>
   </div>
 {/if}
 
@@ -77,7 +77,7 @@
     oncontextmenu={(e) => e.preventDefault()}
   >
     <Icon name="mic" size={22} />
-    {pttDown ? tr.controls.talking : tr.controls.holdToTalk}
+    {pttDown ? t.controls.talking : t.controls.holdToTalk}
   </button>
 {/if}
 
@@ -87,29 +87,29 @@
     onclick={toggleMute}
     disabled={!session.ready}
     aria-pressed={muted}
-    title={muted ? tr.controls.unmute : tr.controls.mute}
+    title={muted ? t.controls.unmute : t.controls.mute}
   >
     <Icon name={muted ? 'micOff' : 'mic'} />
-    <span class="label">{muted ? tr.controls.unmute : tr.controls.mute}</span>
+    <span class="label">{muted ? t.controls.unmute : t.controls.mute}</span>
   </button>
   <button
     class:on={deafened}
     onclick={toggleDeaf}
     disabled={!session.ready}
     aria-pressed={deafened}
-    title={deafened ? tr.controls.undeafen : tr.controls.deafen}
+    title={deafened ? t.controls.undeafen : t.controls.deafen}
   >
     <Icon name={deafened ? 'headphonesOff' : 'headphones'} />
-    <span class="label">{deafened ? tr.controls.undeafen : tr.controls.deafen}</span>
+    <span class="label">{deafened ? t.controls.undeafen : t.controls.deafen}</span>
   </button>
 
   {#if mic.state === 'on'}
-    <div class="mode" role="radiogroup" aria-label="Konuşma modu">
+    <div class="mode" role="radiogroup" aria-label={t.settings.mode}>
       <button role="radio" aria-checked={mode === 'ptt'} class:active={mode === 'ptt'} onclick={() => audioSettings.update({ mode: 'ptt' })}>
-        {tr.controls.modePtt}
+        {t.controls.modePtt}
       </button>
       <button role="radio" aria-checked={mode === 'vad'} class:active={mode === 'vad'} onclick={() => audioSettings.update({ mode: 'vad' })}>
-        {tr.controls.modeVad}
+        {t.controls.modeVad}
       </button>
     </div>
     <LevelMeter />
@@ -117,28 +117,28 @@
       <button
         class="ptt"
         class:talking={pttDown}
-        title={tr.controls.pttKeyHint(keyName(audioSettings.prefs.pttKey))}
+        title={t.controls.pttKeyHint(keyName(audioSettings.prefs.pttKey))}
         onpointerdown={pttPointerDown}
         onpointerup={() => setPtt(false)}
         onpointercancel={() => setPtt(false)}
         oncontextmenu={(e) => e.preventDefault()}
       >
-        {pttDown ? tr.controls.talking : tr.controls.holdToTalk}
+        {pttDown ? t.controls.talking : t.controls.holdToTalk}
         <kbd>{keyName(audioSettings.prefs.pttKey)}</kbd>
       </button>
     {:else if talking}
-      <span class="talking-label">{tr.controls.talking}</span>
+      <span class="talking-label">{t.controls.talking}</span>
     {/if}
   {/if}
 
   <span class="spacer"></span>
-  <button onclick={onSettings} title={tr.controls.settings}>
+  <button onclick={onSettings} title={t.controls.settings}>
     <Icon name="settings" />
-    <span class="label">{tr.controls.settings}</span>
+    <span class="label">{t.controls.settings}</span>
   </button>
-  <button onclick={disconnect} title={tr.controls.disconnect}>
+  <button onclick={disconnect} title={t.controls.disconnect}>
     <Icon name="logout" />
-    <span class="label">{tr.controls.disconnect}</span>
+    <span class="label">{t.controls.disconnect}</span>
   </button>
 </div>
 

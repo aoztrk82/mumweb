@@ -480,7 +480,20 @@ dated. Priority goes to Android and desktop web features. Safari 26+ has not bee
   `CLAUDE.md`.
 - Deploy files: the Turkish welcome-text default in `deploy/docker-compose.yml` and `.env.example` and the error
   message of the `certs` service in `deploy/local/compose.yaml` are now English.
-- Not done yet: the user interface itself is still Turkish only (see TODO A1).
+
+## Addendum: English user interface and language switch (2026-10-13)
+
+- `web/src/i18n/en.ts` mirrors `tr.ts` (typed as `Translations`, so a missing or extra key fails `npm run check`).
+  `i18n/index.svelte.ts` holds the reactive language (`language`), the `t` proxy that components import, and
+  `locale()` for `Intl` / collation. Components switch language instantly without a reload or reconnect.
+- Language choice: the saved choice (`mumweb.lang` in localStorage), else the first English or Turkish entry of
+  `navigator.languages`, else Turkish (`FALLBACK`; chosen by the owner for non-English/non-Turkish browsers).
+- UI: an **EN / TR** switch (`LangSwitch.svelte`) at the top right of the login screen and at the right end of the
+  status bar, so it is visible before and after login. `<html lang>` and the meta description follow the choice.
+- Moved into the dictionaries: key names (`lib/keys.ts`), aria-labels, the chat time format and the channel/user
+  sort collation. `index.html` and `manifest.webmanifest` are English (static, cannot follow the choice).
+- Verification: `npm run check` 0 errors, `npm test` (19) and `npm run build` pass. Not yet checked in a browser by
+  hand: switching while connected, and the fallback with a non-English/Turkish browser language.
 
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web

@@ -11,10 +11,11 @@ Son güncelleme: 2026-10-13. Ayrıntılı geçmiş ve doğrulama notları: [PROG
       Türkçe sürümler `README.tr.md` ve `docs/tr/*`, her sayfa karşılığına bağlantı veriyor.
 - [x] Deploy dosyalarındaki Türkçe değerler (compose karşılama metni, `.env.example`, `certs` hata mesajı).
 - [x] Commit mesajları ve kod yorumları İngilizce (kontrol edildi; kodda kalan Türkçe yalnızca arayüz metinleri).
-- [ ] **Arayüz dili.** `web/src/i18n/` altına `tr.ts` yanına `en.ts`, dil seçimi (tarayıcı diline göre + Ayarlar'dan),
-      Türkçe korunur. `i18n/` dışında kalan metinler: `web/index.html` açıklaması, `manifest.webmanifest`,
-      `App.svelte` / `Controls.svelte` aria-label'ları, `lib/keys.ts` tuş adları, gateway'in "arayüz derlenmemiş"
-      sayfası. Karar gerekiyor: varsayılan dil (öneri: İngilizce).
+- [x] **Arayüz dili.** `tr.ts` yanında `web/src/i18n/en.ts`; dil tarayıcıya göre seçilir (İngilizce de Türkçe de
+      değilse Türkçe), giriş ekranında ve durum çubuğunda EN / TR düğmesi var. Statik `index.html` /
+      `manifest.webmanifest` metinleri İngilizce.
+- [ ] Diğer tarayıcı dilleri için varsayılanın Türkçe yerine İngilizce olup olmayacağına karar ver
+      (`web/src/i18n/index.svelte.ts` içinde `FALLBACK`); başka diller eklenecek mi?
 - [ ] `MUMWEB_PLAN.md` repoya eklenecekse İngilizceye çevrilsin ve `frame_number` ifadesi "+2 / 20 ms" olarak düzeltilsin.
 - [ ] Reddit duyurusu öncesi README cilası: web arayüzü ekran görüntüleri / kısa demo GIF'i, sürüm ve CI rozetleri,
       diğer Mumble web istemcileriyle "Neden mumweb?" karşılaştırması.

@@ -40,9 +40,10 @@ server, channels and voice.
 | Channel menu | Join, create, edit (name, description, position, user limit, password), remove, link tools, copy URL, send message (optionally to sub-channels), pin/hide when filtering |
 | Chat | Channel and private messages, HTML sanitised with DOMPurify, ignore list |
 | Identity | Export / import PEM certificates, reset identity, auto-reconnect |
-| UI | Dark and light themes, responsive layout with tabs on phones, installable PWA |
+| UI | English / Turkish interface with a one-click switch, dark and light themes, responsive layout with tabs on phones, installable PWA |
 
-> The web interface is currently in Turkish. Multi-language support is on the [roadmap](docs/TODO.md).
+> The interface is available in **English and Turkish**. It follows the browser language (Turkish when the browser
+> language is neither), and an EN / TR switch is always visible on the login screen and in the status bar.
 
 ### Browser support
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import { editChannel, queryChannelPassword, requestDescription, setChannelPassword, userCommand } from '../lib/client'
   import { sanitizeHtml } from '../lib/sanitize'
   import { session } from '../lib/stores/session.svelte'
@@ -122,7 +122,7 @@
       {/if}
       {#if d.hint}<p class="hint">{d.hint}</p>{/if}
       <div class="actions">
-        <button type="button" onclick={close}>{tr.channels.cancel}</button>
+        <button type="button" onclick={close}>{t.channels.cancel}</button>
         <button type="submit" class:primary={!d.danger} class:danger={d.danger} disabled={!d.allowEmpty && !value.trim()}>
           {d.confirm}
         </button>
@@ -130,101 +130,101 @@
     </form>
   {:else if d?.kind === 'editChannel' && channel}
     <form onsubmit={saveChannel}>
-      <h2 id="user-dialog-title">{tr.channelMenu.editTitle(channel.name)}</h2>
+      <h2 id="user-dialog-title">{t.channelMenu.editTitle(channel.name)}</h2>
       {#if channel.id !== 0}
         <label class="field">
-          <span>{tr.channelMenu.name}</span>
+          <span>{t.channelMenu.name}</span>
           <input type="text" bind:value={ch.name} maxlength="100" required />
         </label>
       {/if}
       <label class="field">
-        <span>{tr.channelMenu.description}</span>
+        <span>{t.channelMenu.description}</span>
         <textarea rows="4" bind:value={ch.description} oninput={() => (descTouched = true)}></textarea>
       </label>
       <div class="row2">
         <label class="field">
-          <span>{tr.channelMenu.position}</span>
+          <span>{t.channelMenu.position}</span>
           <input type="number" bind:value={ch.position} step="1" />
         </label>
         <label class="field">
-          <span>{tr.channelMenu.maxUsers}</span>
+          <span>{t.channelMenu.maxUsers}</span>
           <input type="number" bind:value={ch.maxUsers} min="0" step="1" />
         </label>
       </div>
       {#if channel.id !== 0}
         <label class="field">
-          <span>{tr.channelMenu.password}</span>
+          <span>{t.channelMenu.password}</span>
           <input
             type="text"
             bind:value={chPassword}
             oninput={() => (pwTouched = true)}
-            placeholder={currentPassword === undefined ? tr.channelMenu.passwordLoading : ''}
+            placeholder={currentPassword === undefined ? t.channelMenu.passwordLoading : ''}
             autocomplete="off"
             maxlength="128"
           />
         </label>
-        <p class="hint">{tr.channelMenu.passwordHint}</p>
+        <p class="hint">{t.channelMenu.passwordHint}</p>
       {/if}
       <div class="actions">
-        <button type="button" onclick={close}>{tr.channels.cancel}</button>
-        <button type="submit" class="primary" disabled={!ch.name.trim()}>{tr.userMenu.save}</button>
+        <button type="button" onclick={close}>{t.channels.cancel}</button>
+        <button type="submit" class="primary" disabled={!ch.name.trim()}>{t.userMenu.save}</button>
       </div>
     </form>
   {:else if d?.kind === 'comment'}
-    <h2 id="user-dialog-title">{tr.userMenu.commentTitle(target ? displayName(target) : '')}</h2>
+    <h2 id="user-dialog-title">{t.userMenu.commentTitle(target ? displayName(target) : '')}</h2>
     <div class="comment">
       {#if target?.comment}
         <!-- Sanitized with DOMPurify -->
         {@html sanitizeHtml(target.comment)}
       {:else}
-        <p class="hint">{tr.userMenu.loading}</p>
+        <p class="hint">{t.userMenu.loading}</p>
       {/if}
     </div>
-    <div class="actions"><button type="button" onclick={close}>{tr.userMenu.close}</button></div>
+    <div class="actions"><button type="button" onclick={close}>{t.userMenu.close}</button></div>
   {:else if d?.kind === 'info'}
-    <h2 id="user-dialog-title">{tr.userMenu.infoTitle(target ? displayName(target) : '')}</h2>
+    <h2 id="user-dialog-title">{t.userMenu.infoTitle(target ? displayName(target) : '')}</h2>
     {#if stats}
       <dl>
-        <dt>{tr.userMenu.infoVersion}</dt>
+        <dt>{t.userMenu.infoVersion}</dt>
         <dd>{[stats.release, stats.version].filter(Boolean).join(' — ') || '—'}</dd>
-        <dt>{tr.userMenu.infoOs}</dt>
+        <dt>{t.userMenu.infoOs}</dt>
         <dd>{[stats.os, stats.osVersion].filter(Boolean).join(' ') || '—'}</dd>
-        <dt>{tr.userMenu.infoOnline}</dt>
+        <dt>{t.userMenu.infoOnline}</dt>
         <dd>{duration(stats.onlineSecs)}</dd>
-        <dt>{tr.userMenu.infoIdle}</dt>
+        <dt>{t.userMenu.infoIdle}</dt>
         <dd>{duration(stats.idleSecs)}</dd>
         {#if stats.address}
-          <dt>{tr.userMenu.infoAddress}</dt>
+          <dt>{t.userMenu.infoAddress}</dt>
           <dd>{stats.address}</dd>
         {/if}
-        <dt>{tr.userMenu.infoPing}</dt>
+        <dt>{t.userMenu.infoPing}</dt>
         <dd>{stats.tcpPingAvg.toFixed(1)} ms / {stats.udpPingAvg.toFixed(1)} ms</dd>
         {#if stats.bandwidth}
-          <dt>{tr.userMenu.infoBandwidth}</dt>
+          <dt>{t.userMenu.infoBandwidth}</dt>
           <dd>{(stats.bandwidth / 1000).toFixed(1)} kbit/s</dd>
         {/if}
-        <dt>{tr.userMenu.infoCert}</dt>
+        <dt>{t.userMenu.infoCert}</dt>
         <dd>
           {stats.certificates === 0
-            ? tr.userMenu.infoCertNone
+            ? t.userMenu.infoCertNone
             : stats.strongCertificate
-              ? tr.userMenu.infoCertStrong
-              : tr.userMenu.infoCertSelf}
+              ? t.userMenu.infoCertStrong
+              : t.userMenu.infoCertSelf}
         </dd>
-        <dt>{tr.userMenu.infoOpus}</dt>
-        <dd>{stats.opus ? tr.userMenu.yes : tr.userMenu.no}</dd>
-        <dt>{tr.userMenu.infoPackets}</dt>
+        <dt>{t.userMenu.infoOpus}</dt>
+        <dd>{stats.opus ? t.userMenu.yes : t.userMenu.no}</dd>
+        <dt>{t.userMenu.infoPackets}</dt>
         <dd>
-          {tr.userMenu.infoFromClient}: {packets(stats.fromClient)}<br />
-          {tr.userMenu.infoFromServer}: {packets(stats.fromServer)}
+          {t.userMenu.infoFromClient}: {packets(stats.fromClient)}<br />
+          {t.userMenu.infoFromServer}: {packets(stats.fromServer)}
         </dd>
       </dl>
     {:else}
-      <p class="hint">{tr.userMenu.loading}</p>
+      <p class="hint">{t.userMenu.loading}</p>
     {/if}
     <div class="actions">
       {#if d}<button type="button" onclick={() => d.kind === 'info' && userCommand('userStats', d.session)}>↻</button>{/if}
-      <button type="button" onclick={close}>{tr.userMenu.close}</button>
+      <button type="button" onclick={close}>{t.userMenu.close}</button>
     </div>
   {/if}
 </dialog>

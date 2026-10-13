@@ -460,7 +460,20 @@ WebCodecs `AudioEncoder`/`AudioDecoder` ile mono/stereo ham Opus'u destekliyor (
   başlangıç, dağıtım, yapılandırma, derleme, test, sorun giderme). Depo içi çalışma bilgileri yeni `CLAUDE.md`'ye taşındı.
 - Deploy dosyaları: `deploy/docker-compose.yml` ve `.env.example` içindeki Türkçe karşılama metni varsayılanı ve
   `deploy/local/compose.yaml` içindeki `certs` servisi hata mesajı İngilizce oldu.
-- Yapılmadı: arayüzün kendisi hâlâ yalnızca Türkçe (bkz. TODO A1).
+
+## Ek — İngilizce arayüz ve dil düğmesi (2026-10-13)
+
+- `web/src/i18n/en.ts`, `tr.ts` ile aynı yapıda (`Translations` tipiyle; eksik veya fazla anahtar `npm run check`'i
+  düşürür). `i18n/index.svelte.ts` reaktif dili (`language`), bileşenlerin içe aktardığı `t` vekilini ve `Intl` /
+  sıralama için `locale()`'i tutar. Dil, yeniden yükleme veya yeniden bağlanma olmadan anında değişir.
+- Dil seçimi: kayıtlı tercih (localStorage `mumweb.lang`), yoksa `navigator.languages` içindeki ilk İngilizce veya
+  Türkçe, yoksa Türkçe (`FALLBACK`; sahibin kararı).
+- Arayüz: giriş ekranının sağ üstünde ve durum çubuğunun sağında **EN / TR** düğmesi (`LangSwitch.svelte`); giriş
+  öncesi ve sonrası görünür. `<html lang>` ve meta açıklaması seçime uyar.
+- Sözlüğe taşınanlar: tuş adları, aria-label'lar, sohbet saat biçimi, kanal/kullanıcı sıralama dili. `index.html` ve
+  `manifest.webmanifest` İngilizce (statik oldukları için seçimi izleyemez).
+- Doğrulama: `npm run check` 0 hata, `npm test` (19) ve `npm run build` geçti. Elle tarayıcıda denenmedi: bağlıyken
+  dil değiştirme ve İngilizce/Türkçe olmayan tarayıcı dili ile yedek davranış.
 
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller

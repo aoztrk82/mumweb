@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
+  import LangSwitch from './LangSwitch.svelte'
   import { connect } from '../lib/client'
   import { getSetting, setSetting } from '../lib/settings'
   import { session } from '../lib/stores/session.svelte'
@@ -18,18 +19,19 @@
 </script>
 
 <div class="wrap">
+  <div class="lang-corner"><LangSwitch /></div>
   <form class="card" onsubmit={submit}>
-    <h1>{tr.appName}</h1>
-    <p class="sub">{tr.login.title}</p>
+    <h1>{t.appName}</h1>
+    <p class="sub">{t.login.title}</p>
 
     <label>
-      <span>{tr.login.nickname}</span>
+      <span>{t.login.nickname}</span>
       <!-- svelte-ignore a11y_autofocus -->
       <input type="text" bind:value={username} maxlength="64" autocomplete="nickname" required autofocus />
     </label>
 
     <label>
-      <span>{tr.login.password} <small>({tr.login.passwordHint})</small></span>
+      <span>{t.login.password} <small>({t.login.passwordHint})</small></span>
       <input type="password" bind:value={password} autocomplete="current-password" />
     </label>
 
@@ -40,7 +42,7 @@
     {/if}
 
     <button class="primary" type="submit" disabled={busy || !username.trim()}>
-      {busy ? tr.login.connecting : tr.login.connect}
+      {busy ? t.login.connecting : t.login.connect}
     </button>
   </form>
 </div>
@@ -51,6 +53,11 @@
     display: grid;
     place-items: center;
     padding: var(--gutter);
+  }
+  .lang-corner {
+    position: absolute;
+    top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+    right: var(--gutter);
   }
   .card {
     width: min(100%, 360px);

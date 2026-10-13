@@ -1,6 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte'
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
   import {
     banUser,
     joinChannel,
@@ -96,11 +96,11 @@
     const n = name
     ui.dialog = {
       kind: 'prompt',
-      title: kind === 'kick' ? tr.userMenu.kickTitle(n) : tr.userMenu.banTitle(n),
-      label: tr.userMenu.reason,
+      title: kind === 'kick' ? t.userMenu.kickTitle(n) : t.userMenu.banTitle(n),
+      label: t.userMenu.reason,
       value: '',
-      hint: kind === 'ban' ? tr.userMenu.banHint : undefined,
-      confirm: kind === 'kick' ? tr.userMenu.kickConfirm : tr.userMenu.banConfirm,
+      hint: kind === 'ban' ? t.userMenu.banHint : undefined,
+      confirm: kind === 'kick' ? t.userMenu.kickConfirm : t.userMenu.banConfirm,
       danger: true,
       allowEmpty: true,
       onSubmit: (reason) => (kind === 'kick' ? kickUser(target, reason) : banUser(target, reason)),
@@ -112,10 +112,10 @@
     const u = user
     ui.dialog = {
       kind: 'prompt',
-      title: tr.userMenu.nicknameTitle(u.name),
-      label: tr.userMenu.nicknameLabel,
+      title: t.userMenu.nicknameTitle(u.name),
+      label: t.userMenu.nicknameLabel,
       value: userPref(u).nickname ?? '',
-      confirm: tr.userMenu.save,
+      confirm: t.userMenu.save,
       allowEmpty: true,
       onSubmit: (v) => updateUserPref(u, { nickname: v.trim() || undefined }),
     }
@@ -126,11 +126,11 @@
     const target = user.session
     ui.dialog = {
       kind: 'prompt',
-      title: tr.userMenu.messageTitle(name),
-      label: tr.userMenu.messageLabel,
+      title: t.userMenu.messageTitle(name),
+      label: t.userMenu.messageLabel,
       value: '',
       multiline: true,
-      confirm: tr.userMenu.send,
+      confirm: t.userMenu.send,
       onSubmit: (v) => sendPrivateText(target, v),
     }
   }
@@ -148,7 +148,7 @@
   }
 
   function confirmRemove() {
-    if (channel && confirm(tr.channelMenu.removeConfirm(channel.name))) removeChannel(channel.id)
+    if (channel && confirm(t.channelMenu.removeConfirm(channel.name))) removeChannel(channel.id)
   }
 
   function askChannelMessage() {
@@ -156,12 +156,12 @@
     const id = channel.id
     ui.dialog = {
       kind: 'prompt',
-      title: tr.channelMenu.messageTitle(channel.name),
-      label: tr.userMenu.messageLabel,
+      title: t.channelMenu.messageTitle(channel.name),
+      label: t.userMenu.messageLabel,
       value: '',
       multiline: true,
-      checkbox: tr.channelMenu.messageTree,
-      confirm: tr.userMenu.send,
+      checkbox: t.channelMenu.messageTree,
+      confirm: t.userMenu.send,
       onSubmit: (v, tree) => sendChannelText(id, v, tree),
     }
   }
@@ -171,14 +171,14 @@
     const url = channelUrl(channel.id)
     try {
       await navigator.clipboard.writeText(url)
-      session.addChat({ kind: 'system', body: tr.chat.linkCopied })
+      session.addChat({ kind: 'system', body: t.chat.linkCopied })
     } catch {
-      session.addChat({ kind: 'system', body: tr.chat.linkCopyFailed(url) })
+      session.addChat({ kind: 'system', body: t.chat.linkCopyFailed(url) })
     }
   }
 
   function register() {
-    if (user && confirm(tr.userMenu.registerConfirm(name))) userCommand('register', user.session)
+    if (user && confirm(t.userMenu.registerConfirm(name))) userCommand('register', user.session)
   }
 </script>
 
@@ -209,86 +209,86 @@
   >
     {#if user}
       <div class="title">
-        <Icon name="user" size={14} /> {name}{#if isSelf}&nbsp;<span class="dim">{tr.channels.you}</span>{/if}
+        <Icon name="user" size={14} /> {name}{#if isSelf}&nbsp;<span class="dim">{t.channels.you}</span>{/if}
       </div>
 
       {#if otherChannel}
-        <button role="menuitem" onclick={() => act(() => joinChannel(user.channelId))}>{tr.userMenu.joinUserChannel}</button>
+        <button role="menuitem" onclick={() => act(() => joinChannel(user.channelId))}>{t.userMenu.joinUserChannel}</button>
         <button role="menuitem" onclick={() => act(() => moveUser(user.session, session.self!.channelId))}>
-          {tr.userMenu.moveToMyChannel}
+          {t.userMenu.moveToMyChannel}
         </button>
         <hr />
       {/if}
 
       {#if has(root, Perm.Kick, Perm.Ban, Perm.Write)}
-        <button role="menuitem" disabled={isSelf} onclick={() => act(() => askReason('kick'))}>{tr.userMenu.kick}</button>
+        <button role="menuitem" disabled={isSelf} onclick={() => act(() => askReason('kick'))}>{t.userMenu.kick}</button>
       {/if}
       {#if has(root, Perm.Ban, Perm.Write)}
-        <button role="menuitem" disabled={isSelf} onclick={() => act(() => askReason('ban'))}>{tr.userMenu.ban}</button>
+        <button role="menuitem" disabled={isSelf} onclick={() => act(() => askReason('ban'))}>{t.userMenu.ban}</button>
       {/if}
       {@render check(
-        tr.userMenu.mute,
+        t.userMenu.mute,
         user.mute || user.suppress,
         has(p, Perm.Write, Perm.MuteDeafen) && (!isSelf || user.mute || user.suppress),
         () => setUser(user.session, { mute: !(user.mute || user.suppress) }),
       )}
       {@render check(
-        tr.userMenu.deafen,
+        t.userMenu.deafen,
         user.deaf,
         has(p, Perm.Write, Perm.MuteDeafen) && (!isSelf || user.deaf),
         () => setUser(user.session, { deaf: !user.deaf }),
       )}
-      {@render check(tr.userMenu.prioritySpeaker, user.prioritySpeaker, has(p, Perm.Write, Perm.MuteDeafen), () =>
+      {@render check(t.userMenu.prioritySpeaker, user.prioritySpeaker, has(p, Perm.Write, Perm.MuteDeafen), () =>
         setUser(user.session, { prioritySpeaker: !user.prioritySpeaker }),
       )}
-      {@render check(tr.userMenu.localMute, pref.muted, !isSelf, () =>
+      {@render check(t.userMenu.localMute, pref.muted, !isSelf, () =>
         setVolumePref(user.name, { ...pref, muted: !pref.muted }),
       )}
-      {@render check(tr.userMenu.ignoreMessages, !!uPref.ignoreMessages, !isSelf, () =>
+      {@render check(t.userMenu.ignoreMessages, !!uPref.ignoreMessages, !isSelf, () =>
         updateUserPref(user, { ignoreMessages: !uPref.ignoreMessages }),
       )}
 
       {#if !isSelf}
         <hr />
         <label class="slider">
-          <span>{tr.userMenu.localVolume}: {pref.muted ? tr.channels.mutedForMe : `${percent}%`}</span>
+          <span>{t.userMenu.localVolume}: {pref.muted ? t.channels.mutedForMe : `${percent}%`}</span>
           <input type="range" min="0" max="200" step="5" value={percent} oninput={setVolume} disabled={pref.muted} />
         </label>
         <hr />
       {/if}
 
-      <button role="menuitem" disabled={isSelf} onclick={() => act(askNickname)}>{tr.userMenu.nickname}</button>
+      <button role="menuitem" disabled={isSelf} onclick={() => act(askNickname)}>{t.userMenu.nickname}</button>
       {#if !isSelf}
-        <button role="menuitem" disabled={!user.hasComment} onclick={() => act(viewComment)}>{tr.userMenu.viewComment}</button>
+        <button role="menuitem" disabled={!user.hasComment} onclick={() => act(viewComment)}>{t.userMenu.viewComment}</button>
         <button
           role="menuitem"
           disabled={!user.hasComment || !has(root, Perm.ResetUserContent, Perm.Write)}
           onclick={() => act(() => userCommand('resetComment', user.session))}
         >
-          {tr.userMenu.resetComment}
+          {t.userMenu.resetComment}
         </button>
         <button
           role="menuitem"
           disabled={!user.hasTexture || !has(root, Perm.ResetUserContent, Perm.Write)}
           onclick={() => act(() => userCommand('resetTexture', user.session))}
         >
-          {tr.userMenu.removeAvatar}
+          {t.userMenu.removeAvatar}
         </button>
       {/if}
       <button role="menuitem" disabled={!has(p, Perm.Write, Perm.TextMessage)} onclick={() => act(askMessage)}>
-        {tr.userMenu.sendMessage}
+        {t.userMenu.sendMessage}
       </button>
       <button
         role="menuitem"
         disabled={!(has(root, Perm.Write, Perm.Register) || has(p, Perm.Write, Perm.Enter) || isSelf)}
         onclick={() => act(showInfo)}
       >
-        {tr.userMenu.info}
+        {t.userMenu.info}
       </button>
 
       {#if !user.registered && user.hash && has(root, isSelf ? Perm.SelfRegister : Perm.Register, Perm.Write)}
         <hr />
-        <button role="menuitem" onclick={() => act(register)}>{tr.userMenu.register}</button>
+        <button role="menuitem" onclick={() => act(register)}>{t.userMenu.register}</button>
       {/if}
 
       {#if user.hash && (uPref.friend || !isSelf)}
@@ -296,16 +296,16 @@
         {#if !uPref.friend}
           <button role="menuitem" onclick={() => act(() => updateUserPref(user, { friend: user.name }))}>
             <Icon name="heart" size={16} />
-            {tr.userMenu.addFriend}
+            {t.userMenu.addFriend}
           </button>
         {:else}
           {#if uPref.friend !== user.name}
             <button role="menuitem" onclick={() => act(() => updateUserPref(user, { friend: user.name }))}>
-              {tr.userMenu.updateFriend}
+              {t.userMenu.updateFriend}
             </button>
           {/if}
           <button role="menuitem" onclick={() => act(() => updateUserPref(user, { friend: undefined }))}>
-            {tr.userMenu.removeFriend}
+            {t.userMenu.removeFriend}
           </button>
         {/if}
       {/if}
@@ -314,38 +314,38 @@
         <hr />
         <button role="menuitem" onclick={() => act(toggleMute)}>
           <Icon name={user.selfMute ? 'mic' : 'micOff'} size={16} />
-          {user.selfMute ? tr.controls.unmute : tr.controls.mute}
+          {user.selfMute ? t.controls.unmute : t.controls.mute}
         </button>
         <button role="menuitem" onclick={() => act(toggleDeaf)}>
           <Icon name={user.selfDeaf ? 'headphones' : 'headphonesOff'} size={16} />
-          {user.selfDeaf ? tr.controls.undeafen : tr.controls.deafen}
+          {user.selfDeaf ? t.controls.undeafen : t.controls.deafen}
         </button>
       {/if}
     {:else if channel}
       <div class="title"><Icon name="channel" size={14} /> {channel.name}</div>
       {#if !isHome}
         <button role="menuitem" disabled={!has(cp, Perm.Write, Perm.Enter)} onclick={() => act(() => joinChannel(channel.id))}>
-          {tr.channels.join}
+          {t.channels.join}
         </button>
       {/if}
-      {@render check(tr.channelMenu.listen, listening, true, () => setListening(channel.id, !listening))}
+      {@render check(t.channelMenu.listen, listening, true, () => setListening(channel.id, !listening))}
       <hr />
       <button
         role="menuitem"
         disabled={!has(cp, Perm.Write, Perm.MakeChannel, Perm.MakeTempChannel)}
         onclick={() => act(() => (ui.createIn = channel.id))}
       >
-        {tr.channelMenu.add}
+        {t.channelMenu.add}
       </button>
       <button
         role="menuitem"
         disabled={!(has(cp, Perm.Write) || has(rootPerms(), Perm.Write))}
         onclick={() => act(() => (ui.dialog = { kind: 'editChannel', channelId: channel.id }))}
       >
-        {tr.channelMenu.edit}
+        {t.channelMenu.edit}
       </button>
       <button role="menuitem" disabled={channel.id === 0 || !has(cp, Perm.Write)} onclick={() => act(confirmRemove)}>
-        {tr.channelMenu.remove}
+        {t.channelMenu.remove}
       </button>
       <hr />
       <button
@@ -353,33 +353,33 @@
         disabled={isHome || linkedToHome || !has(cp, Perm.Write, Perm.LinkChannel) || !has(homep, Perm.Write, Perm.LinkChannel)}
         onclick={() => act(() => home && linkChannels(home.id, [channel.id], []))}
       >
-        {tr.channelMenu.link}
+        {t.channelMenu.link}
       </button>
       <button
         role="menuitem"
         disabled={isHome || !linkedToHome || !(has(cp, Perm.Write, Perm.LinkChannel) || has(homep, Perm.Write, Perm.LinkChannel))}
         onclick={() => act(() => home && linkChannels(home.id, [], [channel.id]))}
       >
-        {tr.channelMenu.unlink}
+        {t.channelMenu.unlink}
       </button>
       <button
         role="menuitem"
         disabled={!home || home.links.length === 0 || !has(homep, Perm.Write, Perm.LinkChannel)}
         onclick={() => act(() => home && linkChannels(home.id, [], [...home.links]))}
       >
-        {tr.channelMenu.unlinkAll}
+        {t.channelMenu.unlinkAll}
       </button>
       <hr />
-      <button role="menuitem" onclick={() => act(copyUrl)}>{tr.channelMenu.copyUrl}</button>
+      <button role="menuitem" onclick={() => act(copyUrl)}>{t.channelMenu.copyUrl}</button>
       <button role="menuitem" disabled={!has(cp, Perm.Write, Perm.TextMessage)} onclick={() => act(askChannelMessage)}>
-        {tr.channelMenu.sendMessage}
+        {t.channelMenu.sendMessage}
       </button>
       {#if channel.id !== 0}
         <hr />
-        {@render check(tr.channelMenu.hideWhenFiltering, channelFilter.modes.get(channel.id) === 'hide', true, () =>
+        {@render check(t.channelMenu.hideWhenFiltering, channelFilter.modes.get(channel.id) === 'hide', true, () =>
           channelFilter.setMode(channel.id, 'hide'),
         )}
-        {@render check(tr.channelMenu.pinWhenFiltering, channelFilter.modes.get(channel.id) === 'pin', true, () =>
+        {@render check(t.channelMenu.pinWhenFiltering, channelFilter.modes.get(channel.id) === 'pin', true, () =>
           channelFilter.setMode(channel.id, 'pin'),
         )}
       {/if}

@@ -1,15 +1,16 @@
 <script lang="ts">
-  import { tr } from '../i18n/tr'
+  import { t } from '../i18n/index.svelte'
+  import LangSwitch from './LangSwitch.svelte'
   import { session } from '../lib/stores/session.svelte'
 
   const text = $derived(
     session.status === 'reconnecting'
-      ? tr.status.reconnecting(session.attempt, session.retryIn)
+      ? t.status.reconnecting(session.attempt, session.retryIn)
       : session.status === 'connecting' || (session.status === 'connected' && !session.ready)
-        ? tr.status.connecting
+        ? t.status.connecting
         : session.status === 'connected'
-          ? tr.status.connected
-          : tr.status.idle,
+          ? t.status.connected
+          : t.status.idle,
   )
   const ok = $derived(session.status === 'connected' && session.ready)
 </script>
@@ -18,6 +19,8 @@
   <span class="dot"></span>
   <span>{text}</span>
   {#if session.notice && !ok}<span class="notice">— {session.notice}</span>{/if}
+<span class="spacer"></span>
+  <LangSwitch />
 </div>
 
 <style>
@@ -30,6 +33,9 @@
     color: var(--text-dim);
     border-bottom: 1px solid var(--border);
     background: var(--bg-elev);
+  }
+  .spacer {
+    flex: 1;
   }
   .dot {
     width: 8px;
