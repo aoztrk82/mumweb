@@ -585,7 +585,9 @@ func TestChannelPassword(t *testing.T) {
 	// An ordinary user sees the channel as restricted and cannot enter.
 	u := dialBridge(t, url, map[string]any{"username": "misafir-" + name})
 	defer u.ws.CloseNow()
-	locked := func(m map[string]any) bool { return m["id"] == float64(id) && m["restricted"] == true && m["canEnter"] == false }
+	locked := func(m map[string]any) bool {
+		return m["id"] == float64(id) && m["restricted"] == true && m["canEnter"] == false
+	}
 	for {
 		if m, _ := u.next(); m["t"] == "channel" && locked(m) {
 			break
