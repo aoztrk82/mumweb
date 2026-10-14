@@ -659,7 +659,7 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
 
 - Ships the security first pass: security headers and CSP, per-IP session limit (`MUMWEB_MAX_SESSIONS_PER_IP`), control-message
   rate limit, HTTP idle/header limits, hardened compose files, HSTS in the Caddyfiles. `release` in `main.go` is `mumweb 0.3`.
-  Version chosen as a minor bump because of the new setting. GitHub private vulnerability reporting was enabled by the owner.
+  Version chosen as a minor bump because of the new setting. Pushed as `:0.3.0` and `:latest` (amd64+arm64, index digest `sha256:d6657463…`); Trivy on it: 0 HIGH/CRITICAL; the container answers with the new headers. GitHub private vulnerability reporting was enabled by the owner.
 
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web

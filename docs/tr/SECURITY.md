@@ -44,7 +44,7 @@ saklamaz; bir kullanıcının oturumu açıkken özel anahtarını bellekte gör
 |---|---|
 | `govulncheck ./...` (Go 1.27.2) | zafiyet yok |
 | `npm audit` (`--omit=dev` dahil) | 0 zafiyet |
-| `aoztrk82/mumweb:0.2.0` üzerinde Trivy (HIGH, CRITICAL) | Alpine katmanında 0, Go ikilisinde 0 |
+| `aoztrk82/mumweb:0.3.0` üzerinde Trivy (HIGH, CRITICAL) | Alpine katmanında 0, Go ikilisinde 0 |
 | `staticcheck ./...` | bir testte 1 not (`TestIPRateLimit` `allow`'u bilerek üç kez çağırır): yok sayıldı |
 | `gosec` | 3 bulgu, üçü de kabul edildi: `certHash` içinde SHA-1 (Mumble sertifika özetlerini SHA-1 olarak tanımlar ve kullanıcılar onunla anahtarlanır; güvenlik sınırı değil), aynı import'un yeniden işaretlenmesi (G505) ve `mumprobe` hata ayıklama CLI'ındaki `os.ReadFile(path)` (yol operatörün kendi argümanı) |
 | Fuzz (`testing.F`, her biri 25 sn) | `FuzzParseAudioFrame`, `FuzzClientMessage` (JSON ve yönetim doğrulayıcıları), `FuzzReadFrame` (Mumble çerçeveleme ve protobuf çözme), `FuzzDecodeAudio`, `FuzzStateMessages` (durum birleştirme ve ACL/yasak/kullanıcı listesi dönüşümleri): çökme yok. Büyük sürümlerden önce daha uzun koşular yapılmalı: `go test ./internal/mumble -run '^$' -fuzz FuzzReadFrame -fuzztime 10m` |

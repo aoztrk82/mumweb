@@ -634,7 +634,7 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
 
 - Güvenlik ilk turunu yayınlar: güvenlik başlıkları ve CSP, IP başına oturum sınırı (`MUMWEB_MAX_SESSIONS_PER_IP`), kontrol
   mesajı hız sınırı, HTTP boşta/başlık sınırları, sertleştirilmiş compose dosyaları, Caddyfile'larda HSTS. `main.go`'daki
-  `release` artık `mumweb 0.3`. Yeni ayar nedeniyle minor sürüm seçildi. Sahibi GitHub özel güvenlik açığı bildirimini açtı.
+  `release` artık `mumweb 0.3`. Yeni ayar nedeniyle minor sürüm seçildi. `:0.3.0` ve `:latest` gönderildi (amd64+arm64, index digest `sha256:d6657463…`); Trivy: 0 HIGH/CRITICAL; container yeni başlıklarla yanıt veriyor. Sahibi GitHub özel güvenlik açığı bildirimini açtı.
 
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller

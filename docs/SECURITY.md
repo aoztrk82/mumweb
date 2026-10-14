@@ -44,7 +44,7 @@ stores no certificates; it sees a user's private key in memory while that user's
 |---|---|
 | `govulncheck ./...` (Go 1.27.2) | no vulnerabilities |
 | `npm audit` (also `--omit=dev`) | 0 vulnerabilities |
-| Trivy on `aoztrk82/mumweb:0.2.0` (HIGH, CRITICAL) | 0 in the Alpine layer, 0 in the Go binary |
+| Trivy on `aoztrk82/mumweb:0.3.0` (HIGH, CRITICAL) | 0 in the Alpine layer, 0 in the Go binary |
 | `staticcheck ./...` | 1 note in a test (`TestIPRateLimit` calls `allow` three times on purpose): ignored |
 | `gosec` | 3 findings, all accepted: SHA-1 in `certHash` (Mumble defines certificate hashes as SHA-1 and users are keyed by it; not a security boundary), same import flagged again (G505), and `os.ReadFile(path)` in the `mumprobe` debugging CLI (the path is the operator's own argument) |
 | Fuzzing (`testing.F`, 25 s each) | `FuzzParseAudioFrame`, `FuzzClientMessage` (JSON plus the admin validators), `FuzzReadFrame` (Mumble framing and protobuf decode), `FuzzDecodeAudio`, `FuzzStateMessages` (state merging and the ACL/ban/user-list conversions): no crash. Longer runs are worth doing before big releases: `go test ./internal/mumble -run '^$' -fuzz FuzzReadFrame -fuzztime 10m` |
