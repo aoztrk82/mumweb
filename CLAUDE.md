@@ -13,6 +13,25 @@ the UI and encodes/decodes Opus in the browser (WebCodecs). Public overview: [RE
 Browser (Svelte SPA, WebCodecs Opus) ⇄ WSS ⇄ gateway (Go) ⇄ TLS/TCP ⇄ Mumble server
 ```
 
+## If you are the Claude on a server (deploying, not developing)
+
+You were asked to bring mumweb up on a server. Do not build anything and do not edit the repository: the images are
+on Docker Hub (`aoztrk82/mumweb`). The current job is a **1-2 day public test deployment** whose limits are looser than
+production (the owner stress-tests and security-tests it from another machine; the real production configuration comes
+afterwards). Follow [docs/TEST-DEPLOYMENT.md](docs/TEST-DEPLOYMENT.md) step by step; in short:
+
+1. `git clone https://github.com/aoztrk82/mumweb.git && cd mumweb/deploy/test && cp .env.example .env`.
+2. Ask the owner for the missing `.env` values (domain whose DNS already points here, SuperUser, access, admin and
+   reserved-slot passwords). Never invent or commit secrets; `.env` is git-ignored.
+3. Ports 80/tcp, 443/tcp+udp and 64738/tcp+udp must be open. `docker compose pull && docker compose up -d`.
+4. Run the checks in that page (`/healthz`, `/config`, headers, read-only/no-egress gateway) and report the results and
+   `docker compose ps` to the owner.
+
+Rules: keep the hardening in the compose file (read-only gateway, dropped capabilities, internal network) even if
+something seems easier without it, and report problems instead; never publish port 8080; many connections and failed
+logins from the owner's test machine are expected. Update with `git pull && docker compose pull && docker compose up -d`.
+The compose in `deploy/test/` is for the test only; `deploy/docker-compose.yml` is the production one.
+
 ## Commands
 
 | Task | Command |
@@ -46,7 +65,7 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
 | `web/src/components` | Svelte 5 components (runes) |
 | `web/src/admin`, `web/admin` | Admin panel: second Vite page at `/admin/` (own client + store, no audio; ACL/ban/user-list editors) |
 | `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `index.svelte.ts` (reactive `t`, language detection) |
-| `deploy/` | Production compose (pulls `aoztrk82/mumweb`) + `docker-compose.build.yml` override, Caddyfile, dev compose, `local/` HTTPS test environment |
+| `deploy/` | Production compose (pulls `aoztrk82/mumweb`) + `docker-compose.build.yml` override, Caddyfile, dev compose, `local/` HTTPS test environment, `test/` loose-limit compose for the 1-2 day server test |
 | `docs/` | English docs; Turkish mirror in `docs/tr/` |
 
 ## Conventions
@@ -99,6 +118,7 @@ same commit, in **both languages** (English first, then the Turkish mirror):
 | build, test or release procedure, repository layout | `docs/BUILDING.md` + `docs/tr/BUILDING.md` |
 | env vars, tags, quick start (anything the Docker Hub page states) | `docs/DOCKERHUB.md`, then `make hub-readme` |
 | local dev / HTTPS setup | `docs/DEVELOPMENT.md` + `docs/tr/DEVELOPMENT.md` |
+| the server test deployment (`deploy/test/`) | `docs/TEST-DEPLOYMENT.md` + `docs/tr/TEST-DEPLOYMENT.md` and the "If you are the Claude on a server" section above |
 | anything verified or discovered (a finding, a protocol detail, a verification result) | append to `docs/PROGRESS.md` + `docs/tr/PROGRESS.md` (newest last, before "Open issues") |
 | priorities, known limits, missing features | `docs/TODO.md` + `docs/tr/TODO.md` (tick items, add new ones) |
 | manual acceptance steps | `docs/TESTING.md` + `docs/tr/TESTING.md` |

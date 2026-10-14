@@ -316,6 +316,7 @@ değiştirin.
   `#ad` biçimli grup bir kanal şifresidir). Yazma işlemleri Mumble'ın mesaj hız sınırının altında kalacak şekilde
   yavaşlatılır.
 - Güvenlik incelemesi, tehdit modeli ve `/admin`'i kendi IP'nize kısıtlayan Caddy örneği: [docs/tr/SECURITY.md](docs/tr/SECURITY.md).
+- Sunucuda 1-2 günlük test dağıtımı (gevşek limitler, adım adım kılavuz): [docs/tr/TEST-DEPLOYMENT.md](docs/tr/TEST-DEPLOYMENT.md).
 - Production'da HTTPS gerekir (şifre WebSocket üzerinden gider). Değeri uzun ve rastgele seçin. Sayfanın hiç
   erişilebilir olmasını istemiyorsanız ters proxy'nizde `/admin*` yolunu engelleyin.
 

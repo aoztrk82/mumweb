@@ -407,6 +407,7 @@ Gateway logs are JSON: `docker compose logs -f mumweb`. Passwords, certificate k
 | Progress log and findings | [docs/PROGRESS.md](docs/PROGRESS.md) | [docs/tr/PROGRESS.md](docs/tr/PROGRESS.md) |
 | Roadmap / TODO | [docs/TODO.md](docs/TODO.md) | [docs/tr/TODO.md](docs/tr/TODO.md) |
 | Security review, threat model, hardening | [docs/SECURITY.md](docs/SECURITY.md) (policy: [SECURITY.md](SECURITY.md)) | [docs/tr/SECURITY.md](docs/tr/SECURITY.md) |
+| Short-lived test deployment on a server | [docs/TEST-DEPLOYMENT.md](docs/TEST-DEPLOYMENT.md) | [docs/tr/TEST-DEPLOYMENT.md](docs/tr/TEST-DEPLOYMENT.md) |
 
 ## License
 
