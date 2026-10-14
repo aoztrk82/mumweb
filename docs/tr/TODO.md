@@ -29,15 +29,26 @@ Son güncelleme: 2026-10-13. Ayrıntılı geçmiş ve doğrulama notları: [PROG
 - [ ] Tarayıcıda elle denenmedi (yalnızca otomatik gateway testleri ve tip kontrolü yapıldı).
 - [ ] Değerlendirme: şifre yerine/yanında davet bağlantısı (imzalı, süreli token) daha kullanışlı olabilir.
 
-### 3. Web yönetim paneli (mümkünse)
-- [ ] Kapsam kararı. Mumble protokolüyle yapılabilenler: ACL ve gruplar, yasak listesi (görüntüle/ekle/kaldır),
-      kayıtlı kullanıcılar (UserList: listele/yeniden adlandır/sil), kanal yönetimi (var), kullanıcı yönetimi (var).
-      Sunucu ayarları (karşılama metni, bant genişliği, kullanıcı sınırı) protokolde yok; Ice/gRPC veya
-      config + yeniden başlatma gerekir.
-- [ ] Kimlik doğrulama: SuperUser veya admin grubundaki kayıtlı kullanıcı; production'da ayrı bir yönetici şifresi ve
-      yalnızca HTTPS.
-- [ ] Ayrı bir sayfa (`/admin`), ana arayüzden bağımsız; tüm işlemler loglanır.
-- [ ] Masaüstü istemcide de olmayan ACL şifre alanı ve kanal şifresi zaten var; panelde de gösterilmeli.
+### 3. Web yönetim paneli (2026-10-14'te yapıldı)
+- [x] Kapsam: çevrimiçi kullanıcılar (at, sertifika yasağı, sustur/sağır et, kaydet), kanal ağacı (oluştur, yeniden
+      adlandır, sil, kanal şifresi), tam ACL ve grup düzenleyicisi, yasak listesi (her kaydı silme, sertifika yasağı
+      ekleme), kayıtlı kullanıcılar (listele, yeniden adlandır, sil). Sunucu ayarları (karşılama metni, bant genişliği,
+      kullanıcı sınırı) protokolde yok; Ice/gRPC veya config + yeniden başlatma gerekir, kapsam dışı kaldı.
+- [x] Kimlik doğrulama: `MUMWEB_ADMIN_PASSWORD` (boşsa panel kapalı) ve giriş formunda bir Mumble hesabı
+      (`MUMWEB_ALLOW_SUPERUSER` ana arayüzde kapalı olsa da SuperUser burada çalışır); kendi kilit sayacı.
+- [x] Ayrı sayfa (`/admin/`), kendi kimliği (sertifika anahtarı `cert-admin`), ses ve mikrofon yok; bu sayede sesli
+      istemci ve panel aynı tarayıcıda yan yana çalışır; durumu değiştiren her işlem loglanır.
+- [x] Panelde kanal şifresi ve ACL düzenleme.
+- [x] Gerçek bir Mumble 1.5.915 sunucusuna karşı (Go entegrasyon testi) ve yerel kurulumda başsız Chrome ile
+      doğrulandı (bkz. PROGRESS).
+- [ ] Sahibi tarafından elle henüz denenmedi; telefonda yerleşimi kontrol edin.
+- [ ] Yasak listesi yazımı tüm listeyi değiştirir; bu yüzden Yasaklar sekmesi açıkken başka yerden eklenen bir yasağı
+      bayat bir panel geri alabilir (sekme her açılışta ve her kayıttan sonra yeniden okur). Sağlam çözüm: ekleme/silmeyi
+      anahtarla gönderip gateway'in taze çekilmiş listeye uygulaması (`completeBans` gibi).
+- [ ] Fikirler: panelden kullanıcıları kanallar arasında taşıma, kalıcı bir denetim log dosyası, tek ortak yönetici
+      şifresi yerine bir admin grubunu panel erişimine bağlama, masaüstü IP yasakları için "bekçi hesabı" (bkz. C).
+- [ ] Bir sonraki imaj sürümünden sonra `make hub-readme` çalıştırın (`docs/DOCKERHUB.md` `MUMWEB_ADMIN_PASSWORD`'ı
+      zaten listeliyor, ancak yayınlanmış `0.1.0` imajında panel henüz yok; bu yüzden Hub sayfasına dokunulmadı).
 
 ### 4. Ayrıntılı güvenlik incelemesi (production'dan ÖNCE, zorunlu)
 Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim sağlanamamalı.
@@ -82,7 +93,7 @@ Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim s
       Android Chrome (test Samsung Internet ile yapıldı).
 - [ ] Kulaklıksız kullanımda yankı (tarayıcı AEC'si).
 - [ ] Firefox (Windows) gerçek mikrofon; Safari 26+ (iOS/macOS) — WebKit kaynağına göre WebCodecs Opus var, cihazda denenmedi.
-- [ ] [TESTING.md](TESTING.md)'deki 12 maddelik manuel kabul listesi.
+- [ ] [TESTING.md](TESTING.md)'deki 17 maddelik manuel kabul listesi (13–17. maddeler: yönetim paneli).
 
 ## C. Bilinen sınırlar ve ertelenen kararlar
 - Sahibinin Android'de bulduğu (2026-10-13, Samsung Internet): ses ve mesaj çalışıyor, mobil görünüm iyi, ekran

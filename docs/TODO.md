@@ -29,15 +29,26 @@ Last updated: 2026-10-13. Detailed history and verification notes: [PROGRESS.md]
 - [ ] Not verified by hand in a browser yet (automated gateway tests and a type-checked UI only).
 - [ ] Evaluate an invite link (signed, expiring token) instead of or alongside the password.
 
-### 3. Web admin panel (if feasible)
-- [ ] Decide the scope. What the Mumble protocol allows: ACLs and groups, ban list (view/add/remove), registered
-      users (UserList: list/rename/delete), channel management (exists), user management (exists). Server settings
-      (welcome text, bandwidth, user limit) are not in the protocol; they need Ice/gRPC or config + restart.
-- [ ] Authentication: SuperUser or a registered user in an admin group; in production a separate admin password and
-      HTTPS only.
-- [ ] A separate page (`/admin`), independent of the main UI; all actions logged.
-- [ ] The ACL password field and channel password that even the desktop client lacks already exist and should be
-      shown in the panel too.
+### 3. Web admin panel (built 2026-10-14)
+- [x] Scope: online users (kick, certificate ban, mute/deafen, register), channel tree (create, rename, remove,
+      channel password), full ACL and group editor, ban list (remove any entry, add certificate bans), registered
+      users (list, rename, delete). Server settings (welcome text, bandwidth, user limit) are not in the protocol;
+      they need Ice/gRPC or config + restart and stay out of scope.
+- [x] Authentication: `MUMWEB_ADMIN_PASSWORD` (panel is off when empty) plus a Mumble account on the login form
+      (SuperUser works there although `MUMWEB_ALLOW_SUPERUSER` is off for the main UI); own lockout tracker.
+- [x] A separate page (`/admin/`) with its own identity (certificate key `cert-admin`), no audio and no microphone,
+      so the voice client and the panel run side by side in one browser; every state-changing action is logged.
+- [x] Channel password and ACL editing in the panel.
+- [x] Verified against a real Mumble 1.5.915 server (Go integration test) and in headless Chrome against the local
+      deployment (see PROGRESS).
+- [ ] Not verified by hand by the owner yet; check the layout on a phone.
+- [ ] Ban list writes replace the whole list, so a stale panel could undo a ban added elsewhere while its Bans tab was
+      open (the tab re-reads on every open and after each save). Robust fix: send adds/removes by key and let the
+      gateway apply them to a freshly fetched list, like `completeBans`.
+- [ ] Ideas: move users between channels from the panel, a persistent audit log file, mapping an admin group to
+      panel access (instead of one shared admin password), a "guard account" for desktop IP bans (see C).
+- [ ] After the next image release run `make hub-readme` (`docs/DOCKERHUB.md` already lists `MUMWEB_ADMIN_PASSWORD`,
+      but the published `0.1.0` image does not have the panel yet, so the Hub page was left untouched).
 
 ### 4. Detailed security review (REQUIRED before production)
 Goal: no input path may give access outside the container or to the host system.
@@ -85,7 +96,7 @@ Goal: no input path may give access outside the container or to the host system.
 - [ ] Echo without headphones (browser AEC).
 - [ ] Firefox (Windows) with a real microphone; Safari 26+ (iOS/macOS): per the WebKit source WebCodecs Opus exists,
       untested on a device.
-- [ ] The 12-item manual acceptance list in [TESTING.md](TESTING.md).
+- [ ] The 17-item manual acceptance list in [TESTING.md](TESTING.md) (items 13–17: admin panel).
 
 ## C. Known limits and deferred decisions
 - Found by the owner on Android (2026-10-13, Samsung Internet): voice and chat work, the responsive layout is good, and

@@ -17,6 +17,8 @@ import (
 const (
 	maxJSONSize  = 16 << 10
 	maxAudioSize = 4 << 10
+	// Admin sessions may send whole ban lists and ACLs.
+	maxAdminJSONSize = 512 << 10
 )
 
 // Binary frame layout (little endian), see the plan section 6.3.
@@ -34,12 +36,15 @@ type clientMsg struct {
 	T string `json:"t"`
 
 	// hello (Tokens: remembered channel passwords / access tokens; also setTokens)
-	Username string    `json:"username"`
-	Password string    `json:"password"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 	// AccessPassword is the web access password (MUMWEB_ACCESS_PASSWORD), not the Mumble server password.
-	AccessPassword string `json:"accessPassword"`
-	Cert     *certPair `json:"cert"`
-	Tokens   []string  `json:"tokens"`
+	AccessPassword string    `json:"accessPassword"`
+	Cert           *certPair `json:"cert"`
+	Tokens         []string  `json:"tokens"`
+	// Role is "admin" for the /admin panel (needs AdminPassword); anything else is a normal session.
+	Role          string `json:"role"`
+	AdminPassword string `json:"adminPassword"`
 
 	// joinChannel
 	ChannelID *uint32 `json:"channelId"`
@@ -76,6 +81,120 @@ type clientMsg struct {
 
 	// ping
 	TS *float64 `json:"ts"`
+
+	// admin panel (admin sessions only): adminSetBanList, adminUpdateUsers, adminACL, adminSetACL
+	Bans        []banEntryJSON   `json:"bans"`
+	UserUpdates []userUpdateJSON `json:"userUpdates"`
+	ACL         *aclJSON         `json:"acl"`
+}
+
+// --- admin panel payloads ---
+
+type banEntryJSON struct {
+	Address  string `json:"address"`
+	Mask     uint32 `json:"mask"`
+	Name     string `json:"name,omitempty"`
+	Hash     string `json:"hash,omitempty"`
+	Reason   string `json:"reason,omitempty"`
+	Start    string `json:"start,omitempty"`
+	Duration uint32 `json:"duration"`
+}
+
+type userUpdateJSON struct {
+	ID   uint32  `json:"id"`
+	Name *string `json:"name"` // null deletes the registration
+}
+
+type registeredUserJSON struct {
+	ID          uint32  `json:"id"`
+	Name        string  `json:"name"`
+	LastSeen    string  `json:"lastSeen,omitempty"`
+	LastChannel *uint32 `json:"lastChannel,omitempty"`
+}
+
+type aclEntryJSON struct {
+	ApplyHere bool    `json:"applyHere"`
+	ApplySubs bool    `json:"applySubs"`
+	Inherited bool    `json:"inherited"`
+	UserID    *uint32 `json:"userId,omitempty"`
+	Group     string  `json:"group,omitempty"`
+	Grant     uint32  `json:"grant"`
+	Deny      uint32  `json:"deny"`
+}
+
+type aclGroupJSON struct {
+	Name             string   `json:"name"`
+	Inherited        bool     `json:"inherited"`
+	Inherit          bool     `json:"inherit"`
+	Inheritable      bool     `json:"inheritable"`
+	Add              []uint32 `json:"add"`
+	Remove           []uint32 `json:"remove"`
+	InheritedMembers []uint32 `json:"inheritedMembers"`
+}
+
+type aclJSON struct {
+	InheritACLs bool           `json:"inheritAcls"`
+	ACLs        []aclEntryJSON `json:"acls"`
+	Groups      []aclGroupJSON `json:"groups"`
+}
+
+type banListMsg struct {
+	T    string         `json:"t"` // "banList"
+	Bans []banEntryJSON `json:"bans"`
+}
+
+type userListMsg struct {
+	T     string               `json:"t"` // "userList"
+	Users []registeredUserJSON `json:"users"`
+}
+
+type aclMsg struct {
+	T         string `json:"t"` // "acl"
+	ChannelID uint32 `json:"channelId"`
+	aclJSON
+}
+
+// adminBusyMsg tells the panel that an admin command was dropped by the pacing limit.
+type adminBusyMsg struct {
+	T string `json:"t"` // "adminBusy"
+}
+
+func newBanListMsg(bans []mumble.BanEntry) banListMsg {
+	out := banListMsg{T: "banList", Bans: make([]banEntryJSON, 0, len(bans))}
+	for _, b := range bans {
+		out.Bans = append(out.Bans, banEntryJSON(b))
+	}
+	return out
+}
+
+func newUserListMsg(users []mumble.RegisteredUser) userListMsg {
+	out := userListMsg{T: "userList", Users: make([]registeredUserJSON, 0, len(users))}
+	for _, u := range users {
+		out.Users = append(out.Users, registeredUserJSON(u))
+	}
+	return out
+}
+
+func newACLMsg(a mumble.ChannelACL) aclMsg {
+	m := aclMsg{T: "acl", ChannelID: a.ChannelID}
+	m.InheritACLs = a.InheritACLs
+	m.ACLs = make([]aclEntryJSON, 0, len(a.ACLs))
+	for _, e := range a.ACLs {
+		m.ACLs = append(m.ACLs, aclEntryJSON(e))
+	}
+	m.Groups = make([]aclGroupJSON, 0, len(a.Groups))
+	for _, g := range a.Groups {
+		m.Groups = append(m.Groups, aclGroupJSON{Name: g.Name, Inherited: g.Inherited, Inherit: g.Inherit, Inheritable: g.Inheritable,
+			Add: nonNil(g.Add), Remove: nonNil(g.Remove), InheritedMembers: nonNil(g.InheritedMembers)})
+	}
+	return m
+}
+
+func nonNil(s []uint32) []uint32 {
+	if s == nil {
+		return []uint32{}
+	}
+	return s
 }
 
 type certPair struct {

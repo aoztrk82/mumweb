@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { defineConfig } from 'vite'
 
@@ -9,6 +10,13 @@ export default defineConfig({
     // public/.gitkeep is copied over so the tracked placeholder survives emptyOutDir.
     outDir: '../gateway/web/dist',
     emptyOutDir: true,
+    rollupOptions: {
+      // Two pages: the voice client (/) and the admin panel (/admin/).
+      input: {
+        main: resolve(import.meta.dirname, 'index.html'),
+        admin: resolve(import.meta.dirname, 'admin/index.html'),
+      },
+    },
   },
   server: {
     proxy: {

@@ -25,6 +25,8 @@ server, channels and voice.
   audio. Ten simultaneous speakers use roughly 45 % of one CPU core and 15 MiB of RAM.
 - **Desktop-grade controls.** Channel tree, push-to-talk or voice activation, per-user volume, the same
   right-click menus as the desktop client, channel passwords, chat, and more (see below).
+- **Admin panel.** An optional `/admin/` page (off until you set a password) with an ACL and group editor, ban list,
+  registered users and channel management; it runs next to the voice client in the same browser.
 - **Safe by default.** One fixed Mumble target (browsers cannot pick an address), Origin checks, per-IP and
   per-session limits, HTML-sanitised chat, SuperUser login from the web disabled unless you enable it.
 - **Persistent identity.** Each browser keeps a client certificate (IndexedDB), so users can register on Mumble and
@@ -118,6 +120,8 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
          MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
          # Optional password every web user must enter (independent of the Mumble server password).
          MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
+         # Switches on the /admin panel (empty = panel off). Separate from the access password.
+         MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
        depends_on:
          - mumble
 
@@ -192,8 +196,9 @@ Mumble also rate-limits each user (`messagelimit` = 1/s, `messageburst` = 5; cov
 creation/ACL edits and chat) and **silently drops** the excess. If a rapid series of actions did not all happen,
 wait a few seconds and retry; the desktop client has the same limit.
 
-The `SuperUser` account cannot speak in Mumble (by design; it is for administration). SuperUser login from the web
-is controlled by `MUMWEB_ALLOW_SUPERUSER` and is off in production.
+The `SuperUser` account cannot speak in Mumble (by design; it is for administration). SuperUser login from the main
+web client is controlled by `MUMWEB_ALLOW_SUPERUSER` and is off in production; for administration use the
+[admin panel](#admin-panel-admin) (`MUMWEB_ADMIN_PASSWORD`) or the desktop client.
 
 ### Behind an existing reverse proxy (Caddy, nginx, Traefik…)
 
@@ -255,8 +260,9 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_ALLOWED_ORIGINS` | empty | Comma-separated allowed `Origin`s (e.g. `https://voice.example.com`; the default port may be included). Empty means same host only |
 | `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
 | `MUMWEB_TRUST_PROXY` | `false` | Take the client IP from `X-Forwarded-For` (set `true` behind a reverse proxy) |
-| `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web (when off the name is rejected; administer from the desktop client) |
+| `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web (when off the name is rejected in the main client; administer with the admin panel or the desktop client) |
 | `MUMWEB_ACCESS_PASSWORD` | empty | If set, every web user must enter this password on the login screen. Separate from the Mumble server password and only enforced by the gateway (see below) |
+| `MUMWEB_ADMIN_PASSWORD` | empty | If set, switches on the admin panel at `/admin`; admin sessions must send it. Empty = panel off (see below) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 ### Compose variables (`deploy/.env`)
@@ -271,6 +277,7 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_LOG_LEVEL` | `info` | See above |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | See above |
 | `MUMWEB_ACCESS_PASSWORD` | empty | See above |
+| `MUMWEB_ADMIN_PASSWORD` | empty | See above |
 
 ### Web access password
 
@@ -283,6 +290,35 @@ Set `MUMWEB_ACCESS_PASSWORD` to keep strangers out of the web client. The login 
   guess, and locks an IP out for 10 minutes after 5 wrong guesses.
 - It travels over the same HTTPS/WSS connection as everything else, so use HTTPS. Treat it as a shared "door code",
   not as per-user authentication.
+
+### Admin panel (`/admin`)
+
+Set `MUMWEB_ADMIN_PASSWORD` to switch on the admin panel at `https://your-domain/admin/`. Without it the panel is
+off and its login is refused. It manages what the Mumble protocol exposes:
+
+- **Online:** kick, ban (certificate only), server mute/deafen, register.
+- **Channels:** tree with create / rename / remove, the channel password, and a full **ACL and group editor**
+  (rules and their order, allow/deny per permission, inherit flags, group members).
+- **Bans:** the ban list. You can remove any entry (also IP bans made from the desktop client) and add certificate bans.
+- **Registered users:** list, rename, delete.
+
+Server settings (welcome text, bandwidth, user limit) are not part of the Mumble protocol; change them in the
+server's configuration.
+
+- **Log in with a separate account.** The panel asks for the admin password, then for a Mumble account, usually
+  `SuperUser` with the Mumble admin password. SuperUser works here even though `MUMWEB_ALLOW_SUPERUSER` is `false` for
+  the main client, so you can keep the main login closed. Registered users with the right permissions (a group
+  with Ban / Register / Write) work too.
+- **Voice and admin at the same time, same browser.** The panel keeps its own certificate (identity) and carries no
+  audio, so a second tab can run the voice client while `/admin` is open. Use two different accounts: Mumble drops the
+  older session when the same registered account connects twice.
+- The admin password replaces the web access password for this page. The gateway checks it before it connects to
+  Mumble, with its own brute-force lockout (5 wrong guesses lock the IP for 10 minutes, separate from the access
+  password's lockout). The Mumble server still enforces permissions for every action.
+- Every state-changing admin action is logged (action, ids, counts; never passwords, chat or ACL group names, because
+  a `#name` group is a channel password). Writes are paced to stay under Mumble's message rate limit.
+- It needs HTTPS in production (the password travels over the WebSocket). Keep the value long and random. If you do not
+  want the page reachable at all, block `/admin*` in your reverse proxy.
 
 ### Pinning the Mumble certificate
 

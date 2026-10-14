@@ -3,7 +3,9 @@ import type { CertPair } from './protocol'
 
 const DB_NAME = 'mumweb'
 const STORE = 'identity'
-const KEY = 'cert'
+/** Keys: the main app and the /admin panel use separate identities, so both can be logged in at once. */
+export const MAIN_KEY = 'cert'
+export const ADMIN_KEY = 'cert-admin'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -34,9 +36,9 @@ function isCertPair(v: unknown): v is CertPair {
 }
 
 /** Returns the stored certificate, or null if none (or storage is unavailable). */
-export async function loadCert(): Promise<CertPair | null> {
+export async function loadCert(key = MAIN_KEY): Promise<CertPair | null> {
   try {
-    const v = await withStore('readonly', (s) => s.get(KEY))
+    const v = await withStore('readonly', (s) => s.get(key))
     return isCertPair(v) ? v : null
   } catch (e) {
     console.warn('certificate storage unavailable', e)
@@ -44,10 +46,10 @@ export async function loadCert(): Promise<CertPair | null> {
   }
 }
 
-export async function saveCert(cert: CertPair): Promise<void> {
-  await withStore('readwrite', (s) => s.put({ pem: cert.pem, key: cert.key }, KEY))
+export async function saveCert(cert: CertPair, key = MAIN_KEY): Promise<void> {
+  await withStore('readwrite', (s) => s.put({ pem: cert.pem, key: cert.key }, key))
 }
 
-export async function clearCert(): Promise<void> {
-  await withStore('readwrite', (s) => s.delete(KEY))
+export async function clearCert(key = MAIN_KEY): Promise<void> {
+  await withStore('readwrite', (s) => s.delete(key))
 }

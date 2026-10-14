@@ -68,6 +68,8 @@ services:
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-true}
       # Optional web access password (empty = open); handy for trying the login field.
       MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-test}
+      # Admin panel at /admin (SuperUser works there even though the main UI refuses it).
+      MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-admin}
     depends_on:
       - mumble
 

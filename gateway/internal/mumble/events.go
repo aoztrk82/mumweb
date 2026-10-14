@@ -66,6 +66,15 @@ type ChannelPasswordEvent struct {
 	Password  string
 }
 
+// BanListEvent answers QueryBanList.
+type BanListEvent struct{ Bans []BanEntry }
+
+// UserListEvent answers QueryUserList: the server's registered users.
+type UserListEvent struct{ Users []RegisteredUser }
+
+// ACLEvent answers QueryACL: a channel's ACL entries and groups, including inherited ones.
+type ACLEvent struct{ ACL ChannelACL }
+
 // AudioEvent is a received voice packet.
 type AudioEvent struct{ Packet AudioPacket }
 
@@ -80,3 +89,6 @@ func (AudioEvent) isEvent()           {}
 func (PermissionEvent) isEvent()      {}
 func (UserStatsEvent) isEvent()       {}
 func (ChannelPasswordEvent) isEvent() {}
+func (BanListEvent) isEvent()         {}
+func (UserListEvent) isEvent()        {}
+func (ACLEvent) isEvent()             {}

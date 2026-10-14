@@ -37,6 +37,8 @@ services:
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
       # Optional password every web user must enter (independent of the Mumble server password).
       MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
+      # Switches on the /admin panel (empty = panel off). Separate from the access password.
+      MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
     depends_on:
       - mumble
 

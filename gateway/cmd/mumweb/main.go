@@ -46,6 +46,7 @@ func main() {
 		TrustProxy:     envBool("MUMWEB_TRUST_PROXY", false),
 		AllowSuperUser: envBool("MUMWEB_ALLOW_SUPERUSER", false),
 		AccessPassword: os.Getenv("MUMWEB_ACCESS_PASSWORD"),
+		AdminPassword:  os.Getenv("MUMWEB_ADMIN_PASSWORD"),
 		Release:        release,
 		Logger:         logger,
 	}
@@ -63,7 +64,7 @@ func main() {
 
 	go func() {
 		slog.Info("listening", "addr", addr, "mumble", bcfg.MumbleAddr, "tlsVerify", bcfg.TLSVerify,
-			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "")
+			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "", "admin", bcfg.AdminPassword != "")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "err", err)
 			os.Exit(1)
@@ -82,11 +83,12 @@ func main() {
 func newMux(dist fs.FS, ws *bridge.Handler) *http.ServeMux {
 	mux := http.NewServeMux()
 	mux.Handle("GET /ws", ws)
-	// Tells the login screen whether to ask for the web access password.
+	// Tells the login screen whether to ask for the web access password and
+	// whether the admin panel is switched on.
 	mux.HandleFunc("GET /config", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]bool{"accessPassword": ws.AccessPasswordRequired()})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"accessPassword": ws.AccessPasswordRequired(), "admin": ws.AdminEnabled()})
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -100,6 +102,11 @@ func newMux(dist fs.FS, ws *bridge.Handler) *http.ServeMux {
 			_, _ = w.Write([]byte(noBuildPage))
 		})
 	} else {
+		// The admin panel is a second page (admin/index.html). The bare path redirects
+		// so relative asset URLs resolve; the panel itself is only usable with the admin password.
+		mux.HandleFunc("GET /admin", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/admin/", http.StatusMovedPermanently)
+		})
 		mux.Handle("GET /", cacheHeaders(http.FileServerFS(dist)))
 	}
 	return mux

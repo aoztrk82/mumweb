@@ -8,7 +8,17 @@ export interface CertPair {
 // --- browser -> gateway ---
 
 export type ClientMessage =
-  | { t: 'hello'; username: string; password: string; accessPassword: string; cert: CertPair | null; tokens: string[] }
+  | {
+      t: 'hello'
+      username: string
+      password: string
+      accessPassword: string
+      cert: CertPair | null
+      tokens: string[]
+      /** 'admin' for the /admin panel (needs the gateway's admin password). */
+      role?: 'admin'
+      adminPassword?: string
+    }
   | { t: 'setTokens'; tokens: string[] }
   | { t: 'setChannelPassword'; channelId: number; channelPassword: string }
   | { t: 'queryChannelPassword'; channelId: number }
@@ -26,6 +36,60 @@ export type ClientMessage =
   | { t: 'setUser'; session: number; mute?: boolean; deaf?: boolean; prioritySpeaker?: boolean }
   | { t: 'kick' | 'ban'; session: number; reason: string }
   | { t: 'register' | 'resetComment' | 'resetTexture' | 'requestComment' | 'userStats'; session: number }
+  // admin sessions only
+  | { t: 'adminBanList' | 'adminUserList' }
+  | { t: 'adminSetBanList'; bans: BanEntry[] }
+  | { t: 'adminUpdateUsers'; userUpdates: { id: number; name: string | null }[] }
+  | { t: 'adminACL'; channelId: number }
+  | { t: 'adminSetACL'; channelId: number; acl: AclData }
+
+// --- admin panel payloads ---
+
+export interface BanEntry {
+  /** IP address; "100::" with mask 128 marks a certificate-only ban. */
+  address: string
+  mask: number
+  name?: string
+  hash?: string
+  reason?: string
+  start?: string
+  /** Seconds, 0 = permanent. */
+  duration: number
+}
+
+export interface RegisteredUser {
+  id: number
+  name: string
+  lastSeen?: string
+  lastChannel?: number
+}
+
+export interface AclEntry {
+  applyHere: boolean
+  applySubs: boolean
+  /** Defined in a parent channel (read only). */
+  inherited: boolean
+  userId?: number
+  group?: string
+  grant: number
+  deny: number
+}
+
+export interface AclGroup {
+  name: string
+  inherited: boolean
+  inherit: boolean
+  inheritable: boolean
+  add: number[]
+  remove: number[]
+  inheritedMembers: number[]
+}
+
+export interface AclData {
+  inheritAcls: boolean
+  acls: AclEntry[]
+  groups: AclGroup[]
+}
 
 // --- gateway -> browser ---
 
@@ -112,6 +176,10 @@ export type ServerMessage =
   | { t: 'pong'; ts: number }
   | { t: 'permissions'; channelId: number; permissions: number; flush: boolean }
   | ({ t: 'userStats' } & UserStats)
+  | { t: 'banList'; bans: BanEntry[] }
+  | { t: 'userList'; users: RegisteredUser[] }
+  | ({ t: 'acl'; channelId: number } & AclData)
+  | { t: 'adminBusy' }
   | { t: 'error'; code: 'invalid_certificate' | 'mumble_unavailable' | 'disconnected'; message: string }
 
 // --- binary audio frames (little endian) ---

@@ -19,3 +19,18 @@ a human with real devices can verify. Run it with a desktop Mumble client connec
 11. Repeat 1–5 in desktop Firefox and Android Chrome; on Android, add to the home screen, check that it opens
     full-screen and that push-to-talk works.
 12. With 10 concurrent browser sessions, gateway CPU and RAM stay reasonable (measure with `docker stats`).
+
+Admin panel (`MUMWEB_ADMIN_PASSWORD` set; the local environment uses `admin`):
+
+13. `/admin` without the variable set shows "disabled" after login. With it: a wrong admin password is refused, and
+    after 5 wrong guesses the IP is locked out for a while while the main login still works.
+14. Log in to `/admin/` as `SuperUser` while the main client is connected with a normal nickname in another tab of the
+    same browser: both stay connected (no one is kicked) and the panel lists the voice user under **Online**. Speak in
+    the voice tab; audio works as before.
+15. **Channels:** create, rename and remove a channel; set a channel password and check a normal user is asked for it;
+    open **ACL and groups**, tick a permission, add a group member, save, reopen and see the change. On a desktop
+    client the same ACL shows in the ACL editor.
+16. **Bans:** ban a user from **Online** (certificate only), see the entry, remove it and save; the user can log in
+    again. A ban made from the desktop client (IP + hash) can be removed here.
+17. **Registered users:** register a user from **Online**, rename it and delete it in the panel. Do ten quick actions in
+    a row and check none is silently lost (a "too many actions" message may appear instead).

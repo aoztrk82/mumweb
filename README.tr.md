@@ -19,6 +19,8 @@ arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
   kullanıcılarını masaüstü kullanıcılarından ayırt etmez. Ses Mumble TCP bağlantısındaki `UDPTunnel` ile taşınır.
 - Opus kodlama/çözme tarayıcıda (WebCodecs) yapılır; gateway sesi çözmez, CPU açısından hafiftir.
 - Gateway yalnızca yapılandırılmış tek Mumble sunucusuna bağlanır (tarayıcı adres seçemez).
+- İsteğe bağlı `/admin/` yönetim paneli (şifre ayarlanana kadar kapalı): ACL ve grup düzenleyici, yasak listesi, kayıtlı
+  kullanıcılar ve kanal yönetimi; aynı tarayıcıda sesli istemcinin yanında çalışır.
 - Her tarayıcı kalıcı bir istemci sertifikası (IndexedDB) kullanır; böylece kullanıcılar Mumble'da kendini
   kaydedebilir ve yetki alabilir. Gateway sertifikaları diskte saklamaz.
 
@@ -97,6 +99,8 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
          MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
          # Optional password every web user must enter (independent of the Mumble server password).
          MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
+         # Switches on the /admin panel (empty = panel off). Separate from the access password.
+         MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
        depends_on:
          - mumble
 
@@ -171,8 +175,9 @@ Mumble sunucusu kullanıcı başına mesaj hızını sınırlar (`messagelimit`=
 mute, kanal oluşturma/ACL, sohbet mesajı) ve fazlasını **sessizce düşürür**. Çok hızlı art arda yapılan işlemlerden
 biri olmazsa birkaç saniye sonra tekrar deneyin; masaüstü istemci için de aynı sınır geçerlidir.
 
-`SuperUser` hesabı Mumble'da tasarım gereği konuşamaz (yalnızca yönetim içindir). Web'den SuperUser girişi
-`MUMWEB_ALLOW_SUPERUSER` ile açılır; production'da kapalıdır.
+`SuperUser` hesabı Mumble'da tasarım gereği konuşamaz (yalnızca yönetim içindir). Ana web istemcisinden SuperUser girişi
+`MUMWEB_ALLOW_SUPERUSER` ile açılır; production'da kapalıdır. Yönetim için [yönetim panelini](#yönetim-paneli-admin)
+(`MUMWEB_ADMIN_PASSWORD`) veya masaüstü istemciyi kullanın.
 
 ## Mevcut bir kurulumla kullanım
 
@@ -221,8 +226,9 @@ location / {
 | `MUMWEB_ALLOWED_ORIGINS` | boş | Virgülle ayrılmış izinli `Origin`'ler (ör. `https://ses.alanadi.com`; varsayılan port yazılsa da olur); boşsa yalnızca aynı host |
 | `MUMWEB_CONN_RATE` | `10` | IP başına dakikada yeni bağlantı sınırı (`0` = kapalı) |
 | `MUMWEB_TRUST_PROXY` | `false` | İstemci IP'sini `X-Forwarded-For`'dan al (ters proxy arkasında `true`) |
-| `MUMWEB_ALLOW_SUPERUSER` | `false` | Web'den Mumble `SuperUser` hesabıyla girişe izin ver (kapalıyken bu ad reddedilir; yönetim masaüstü istemciden) |
+| `MUMWEB_ALLOW_SUPERUSER` | `false` | Web'den Mumble `SuperUser` hesabıyla girişe izin ver (kapalıyken bu ad ana istemcide reddedilir; yönetim için yönetim paneli veya masaüstü istemci) |
 | `MUMWEB_ACCESS_PASSWORD` | boş | Doluysa her web kullanıcısı giriş ekranında bu şifreyi girmek zorundadır. Mumble sunucu şifresinden ayrıdır ve yalnızca gateway uygular (aşağıya bakın) |
+| `MUMWEB_ADMIN_PASSWORD` | boş | Doluysa `/admin` yönetim panelini açar; yönetim oturumları bunu göndermek zorundadır. Boşsa panel kapalıdır (aşağıya bakın) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 ### Web erişim şifresi
@@ -236,6 +242,37 @@ alanı çıkar ("bu tarayıcıda hatırla" seçeneğiyle); alan yalnızca özell
   5 yanlış denemeden sonra o IP'yi 10 dakika engeller.
 - Diğer her şey gibi HTTPS/WSS üzerinden gider, bu yüzden HTTPS kullanın. Kullanıcı başına kimlik doğrulama değil,
   ortak bir "kapı kodu" olarak düşünün.
+
+### Yönetim paneli (`/admin`)
+
+`https://alan-adiniz/admin/` adresindeki yönetim panelini açmak için `MUMWEB_ADMIN_PASSWORD` ayarlayın. Ayarlı değilse
+panel kapalıdır ve girişi reddedilir. Panel, Mumble protokolünün sunduklarını yönetir:
+
+- **Çevrimiçi:** at, yasakla (yalnızca sertifika), sunucu tarafı sustur/sağır et, kaydet.
+- **Kanallar:** oluşturma / yeniden adlandırma / silme ile kanal ağacı, kanal şifresi ve tam bir **ACL ve grup
+  düzenleyicisi** (kurallar ve sıraları, izin başına izin ver/reddet, devralma bayrakları, grup üyeleri).
+- **Yasaklar:** yasak listesi. Her kaydı silebilirsiniz (masaüstü istemciden yapılan IP yasakları dahil) ve sertifika
+  yasağı ekleyebilirsiniz.
+- **Kayıtlı kullanıcılar:** listele, yeniden adlandır, sil.
+
+Sunucu ayarları (karşılama metni, bant genişliği, kullanıcı sınırı) Mumble protokolünde yoktur; sunucunun yapılandırmasından
+değiştirin.
+
+- **Ayrı bir hesapla girin.** Panel önce yönetici şifresini, sonra bir Mumble hesabını ister; genellikle `SuperUser` ve
+  Mumble yönetici şifresi. Ana istemci için `MUMWEB_ALLOW_SUPERUSER` `false` olsa da SuperUser burada çalışır; yani ana
+  girişi kapalı tutabilirsiniz. Gerekli izinlere sahip kayıtlı kullanıcılar da (Ban / Register / Write izinli bir grup)
+  çalışır.
+- **Aynı tarayıcıda aynı anda sesli sohbet ve yönetim.** Panel kendi sertifikasını (kimliğini) tutar ve ses taşımaz; bu
+  yüzden `/admin` açıkken başka bir sekmede sesli istemci çalışabilir. İki farklı hesap kullanın: aynı kayıtlı hesap iki
+  kez bağlanırsa Mumble eski oturumu düşürür.
+- Yönetici şifresi bu sayfada web erişim şifresinin yerini alır. Gateway onu Mumble'a bağlanmadan önce kontrol eder ve
+  kendi kaba kuvvet kilidi vardır (5 yanlış denemede IP 10 dakika engellenir; erişim şifresinin kilidinden ayrıdır).
+  Her işlem için izinleri yine Mumble sunucusu uygular.
+- Durumu değiştiren her yönetim işlemi loglanır (işlem, kimlikler, sayılar; asla şifre, sohbet veya ACL grup adı, çünkü
+  `#ad` biçimli grup bir kanal şifresidir). Yazma işlemleri Mumble'ın mesaj hız sınırının altında kalacak şekilde
+  yavaşlatılır.
+- Production'da HTTPS gerekir (şifre WebSocket üzerinden gider). Değeri uzun ve rastgele seçin. Sayfanın hiç
+  erişilebilir olmasını istemiyorsanız ters proxy'nizde `/admin*` yolunu engelleyin.
 
 Mumble sunucusunun parmak izini `mumprobe` yazdırır (`make gateway` sonrası):
 `./bin/mumprobe -addr <sunucu>:64738 -exit` → `server certificate SHA-256: AB:CD:…`. Bu değer

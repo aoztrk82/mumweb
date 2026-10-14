@@ -526,6 +526,67 @@ istemciyle konuşuldu.
   `scripts/dockerhub-description.py` (`make hub-readme`) üzerinden, Docker Desktop'ın kayıtlı girişi kullanılarak
   ayarlandı. Herkese açık depo sayfası API'sinden kontrol edildi.
 
+## Ek — web yönetim paneli (2026-10-14)
+
+- **Ne:** `/admin/`, gateway'in sunduğu ikinci bir Vite sayfasıdır (`web/admin/index.html`, `web/src/admin/`; `/admin`
+  adresi `/admin/`'e yönlendirir). Çevrimiçi kullanıcıları, kanal ağacını ve kanal şifrelerini, tam bir ACL ve grup
+  düzenleyicisini, yasak listesini ve kayıtlı kullanıcıları yönetir. `/config` artık `{"admin": bool}` da bildirir.
+- **Karar: panel, `hello.role = "admin"` olan normal bir köprü oturumudur.** `MUMWEB_ADMIN_PASSWORD` gerekir (boş =
+  panel kapalı, rol `AdminDisabled` ile reddedilir). Yönetici şifresi bu sayfada web erişim şifresinin yerini alır ve
+  kendi `failTracker`'ı vardır: `MUMWEB_TRUST_PROXY` olmadan bir proxy arkasında herkes tek IP paylaşır; ortak bir sayaç
+  yönetici şifresine kaba kuvvet denemesinin herkesi ana arayüzden kilitlemesine yol açardı. Mumble girişinin önünde
+  şifre olmasının nedeni: yabancı biri SuperUser şifresini gateway üzerinden denemeye bile başlayamasın.
+- **Karar: SuperUser yalnızca yönetim oturumlarında serbest** (yönetici şifresinden sonra). `MUMWEB_ALLOW_SUPERUSER` ana
+  istemci için olduğu gibi kalır, production'da ana giriş kapalı tutulur. "SuperUser konuşamaz" sorusuna da cevap olur:
+  panelde ses hiç yok, kimse konuşma beklemez.
+- **Karar: ses ve yönetim aynı tarayıcıda yan yana.** Bir tarayıcının iki sekmesi tek IndexedDB sertifikasını paylaşıyordu;
+  aynı kayıtlı hesap yeniden bağlanınca Mumble eski oturumu düşürür (ve gateway aynı adı başka sertifikayla reddeder).
+  Bu yüzden panel kendi sertifika anahtarını (`cert-admin`) kullanır ve sesli sekmeden farklı bir hesapla (SuperUser)
+  girmelidir. Yönetim oturumları girişten hemen sonra sağırlaştırılır, gateway onlar için ses olaylarını atar ve
+  onlardan gelen ikili çerçeveyi protokol ihlali sayar.
+- **Sunucunun kontrollerine ek gateway kontrolleri:** yönetici olmayan oturumda yönetim komutları (`adminBanList`,
+  `adminSetBanList`, `adminUserList`, `adminUpdateUsers`, `adminACL`, `adminSetACL`) oturumu protokol hatasıyla sonlandırır.
+  Yasak listesi yazımı yalnızca sunucunun son gönderdiği listedeki kayıtları koruyabilir veya yalnızca sertifikaya bağlı
+  kayıt (`100::/128` ve özet) ekleyebilir: yeni bir IP yasağı tüm web kullanıcılarını vurur, ama masaüstünden yapılmış IP
+  yasağını silmek serbesttir. SuperUser (kimlik 0) yeniden adlandırılamaz/silinemez; izin maskeleri, grup adları ve liste
+  boyutları sınırlıdır; yönetim JSON okuma sınırı 16 KiB yerine 512 KiB'dir (yasak listeleri, ACL'ler).
+- **Hız sınırı:** Mumble sunucusu ~1 mesaj/sn (burst 5) üstünü sorgular dahil sessizce atar. Bir saniyede on komut
+  gönderen entegrasyon denemesi son sorguyu kaybetti. Yönetim komutları artık gateway'de yavaşlatılır (0,8/sn, burst 4,
+  komut en fazla 6 sn bekler, aksi halde panel `adminBusy` alır) ve arayüz her yazmadan sonra taslağına güvenmek yerine
+  listeyi yeniden okur.
+- **Bayat listeler:** Yasaklar, Kayıtlı kullanıcılar ve ACL görünümleri verilerini önbelleğe almak yerine her açılışta (ve
+  kayıttan sonra) yeniden okur; aksi halde Çevrimiçi'den yasaklanan veya kaydedilen kullanıcı eksik görünür, bayat bir
+  yasak listesini kaydetmek de daha yeni kaydı silerdi. Kalan yarış (Yasaklar sekmesi açıkken başka yerden yapılan bir
+  değişiklik) TODO'da. Yönetici kilidinin kendi ret nedeni var (`AdminRateLimited`).
+- **Denetim logu:** durumu değiştiren her yönetim komutu işlem, kanal/hedef kimlikleri ve sayılarla loglanır. Asla şifre,
+  sohbet veya ACL grup adı (`#ad` biçimli grup bir kanal şifresidir).
+- **Protokol eklemeleri (Go `internal/mumble/admin.go`):** `UserList` hiç bağlı değildi; `BanList` ve `ACL` yanıtları, bekleyen
+  bir kick-ban veya şifre isteği yoksa yutuluyordu. Artık `BanListEvent`, `UserListEvent` ve `ACLEvent` üretiyorlar; ACL
+  geri yazımı masaüstü istemcinin süzgecini kullanır (kendi devralınmamış kayıtlar, düz devralmadan farklı gruplar).
+  Aynı kanalda şifre sorgusu ile ACL raporu artık çakışmaz.
+- **Önlenen service worker hatası:** `sw.js` her gezinme yanıtını `/` anahtarıyla saklıyordu; `/admin/` açılınca önbellekteki
+  uygulama kabuğu panelle değişirdi (ve çevrimdışı `/admin` sesli uygulamayı gösterirdi). Artık yalnızca `/` önbelleğe alınır,
+  `/admin*`'e dokunulmaz ve önbellek adı `mumweb-static-v2`'dir.
+- **Doğrulama:**
+  - Go birim testleri: sahte TLS Mumble sunucusuyla yasak listesi, kullanıcı listesi ve ACL gidiş-dönüşü (değiştirilmemiş
+    geri yazım yalnızca kendi kayıtları üretir), şifre/kilit ayrımı, yasak/ACL/kullanıcı güncelleme doğrulaması, yavaşlatma.
+  - SuperUser olarak gerçek bir **Mumble 1.5.915** sunucusuna karşı Go entegrasyon testi `TestAdminPanelEndToEnd`: normal oturum
+    yönetim komutu kullanamaz; kullanıcı listesi; yasak ekle/oku/sil; geçici kanalda ACL yazma ve geri okuma (izin/red ve
+    `applySubs=false` olan kayıt, üyeli grup); yeni IP yasağı oturumu sonlandırır.
+  - Yeniden derlenen yerel kurulumda (`deploy/local`, `https://mumweb.test`) başsız Chrome (puppeteer-core, geçici betikler,
+    commit edilmedi): yanlış yönetici şifresi reddedildi; SuperUser girişi; dört sekme de çiziliyor; prompt ile kanal
+    oluşturma; ACL düzenleyicisi Root'ta dört bölümüyle açılıyor (admin, auth, all kuralları ve admin grubu); sertifika
+    yasağı eklendi, kaydedildi, yeniden okundu ve silindi; konsol hatası yok. Sesli bir oturum (`ses-e2e`) ve panel aynı
+    tarayıcıda 6 sn birlikte bağlı kaldı ve panel sesli kullanıcıyı listeledi. Test kanalı ve yasağı sonra silindi.
+  - İnceleme düzeltmelerinden sonraki son tur: `go test ./internal/bridge` paketinin tamamı (eski kick/ban, kanal şifresi ve
+    ad devralma entegrasyon testleri dahil) yeni bir Mumble 1.5.915 kapsayıcısına karşı; ardından yerel kurulum yeniden
+    derlenip tarayıcı betikleri tekrarlandı: **Çevrimiçi**'den sesli kullanıcı kaydedildi (Kayıtlı kullanıcılar'da göründü,
+    yeniden silindi) ve sertifika yasağı konuldu (Yasaklar'da göründü, sesli oturumu sonlandı, kayıt silinip kaydedildi).
+    Yasaklar / Kayıtlı kullanıcılar sekmeleri işlemden önce açılmıştı; yani bayat önbellek olsaydı görünürdü.
+  - Yapılmadı: telefon/dar ekran kontrolü, masaüstü Mumble istemcisinin ACL düzenleyicisinde panelin yazdığı ACL'yi görmek,
+    uzun süreli kullanım. Docker Hub sayfası **güncellenmedi** (yayınlanmış imajda panel henüz yok).
+- Yerel kurulum: `MUMWEB_ADMIN_PASSWORD` varsayılanı `deploy/local/compose.yaml` ve dev compose dosyasında `admin`'dir.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

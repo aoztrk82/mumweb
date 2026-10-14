@@ -30,6 +30,7 @@ services:
     environment:
       MUMWEB_LISTEN: ":8080"
       MUMWEB_ALLOW_SUPERUSER: "true"
+      MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-admin}
 
 volumes:
   mumble-data:

@@ -48,19 +48,21 @@ type Config struct {
 	Release        string   // client release string shown to other users
 	AllowSuperUser bool     // allow logging in as Mumble's SuperUser from the web
 	AccessPassword string   // if set, browsers must send it in hello (separate from the Mumble server password)
+	AdminPassword  string   // enables the /admin panel; admin sessions must send it in hello (empty = panel off)
 	Logger         *slog.Logger
 }
 
 // Handler accepts browser WebSocket sessions on /ws.
 type Handler struct {
-	names    nameRegistry
-	base     context.Context
-	stop     context.CancelFunc
-	cfg      Config
-	log      *slog.Logger
-	limiter  *ipLimiter
-	fails    *failTracker
-	sessions atomic.Int64
+	names      nameRegistry
+	base       context.Context
+	stop       context.CancelFunc
+	cfg        Config
+	log        *slog.Logger
+	limiter    *ipLimiter
+	fails      *failTracker
+	adminFails *failTracker // separate from fails: admin guesses must not lock the main UI out
+	sessions   atomic.Int64
 }
 
 // New returns a bridge handler.
@@ -77,7 +79,7 @@ func New(cfg Config) *Handler {
 	}
 	cfg.AllowedOrigins = origins
 	base, stop := context.WithCancel(context.Background())
-	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute), fails: newFailTracker()}
+	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute), fails: newFailTracker(), adminFails: newFailTracker()}
 }
 
 // Shutdown ends all sessions. Hijacked WebSocket connections are not covered
@@ -86,6 +88,9 @@ func (h *Handler) Shutdown() { h.stop() }
 
 // AccessPasswordRequired reports whether browsers must supply the web access password.
 func (h *Handler) AccessPasswordRequired() bool { return h.cfg.AccessPassword != "" }
+
+// AdminEnabled reports whether the admin panel is switched on (MUMWEB_ADMIN_PASSWORD set).
+func (h *Handler) AdminEnabled() bool { return h.cfg.AdminPassword != "" }
 
 // Sessions returns the number of open sessions.
 func (h *Handler) Sessions() int { return int(h.sessions.Load()) }
@@ -136,6 +141,11 @@ type session struct {
 	ws  *websocket.Conn
 	log *slog.Logger
 	mc  *mumble.Client
+
+	admin       bool        // admin panel session: no audio, admin commands allowed
+	adminBucket tokenBucket // paces admin writes below the Mumble server's message rate limit
+	bansMu      sync.Mutex
+	lastBans    map[string]bool // keys of the ban list the server last sent (pump goroutine writes)
 }
 
 // run drives one session and returns the WebSocket close status.
@@ -149,7 +159,16 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		s.log.Info("ws session ended before hello", "err", err)
 		return websocket.StatusPolicyViolation, "expected hello"
 	}
-	if reason, msg := s.checkAccess(ctx, hello.AccessPassword); reason != "" {
+	if hello.Role == roleAdmin {
+		// The admin password replaces the web access password for this session.
+		if reason, msg := s.checkAdmin(ctx, hello.AdminPassword); reason != "" {
+			_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
+			return websocket.StatusNormalClosure, "admin access denied"
+		}
+		s.admin = true
+		s.ws.SetReadLimit(maxAdminJSONSize)
+		s.log = s.log.With("role", roleAdmin)
+	} else if reason, msg := s.checkAccess(ctx, hello.AccessPassword); reason != "" {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
 		return websocket.StatusNormalClosure, "access denied"
 	}
@@ -158,7 +177,7 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: "InvalidUsername", Message: "invalid username"})
 		return websocket.StatusNormalClosure, "invalid username"
 	}
-	if !s.h.cfg.AllowSuperUser && strings.EqualFold(username, "SuperUser") {
+	if !s.admin && !s.h.cfg.AllowSuperUser && strings.EqualFold(username, "SuperUser") {
 		s.log.Warn("web SuperUser login refused (MUMWEB_ALLOW_SUPERUSER=false)")
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: "SuperUserDisabled", Message: "SuperUser login is disabled for the web client"})
 		return websocket.StatusNormalClosure, "superuser disabled"
@@ -212,6 +231,11 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 	defer mc.Close()
 	s.log = s.log.With("session", mc.Session())
 	s.log.Info("session ready")
+	if s.admin {
+		// The panel has no audio path; tell the server not to send any.
+		_ = mc.SetSelf(true, true)
+		s.adminBucket.take(time.Now(), adminPerS, adminBurst)
+	}
 
 	if err := s.sendInitialState(ctx); err != nil {
 		return websocket.StatusGoingAway, ""
@@ -324,7 +348,9 @@ func (s *session) pumpEvents(ctx context.Context) error {
 		var err error
 		switch e := ev.(type) {
 		case mumble.AudioEvent:
-			err = s.write(ctx, websocket.MessageBinary, encodeAudioFrame(e.Packet))
+			if !s.admin {
+				err = s.write(ctx, websocket.MessageBinary, encodeAudioFrame(e.Packet))
+			}
 		case mumble.ChannelEvent:
 			err = s.sendJSON(ctx, newChannelMsg(e.Channel))
 		case mumble.ChannelRemoveEvent:
@@ -344,6 +370,13 @@ func (s *session) pumpEvents(ctx context.Context) error {
 			err = s.sendJSON(ctx, permissionsMsg{T: "permissions", ChannelID: e.ChannelID, Permissions: e.Permissions, Flush: e.Flush})
 		case mumble.UserStatsEvent:
 			err = s.sendJSON(ctx, newUserStatsMsg(e.Stats))
+		case mumble.BanListEvent:
+			s.rememberBans(e.Bans)
+			err = s.sendJSON(ctx, newBanListMsg(e.Bans))
+		case mumble.UserListEvent:
+			err = s.sendJSON(ctx, newUserListMsg(e.Users))
+		case mumble.ACLEvent:
+			err = s.sendJSON(ctx, newACLMsg(e.ACL))
 		case mumble.ServerConfigEvent:
 			// Already reflected in "ready"; later changes are rare and not forwarded.
 		}
@@ -380,6 +413,9 @@ func (s *session) readLoop(ctx context.Context) error {
 			return err
 		}
 		if typ == websocket.MessageBinary {
+			if s.admin {
+				return fmt.Errorf("%w: audio frame on an admin session", errProtocol)
+			}
 			p, err := parseAudioFrame(data)
 			if err != nil {
 				return fmt.Errorf("%w: %v (len %d)", errProtocol, err, len(data))
@@ -407,7 +443,19 @@ func (s *session) readLoop(ctx context.Context) error {
 }
 
 func (s *session) handleControl(ctx context.Context, m clientMsg) error {
+	if s.admin && m.T != "ping" {
+		s.audit(m)
+		if !s.adminPace(ctx) {
+			s.log.Warn("admin command dropped by pacing", "action", m.T)
+			return s.sendJSON(ctx, adminBusyMsg{T: "adminBusy"})
+		}
+	}
 	switch m.T {
+	case "adminBanList", "adminSetBanList", "adminUserList", "adminUpdateUsers", "adminACL", "adminSetACL":
+		if !s.admin {
+			return fmt.Errorf("%w: %s on a non-admin session", errProtocol, m.T)
+		}
+		return s.adminAction(ctx, m)
 	case "joinChannel":
 		if m.ChannelID == nil {
 			return fmt.Errorf("%w: joinChannel without channelId", errProtocol)

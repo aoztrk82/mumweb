@@ -1,0 +1,102 @@
+/* Shared styles of the admin panel (global classes; components add their own scoped rules). */
+body {
+  overflow-y: auto;
+}
+
+#app {
+  height: auto;
+  min-height: 100dvh;
+}
+
+.muted {
+  color: var(--text-dim);
+}
+
+.tbl-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+table.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+table.tbl th,
+table.tbl td {
+  text-align: left;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+table.tbl th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  background: var(--bg-elev);
+  white-space: nowrap;
+}
+
+table.tbl tr:last-child td {
+  border-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+button.small {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.85rem;
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+}
+
+.toolbar .grow {
+  flex: 1;
+}
+
+h2.section {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+}
+
+input[type='number'] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.5rem;
+}

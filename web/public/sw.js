@@ -1,6 +1,6 @@
 // Service worker: caches static files only, so the app shell opens offline/fast.
 // The WebSocket (/ws) and health check are never cached.
-const CACHE = 'mumweb-static-v1'
+const CACHE = 'mumweb-static-v2'
 const SHELL = ['/', '/manifest.webmanifest', '/favicon.svg', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (event) => {
@@ -25,6 +25,8 @@ self.addEventListener('fetch', (event) => {
   const req = event.request
   const url = new URL(req.url)
   if (req.method !== 'GET' || url.origin !== self.location.origin) return
+  // The admin panel is a separate page: never cache it, and never answer it with the app shell.
+  if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) return
   if (url.pathname === '/ws' || url.pathname === '/healthz' || url.pathname === '/config' || url.pathname === '/sw.js') return
 
   if (req.mode === 'navigate') {
@@ -33,7 +35,8 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((res) => {
           const copy = res.clone()
-          caches.open(CACHE).then((c) => c.put('/', copy))
+          // Only the main page may replace the cached shell.
+          if (url.pathname === '/') caches.open(CACHE).then((c) => c.put('/', copy))
           return res
         })
         .catch(() => caches.match('/')),

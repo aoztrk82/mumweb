@@ -32,10 +32,10 @@ another machine ([DEVELOPMENT.md](DEVELOPMENT.md)).
 
 ```sh
 make test                                                           # Go unit tests + Vitest
-cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge   # integration, needs a Mumble server (`make dev`)
+cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 MUMWEB_TEST_SUPERUSER_PASSWORD=<pw> go test ./internal/bridge   # integration, needs a Mumble server (`make dev`); the SuperUser password enables the admin tests
 ```
 
-- **Go:** message framing, partial `UserState` / `ChannelState` merging, `MumbleUDP.Audio` encoding, a fake TLS
+- **Go:** admin panel (ban list, registered users and an ACL round trip against a fake server; admin password, lockout isolation, ban/ACL validation, pacing); message framing, partial `UserState` / `ChannelState` merging, `MumbleUDP.Audio` encoding, a fake TLS
   Mumble server for the client (handshake, unknown message types, reject, timeouts, fingerprint pinning, shutdown),
   certificate generation, bridge binary frames, Origin / session / IP limits. Integration: WebSocket ↔ Mumble
   text, audio, state, certificate persistence, admin actions, channel passwords, name-takeover protection, goroutine leaks.
@@ -59,6 +59,7 @@ channel (`-mkchannel`).
 | `gateway/proto` | Official `Mumble.proto` / `MumbleUDP.proto` and generated Go code |
 | `web/src/lib` | WebSocket client, audio pipeline (`audio/`), state stores |
 | `web/src/components` | UI components |
+| `web/src/admin`, `web/admin` | Admin panel: a second Vite page served at `/admin/` (own client, no audio) |
 | `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
 | `deploy/local/` | Local HTTPS test environment (mkcert) |
 | `docs/` | Development guide, testing checklist, progress log, TODO |

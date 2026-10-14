@@ -191,7 +191,19 @@ SuperUser Mumble'da **konuşamaz** (tasarım gereği); ses testi için normal bi
 
 > Web'den SuperUser girişi `MUMWEB_ALLOW_SUPERUSER` ile açılıp kapanır. Yerel ortamda **açık**, production
 > compose'ta **kapalı** gelir; web giriş sayfası adresi bilen herkese açık olduğundan gerçek sunucuda yönetim için
-> masaüstü istemci önerilir.
+> parola korumalı [yönetim paneli](#62b-yönetim-paneli-admin) (`MUMWEB_ADMIN_PASSWORD`) veya masaüstü istemci önerilir.
+
+### 6.2b Yönetim paneli (`/admin/`)
+
+Yerel ortam yönetim panelini açar (`MUMWEB_ADMIN_PASSWORD`, varsayılan `admin`):
+
+1. `https://mumweb.test/admin/` adresini açın; yönetici şifresi `admin`, hesap `SuperUser`, Mumble şifresi `superuser`.
+2. **Çevrimiçi / Kanallar / Yasaklar / Kayıtlı kullanıcılar** sunucuyu yönetir; **Kanallar → ACL ve gruplar** tam ACL
+   düzenleyicisi, **Kanallar → Parola** kanal şifresidir.
+3. Panelin kendi sertifikası var ve ses taşımaz; bu yüzden aynı tarayıcının başka bir sekmesinde normal bir sesli oturum
+   aynı anda açık kalabilir (panelden farklı bir hesap kullanın).
+
+`MUMWEB_ADMIN_PASSWORD` yoksa panel kapalıdır. Production'da uzun, rastgele bir değer ve yalnızca HTTPS kullanın.
 
 ### 6.3 Masaüstü Mumble istemcisiyle
 
@@ -226,6 +238,7 @@ docker compose up -d       # değişiklikleri uygular
 | `MUMBLE_PORT` | `64738` | Masaüstü Mumble istemcisinin bağlanacağı port |
 | `MUMBLE_SUPERUSER_PASSWORD` | `superuser` | Mumble SuperUser şifresi (ilk çalıştırmada ayarlanır) |
 | `MUMWEB_ALLOW_SUPERUSER` | `true` | Web'den `SuperUser` girişine izin ver |
+| `MUMWEB_ADMIN_PASSWORD` | `admin` | `/admin/` yönetim panelini açar (boş = kapalı) |
 | `MUMWEB_LOG_LEVEL` | `debug` | Gateway log seviyesi |
 
 ### Port çakışması (80/443 dolu)

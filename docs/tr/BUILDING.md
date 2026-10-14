@@ -41,6 +41,7 @@ Gateway entegrasyon testleri gerçek bir Mumble sunucusu ister:
 | `gateway/proto` | Resmî `Mumble.proto` / `MumbleUDP.proto` + üretilen Go kodu |
 | `web/src/lib` | WS istemcisi, ses hattı (`audio/`), durum store'ları |
 | `web/src/components` | Arayüz bileşenleri |
+| `web/src/admin`, `web/admin` | Yönetim paneli: `/admin/` adresinde sunulan ikinci Vite sayfası (kendi istemcisi, ses yok) |
 | `deploy/` | Production compose, Caddyfile, `.env.example`, dev compose |
 | `deploy/local/` | Yerel HTTPS test ortamı (mkcert), bkz. [DEVELOPMENT.md](DEVELOPMENT.md) |
 
@@ -50,10 +51,10 @@ Gateway entegrasyon testleri gerçek bir Mumble sunucusu ister:
 
 ```sh
 make test                                                    # Go birim testleri + Vitest
-MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge   # gerçek sunucuya karşı (gateway/ içinde)
+MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 MUMWEB_TEST_SUPERUSER_PASSWORD=<şifre> go test ./internal/bridge   # gerçek sunucuya karşı (gateway/ içinde); SuperUser şifresi yönetim testlerini açar
 ```
 
-- Go: framing encode/decode ve hatalar, kısmi `UserState`/`ChannelState` birleştirme, `MumbleUDP.Audio` encode/decode,
+- Go: yönetim paneli (yasak listesi, kayıtlı kullanıcılar ve sahte sunucuyla ACL gidiş-dönüş; yönetici şifresi, kilit ayrımı, yasak/ACL doğrulama, hız yavaşlatma), framing encode/decode ve hatalar, kısmi `UserState`/`ChannelState` birleştirme, `MumbleUDP.Audio` encode/decode,
   sahte TLS sunucusuyla istemci (handshake, bilinmeyen mesaj tipleri, reject, zaman aşımı, parmak izi, kapanış),
   sertifika üretimi, köprü ikili çerçeveleri, Origin/oturum/IP sınırları; entegrasyon: WS ↔ Mumble metin, ses,
   durum, sertifika kalıcılığı, goroutine sızıntısı.

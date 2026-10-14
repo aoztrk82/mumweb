@@ -19,7 +19,7 @@ Browser (Svelte SPA, WebCodecs Opus) ⇄ WSS ⇄ gateway (Go) ⇄ TLS/TCP ⇄ Mu
 |---|---|
 | All tests (Go + Vitest) | `make test` |
 | Go tests only | `cd gateway && go test ./...` |
-| Go integration tests (need a Mumble server, e.g. `make dev`) | `cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 go test ./internal/bridge` |
+| Go integration tests (need a Mumble server, e.g. `make dev`) | `cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 MUMWEB_TEST_SUPERUSER_PASSWORD=<pw> go test ./internal/bridge` (the password enables the SuperUser/admin tests) |
 | Web tests / type check | `cd web && npm test` / `npm run check` |
 | Build gateway + probe (UI embedded) | `make gateway` → `bin/mumweb`, `bin/mumprobe` |
 | Production image (local) | `make docker` |
@@ -39,11 +39,12 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
 | `gateway/cmd/mumweb` | HTTP/WebSocket gateway; serves the embedded UI, `/ws`, `/healthz`; reads `MUMWEB_*` env vars |
 | `gateway/cmd/mumprobe` | CLI that talks to a Mumble server directly (debugging, audio path tests) |
 | `gateway/internal/mumble` | Mumble TCP client library: TLS, framing, state merging, UDPTunnel audio |
-| `gateway/internal/bridge` | WS session ↔ Mumble client; JSON + binary audio protocol; limits |
+| `gateway/internal/bridge` | WS session ↔ Mumble client; JSON + binary audio protocol; limits; `admin.go` = admin-panel role (password, validation, pacing, audit log) |
 | `gateway/internal/certs` | Client certificate generation |
 | `gateway/proto` | Official `Mumble.proto` / `MumbleUDP.proto` + generated Go (do not hand-edit `*.pb.go`) |
 | `web/src/lib` | WS client (`client.ts`), protocol (`protocol.ts`), audio pipeline (`audio/`), stores (`stores/`) |
 | `web/src/components` | Svelte 5 components (runes) |
+| `web/src/admin`, `web/admin` | Admin panel: second Vite page at `/admin/` (own client + store, no audio; ACL/ban/user-list editors) |
 | `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `index.svelte.ts` (reactive `t`, language detection) |
 | `deploy/` | Production compose (pulls `aoztrk82/mumweb`) + `docker-compose.build.yml` override, Caddyfile, dev compose, `local/` HTTPS test environment |
 | `docs/` | English docs; Turkish mirror in `docs/tr/` |
@@ -74,6 +75,14 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
   cost 2 messages.
 - **Channel passwords** are ACLs plus persistent access tokens, not a Mumble feature of their own.
 - SuperUser cannot speak; the Mumble server image currently reports 1.5.915 while the proto is from v1.5.939.
+- **Admin panel (`/admin/`):** a bridge session with `hello.role = "admin"`; off unless `MUMWEB_ADMIN_PASSWORD` is set. It
+  has its own lockout tracker, certificate key (`cert-admin`) and no audio, so voice + admin can run in one browser, but
+  they must be **different Mumble accounts** (the server drops the older session of the same registered account).
+  SuperUser is allowed only there. Never log ACL group names (`#name` = channel password).
+- **Mumble's rate limit also drops queries.** Admin commands are paced in the gateway; the panel re-reads a list after a
+  write instead of trusting its draft. New ban entries from the panel must be certificate-only (`100::/128` + hash).
+- **`sw.js` must never cache `/admin*`** and may only store `/` as the app shell (bump `CACHE` when its logic changes).
+- Windows checkout has CRLF files: check Go formatting with `tr -d '\r' < f | gofmt -l`, not `gofmt -l` on the CRLF file.
 
 ## Keep the documentation up to date (required)
 

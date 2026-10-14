@@ -59,6 +59,7 @@ Update with `docker compose pull && docker compose up -d`.
 | `MUMWEB_ALLOWED_ORIGINS` | empty | Comma-separated allowed `Origin`s, e.g. `https://voice.example.com` |
 | `MUMWEB_TRUST_PROXY` | `false` | Take the client IP from `X-Forwarded-For` (set `true` behind a proxy) |
 | `MUMWEB_ACCESS_PASSWORD` | empty | If set, web users must enter this password (separate from the Mumble server password) |
+| `MUMWEB_ADMIN_PASSWORD` | empty | If set, switches on the admin panel at `/admin` (ban list, ACLs, registered users); empty = off |
 | `MUMWEB_MAX_SESSIONS` | `50` | Maximum concurrent web sessions |
 | `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web |
@@ -66,7 +67,7 @@ Update with `docker compose pull && docker compose up -d`.
 | `MUMWEB_TLS_FINGERPRINT` | empty | Pin the Mumble server certificate's SHA-256 fingerprint |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
-Port `8080` serves the UI, `/ws` (WebSocket), `/config` and `/healthz`.
+Port `8080` serves the UI, `/admin/`, `/ws` (WebSocket), `/config` and `/healthz`.
 
 **Important:** all web users reach Mumble from the gateway's single IP, so set
 `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false` on the Mumble server (the compose file on GitHub does). Details and

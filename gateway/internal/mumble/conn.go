@@ -92,6 +92,10 @@ type Client struct {
 
 	banMu       sync.Mutex
 	pendingBans []pendingBan
+	banQueried  bool // an admin asked for the ban list; the next BanList reply is reported
+
+	aclReportMu sync.Mutex
+	aclReport   map[uint32]bool // channels whose next ACL reply is reported in full
 
 	aclMu      sync.Mutex
 	aclPending map[uint32]aclRequest // channel -> what to do with the ACL reply
@@ -347,9 +351,18 @@ func (c *Client) handle(t MsgType, msg proto.Message, payload []byte, emit bool)
 	case *pb.UserStats:
 		ev = UserStatsEvent{Stats: m}
 	case *pb.BanList:
-		c.completeBans(m)
+		ev = c.completeBans(m)
+	case *pb.UserList:
+		ev = userListEvent(m)
 	case *pb.ACL:
-		ev = c.handleACL(m)
+		ev = c.reportACL(m)
+		if pw := c.handleACL(m); pw != nil {
+			if ev == nil {
+				ev = pw
+			} else {
+				extra = append(extra, pw)
+			}
+		}
 	case *pb.Reject:
 		c.cancel(&RejectError{Type: m.GetType(), Reason: m.GetReason()})
 	case *pb.ServerSync:
@@ -677,13 +690,19 @@ func (c *Client) BanByCertificate(session uint32, reason string) error {
 
 // completeBans handles the BanList reply to our query: append pending entries, write
 // the list back and kick the banned users.
-func (c *Client) completeBans(list *pb.BanList) {
+func (c *Client) completeBans(list *pb.BanList) Event {
 	c.banMu.Lock()
 	pending := c.pendingBans
 	c.pendingBans = nil
+	queried := c.banQueried
+	c.banQueried = false
 	c.banMu.Unlock()
+	var ev Event
+	if queried {
+		ev = BanListEvent{Bans: banEntries(list)}
+	}
 	if len(pending) == 0 {
-		return
+		return ev
 	}
 	bans := list.GetBans()
 	for _, p := range pending {
@@ -697,11 +716,12 @@ func (c *Client) completeBans(list *pb.BanList) {
 		})
 	}
 	if err := c.send(&pb.BanList{Bans: bans}); err != nil {
-		return
+		return ev
 	}
 	for _, p := range pending {
 		_ = c.Kick(p.session, p.reason)
 	}
+	return ev
 }
 
 func (c *Client) dropPendingBans() {

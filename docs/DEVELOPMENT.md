@@ -194,8 +194,21 @@ permissions; if they try they see "You don't have permission for this action." i
 server's ACL settings.
 
 > Web SuperUser login is controlled by `MUMWEB_ALLOW_SUPERUSER`. It is **on** in the local environment and **off**
-> in the production compose file; the web login page is open to anyone who knows the URL, so use the desktop client
-> for administration on a real server.
+> in the production compose file; the web login page is open to anyone who knows the URL, so on a real server administer
+> through the password-protected [admin panel](#62b-the-admin-panel-admin) (`MUMWEB_ADMIN_PASSWORD`) or the desktop client.
+
+### 6.2b The admin panel (`/admin/`)
+
+The local environment switches the admin panel on (`MUMWEB_ADMIN_PASSWORD`, default `admin`):
+
+1. Open `https://mumweb.test/admin/`, enter the admin password `admin`, the account `SuperUser` and the Mumble
+   password `superuser`.
+2. **Online / Channels / Bans / Registered users** manage the server; **Channels → ACL and groups** is the full ACL
+   editor, **Channels → Password** the channel password.
+3. The panel has its own certificate and no audio, so you can keep a normal voice session open in another tab of the
+   same browser at the same time (use a different account than the panel's).
+
+Without `MUMWEB_ADMIN_PASSWORD` the panel is off. In production use a long random value and HTTPS only.
 
 ### 6.3 With the desktop Mumble client
 
@@ -230,6 +243,7 @@ docker compose up -d       # applies the changes
 | `MUMBLE_PORT` | `64738` | Port the desktop Mumble client connects to |
 | `MUMBLE_SUPERUSER_PASSWORD` | `superuser` | Mumble SuperUser password (set on first run) |
 | `MUMWEB_ALLOW_SUPERUSER` | `true` | Allow `SuperUser` login from the web |
+| `MUMWEB_ADMIN_PASSWORD` | `admin` | Switches on the admin panel at `/admin/` (empty = off) |
 | `MUMWEB_LOG_LEVEL` | `debug` | Gateway log level |
 
 ### Port conflicts (80/443 in use)

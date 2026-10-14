@@ -549,6 +549,68 @@ desktop client using real microphones.
   `scripts/dockerhub-description.py` (`make hub-readme`), reusing Docker Desktop's stored login. Checked on the public
   repository page API.
 
+## Addendum: web admin panel (2026-10-14)
+
+- **What:** `/admin/` is a second Vite page (`web/admin/index.html`, `web/src/admin/`) served by the gateway
+  (`/admin` redirects to `/admin/`). It manages online users, the channel tree and channel passwords, a full ACL and
+  group editor, the ban list and the registered users. `/config` now also reports `{"admin": bool}`.
+- **Decision: the panel is a normal bridge session with `hello.role = "admin"`.** It needs `MUMWEB_ADMIN_PASSWORD`
+  (empty = panel off, role refused with `AdminDisabled`). The admin password replaces the web access password for
+  this page and has its own `failTracker`: behind a proxy without `MUMWEB_TRUST_PROXY` all users share one IP, so a
+  shared tracker would let admin brute-forcing lock everybody out of the main UI. Why a password in front of the
+  Mumble login: a stranger must not even be able to try SuperUser's password through the gateway.
+- **Decision: SuperUser is allowed only on admin sessions** (after the admin password). `MUMWEB_ALLOW_SUPERUSER` stays
+  as it is for the main client, so production keeps the main login closed. This also answers "SuperUser cannot speak":
+  the panel has no audio at all, so nobody expects it to.
+- **Decision: voice and admin side by side in one browser.** Two tabs of one browser shared one IndexedDB certificate
+  and Mumble drops the old session when the same registered account connects again (and the gateway refuses the same
+  name with another certificate). The panel therefore uses its own certificate key (`cert-admin`) and must log in with a
+  different account (SuperUser) than the voice tab. Admin sessions are deafened right after login, the gateway drops
+  audio events for them and treats a binary frame from them as a protocol violation.
+- **Gateway-side checks on top of the server's:** admin commands (`adminBanList`, `adminSetBanList`, `adminUserList`,
+  `adminUpdateUsers`, `adminACL`, `adminSetACL`) on a non-admin session end it with a protocol error. A ban list write
+  may only keep entries from the list the server last sent or add certificate-only ones (`100::/128` with a hash): a new
+  IP ban would hit every web user, but deleting an IP ban made from the desktop is allowed. SuperUser (id 0) cannot be
+  renamed or deleted; permission masks, group names and list sizes are bounded; the admin JSON read limit is 512 KiB
+  (ban lists, ACLs) instead of 16 KiB.
+- **Rate limit:** the Mumble server silently drops messages beyond ~1/s (burst 5), queries included. An integration run
+  that fired ten commands in a second lost the last query. Admin commands are now paced in the gateway (0.8/s, burst 4,
+  a command waits up to 6 s, else the panel gets `adminBusy`) and the UI re-reads a list after each write instead of
+  trusting its draft.
+- **Stale lists:** the Bans, Registered users and ACL views re-read their data every time they open (and after saving)
+  instead of caching it; otherwise a user banned or registered from Online would be missing, and saving a stale ban list
+  would delete the newer entry. The remaining race (a change made elsewhere while the Bans tab stays open) is in TODO.
+  The admin lockout has its own reject reason (`AdminRateLimited`).
+- **Audit log:** every state-changing admin command is logged with action, channel/target ids and counts. Never
+  passwords, chat or ACL group names (a `#name` group is a channel password).
+- **Protocol additions (Go `internal/mumble/admin.go`):** `UserList` was not wired at all; `BanList` and `ACL` replies
+  were swallowed unless a kick-ban or password request was pending. They now emit `BanListEvent`, `UserListEvent` and
+  `ACLEvent`; ACL write-back reuses the desktop client's filter (own non-inherited entries, groups that differ from plain
+  inheritance). A password query and an ACL report on the same channel no longer collide.
+- **Service worker bug avoided:** `sw.js` stored every navigation response under the `/` key, so opening `/admin/`
+  would have replaced the cached app shell with the panel (and an offline `/admin` would have shown the voice app).
+  It now caches only `/`, never touches `/admin*`, and the cache name is `mumweb-static-v2`.
+- **Verification:**
+  - Go unit tests: ban list, user list and ACL round trip against a fake TLS Mumble server (unchanged write-back
+    reproduces only own entries), password/lockout isolation, ban/ACL/user-update validation, pacing.
+  - Go integration test `TestAdminPanelEndToEnd` against a real **Mumble 1.5.915** server as SuperUser: normal session
+    cannot use admin commands; user list; ban add/read/remove; scratch channel ACL write and read-back (entry with
+    grant/deny and `applySubs=false`, group with a member); a new IP ban ends the session.
+  - Headless Chrome (puppeteer-core, scratch scripts, not committed) against the rebuilt local deployment
+    (`deploy/local`, `https://mumweb.test`): wrong admin password refused; SuperUser login; all four tabs render; channel
+    creation through a prompt; the ACL editor opens on Root with its four details sections (admin, auth, all rules and
+    the admin group); a certificate ban was added, saved, re-read and removed; no console errors. A voice session
+    (`ses-e2e`) and the panel stayed connected together for 6 s in one browser and the panel listed the voice user.
+    The test channel and ban were removed again afterwards.
+  - Final pass after the review fixes: the whole `go test ./internal/bridge` suite (also the older kick/ban, channel
+    password and name-takeover integration tests) against a fresh Mumble 1.5.915 container, then the local deployment
+    rebuilt and the browser scripts repeated: from **Online** the voice user was registered (visible under Registered
+    users, deleted again) and certificate-banned (visible under Bans, their voice session ended, entry removed and saved).
+    The Bans / Registered tabs had been opened before the action, so a stale cache would have shown.
+  - Not done: a phone/narrow-screen check, the desktop Mumble client's ACL editor showing a panel-written ACL, long-run
+    use. The Docker Hub page was **not** updated (the published image has no panel yet).
+- Local deployment: `MUMWEB_ADMIN_PASSWORD` defaults to `admin` in `deploy/local/compose.yaml` and the dev compose file.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small
