@@ -32,6 +32,9 @@ class SessionState {
   accessRequired = $state(false)
   /** The gateway keeps some slots for a reserved-slot password (from /config). */
   reservedSlots = $state(false)
+  /** Operator-set display name/description (MUMWEB_SERVER_NAME/_DESCRIPTION, from /config). */
+  serverName = $state('')
+  serverDescription = $state('')
   /** True once the first "ready" arrived; the main view stays up while reconnecting. */
   joined = $state(false)
   ready = $state(false)

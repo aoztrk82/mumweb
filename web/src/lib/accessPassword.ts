@@ -30,14 +30,29 @@ export const reservedPassword = {
   },
 }
 
-/** Asks the gateway which login fields it wants. Failures mean "none". */
-export async function fetchLoginConfig(): Promise<{ accessPassword: boolean; reservedSlots: boolean }> {
+export interface LoginConfig {
+  accessPassword: boolean
+  reservedSlots: boolean
+  /** Operator-set display name/description (MUMWEB_SERVER_NAME/_DESCRIPTION), empty when unset. */
+  serverName: string
+  serverDescription: string
+}
+
+const EMPTY_CONFIG: LoginConfig = { accessPassword: false, reservedSlots: false, serverName: '', serverDescription: '' }
+
+/** Asks the gateway which login fields it wants and how it wants to be displayed. Failures mean "none". */
+export async function fetchLoginConfig(): Promise<LoginConfig> {
   try {
     const res = await fetch('/config', { cache: 'no-store' })
-    if (!res.ok) return { accessPassword: false, reservedSlots: false }
-    const cfg = (await res.json()) as { accessPassword?: boolean; reservedSlots?: boolean }
-    return { accessPassword: cfg.accessPassword === true, reservedSlots: cfg.reservedSlots === true }
+    if (!res.ok) return EMPTY_CONFIG
+    const cfg = (await res.json()) as Partial<LoginConfig>
+    return {
+      accessPassword: cfg.accessPassword === true,
+      reservedSlots: cfg.reservedSlots === true,
+      serverName: cfg.serverName ?? '',
+      serverDescription: cfg.serverDescription ?? '',
+    }
   } catch {
-    return { accessPassword: false, reservedSlots: false }
+    return EMPTY_CONFIG
   }
 }

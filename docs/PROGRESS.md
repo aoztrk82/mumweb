@@ -733,6 +733,27 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
     second tab — not a mumweb bug, just a headless-Chrome/fake-audio quirk worth remembering for future UI capture
     scripts.
 
+## Addendum: operator-set server name and description (2026-10-14)
+
+- Added `MUMWEB_SERVER_NAME` and `MUMWEB_SERVER_DESCRIPTION` (both optional, empty by default, plain text not HTML),
+  returned by `/config` alongside the existing booleans. The login screen shows the server name as its heading
+  (falling back to "mumweb") with a new "Mumble Web Client" tagline underneath, and the description where the
+  "Join the voice chat" subtitle used to be unconditionally; the status bar shows both next to "Connected" once
+  joined, so the previously near-empty header has real content without any extra network request (`/config` is
+  already fetched on login). `document.title` is also set to `"<name> — mumweb"` once the name is known.
+  - Deliberately independent of Mumble's own welcome text (`session.welcome`, shown as the first chat line): that
+    comes from the Mumble server and needs an actual connection, while this is operator-set branding available
+    before login. No new backend connection was added to fetch it earlier; that would have meant a persistent
+    "probe" connection to Mumble outside the one-connection-per-browser-session model, which was deliberately
+    avoided.
+  - Verified against the local dev stack with both values set in `deploy/local/.env`: `/config` returns them,
+    the login heading/tagline/subtitle and the tab title render correctly, and the status bar shows
+    "Connected · Friday Night Voice  Our little Mumble server for game nights and chats." after joining (screenshot
+    checked, not committed). `go vet`, `go test ./...`, `npm run check` and `npm test` all pass.
+  - Added to the production, local and test compose files (empty defaults, no behavior change for existing
+    deployments) and to `deploy/.env.example`, the README env var tables (English and Turkish), and
+    `docs/DOCKERHUB.md`; `make hub-readme` still needs a maintainer to run it to push the Docker Hub page text.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

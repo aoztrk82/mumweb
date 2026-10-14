@@ -709,6 +709,30 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
     sürecini vererek aşıldı — bir mumweb hatası değil, ileride arayüz görüntüsü alma betikleri için hatırlanmaya
     değer bir başsız-Chrome/sahte-ses tuhaflığı.
 
+## Ek — operatörün ayarlayacağı sunucu adı ve açıklaması (2026-10-14)
+
+- `MUMWEB_SERVER_NAME` ve `MUMWEB_SERVER_DESCRIPTION` eklendi (ikisi de isteğe bağlı, varsayılan boş, düz metin —
+  HTML değil); mevcut boolean'ların yanında `/config`'ten dönüyor. Giriş ekranı artık sunucu adını başlık olarak
+  gösteriyor (boşsa "mumweb"e düşüyor), altında yeni bir "Mumble Web Client" etiketi var, ve açıklama eskiden hep
+  "Sesli sohbete katıl" alt yazısının olduğu yerde gösteriliyor; durum çubuğu da bağlandıktan sonra "Bağlı"nın
+  yanında ikisini de gösteriyor — böylece eskiden neredeyse boş olan üst kısım, ekstra bir ağ isteği olmadan
+  (`/config` zaten girişte çekiliyor) gerçek içerik kazandı. Sunucu adı bilinir bilinmez `document.title` da
+  `"<ad> — mumweb"` olarak ayarlanıyor.
+  - Bilerek Mumble'ın kendi karşılama metninden (`session.welcome`, sohbetteki ilk satır olarak gösteriliyor)
+    bağımsız tutuldu: o, Mumble sunucusundan gelir ve gerçek bir bağlantı gerektirir; bu ise girişten önce de
+    erişilebilen, operatörün ayarladığı markalamadır. Bunu daha erken çekmek için yeni bir backend bağlantısı
+    eklenmedi; bu, tarayıcı-oturumu-başına-tek-bağlantı modelinin dışında Mumble'a kalıcı bir "yoklama" bağlantısı
+    anlamına gelirdi, bilerek kaçınıldı.
+  - Yerel dev yığınına karşı, `deploy/local/.env`'de ikisi de ayarlanmış halde doğrulandı: `/config` ikisini de
+    döndürüyor, giriş başlığı/etiketi/alt yazısı ve sekme başlığı doğru render ediliyor, kanala katıldıktan sonra
+    durum çubuğu "Connected · Friday Night Voice  Our little Mumble server for game nights and chats." gösteriyor
+    (ekran görüntüsüyle kontrol edildi, commit edilmedi). `go vet`, `go test ./...`, `npm run check` ve `npm test`
+    hepsi geçti.
+  - Production, local ve test compose dosyalarına eklendi (varsayılan boş, mevcut dağıtımlar için davranış
+    değişikliği yok), ayrıca `deploy/.env.example`, README ortam değişkeni tabloları (İngilizce ve Türkçe) ve
+    `docs/DOCKERHUB.md`'ye de eklendi; Docker Hub sayfa metnini göndermek için bir bakımcının hâlâ `make hub-readme`
+    çalıştırması gerekiyor.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

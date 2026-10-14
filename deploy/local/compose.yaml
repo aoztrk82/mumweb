@@ -68,6 +68,8 @@ services:
       MUMWEB_ALLOWED_ORIGINS: https://${MUMWEB_DOMAIN:-mumweb.test}:${HTTPS_PORT:-443}
       MUMWEB_TRUST_PROXY: "true"
       MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-debug}
+      MUMWEB_SERVER_NAME: ${MUMWEB_SERVER_NAME:-}
+      MUMWEB_SERVER_DESCRIPTION: ${MUMWEB_SERVER_DESCRIPTION:-}
       # Local testing: allow "SuperUser" to log in from the browser (create channels etc.).
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-true}
       # Optional web access password (empty = open); handy for trying the login field.

@@ -200,6 +200,9 @@ live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`
          MUMWEB_TRUST_PROXY: "true"
          MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
          MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-info}
+         # Optional: shown on the login screen and in the status bar once connected (empty = just "mumweb").
+         MUMWEB_SERVER_NAME: ${MUMWEB_SERVER_NAME:-}
+         MUMWEB_SERVER_DESCRIPTION: ${MUMWEB_SERVER_DESCRIPTION:-}
          # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
          # is reachable by anyone who knows the URL; use the desktop client for admin work.
          MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
@@ -343,6 +346,8 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_RESERVED_SLOTS` | `0` | How many of `MUMWEB_MAX_SESSIONS` are reserved for holders of `MUMWEB_RESERVED_PASSWORD` (and for admin sessions). Other users share the remaining slots. Needs the password and a limit above the reserved count, else off |
 | `MUMWEB_RESERVED_PASSWORD` | empty | Password for the reserved slots, typed in an optional login field |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `MUMWEB_SERVER_NAME` | empty | Shown as the heading on the login screen and next to "Connected" in the status bar once connected. Empty falls back to "mumweb" |
+| `MUMWEB_SERVER_DESCRIPTION` | empty | Shown under the name on the login screen and in the status bar. Plain text (not HTML) |
 
 ### Compose variables (`deploy/.env`)
 
@@ -354,10 +359,19 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMBLE_MAX_USERS` | `50` | Mumble's own user limit |
 | `MUMWEB_MAX_SESSIONS` | `50` | See above |
 | `MUMWEB_LOG_LEVEL` | `info` | See above |
+| `MUMWEB_SERVER_NAME`, `MUMWEB_SERVER_DESCRIPTION` | empty | See above |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | See above |
 | `MUMWEB_ACCESS_PASSWORD` | empty | See above |
 | `MUMWEB_ADMIN_PASSWORD` | empty | See above |
 | `MUMWEB_RESERVED_SLOTS`, `MUMWEB_RESERVED_PASSWORD` | `0`, empty | See above |
+
+### Server name and description
+
+Set `MUMWEB_SERVER_NAME` (and optionally `MUMWEB_SERVER_DESCRIPTION`) to brand the login screen and the status bar
+with your own server's name instead of the bare "mumweb" heading. Both are plain text (not HTML) and shown exactly
+as set, so there is nothing to sanitize. This is independent of Mumble's own welcome text, which still appears as
+the first line of chat after connecting; think of it as what the login page and header show before and regardless
+of that.
 
 ### Web access password
 

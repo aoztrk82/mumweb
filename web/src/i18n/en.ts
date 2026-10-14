@@ -25,6 +25,7 @@ export const en: Translations = {
   appDescription: 'Connect to a Mumble voice chat server from your browser.',
 
   login: {
+    tagline: 'Mumble Web Client',
     title: 'Join the voice chat',
     nickname: 'Nickname',
     password: 'Server password',

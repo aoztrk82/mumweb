@@ -69,6 +69,8 @@ Update with `docker compose pull && docker compose up -d`.
 | `MUMWEB_TLS_VERIFY` | `false` | Verify the Mumble server certificate |
 | `MUMWEB_TLS_FINGERPRINT` | empty | Pin the Mumble server certificate's SHA-256 fingerprint |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `MUMWEB_SERVER_NAME` | empty | Shown on the login screen and status bar instead of the bare "mumweb" heading |
+| `MUMWEB_SERVER_DESCRIPTION` | empty | Shown under the name on the login screen and in the status bar (plain text) |
 
 Port `8080` serves the UI, `/admin/`, `/ws` (WebSocket), `/config` and `/healthz`.
 

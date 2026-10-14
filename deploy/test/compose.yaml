@@ -41,6 +41,8 @@ services:
       MUMWEB_MAX_SESSIONS_PER_IP: ${MUMWEB_MAX_SESSIONS_PER_IP:-100}
       MUMWEB_CONN_RATE: ${MUMWEB_CONN_RATE:-600}
       MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-debug}
+      MUMWEB_SERVER_NAME: ${MUMWEB_SERVER_NAME:-}
+      MUMWEB_SERVER_DESCRIPTION: ${MUMWEB_SERVER_DESCRIPTION:-}
       # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
       # is reachable by anyone who knows the URL; use the desktop client for admin work.
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}

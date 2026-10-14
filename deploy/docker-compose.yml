@@ -37,6 +37,9 @@ services:
       MUMWEB_TRUST_PROXY: "true"
       MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
       MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-info}
+      # Optional: shown on the login screen and in the status bar once connected (empty = just "mumweb").
+      MUMWEB_SERVER_NAME: ${MUMWEB_SERVER_NAME:-}
+      MUMWEB_SERVER_DESCRIPTION: ${MUMWEB_SERVER_DESCRIPTION:-}
       # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
       # is reachable by anyone who knows the URL; use the desktop client for admin work.
       MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}

@@ -19,7 +19,13 @@
   <span class="dot"></span>
   <span>{text}</span>
   {#if session.notice && !ok}<span class="notice">— {session.notice}</span>{/if}
-<span class="spacer"></span>
+  {#if ok && session.serverName}
+    <span class="server-name" title={session.serverDescription || undefined}>· {session.serverName}</span>
+  {/if}
+  {#if ok && session.serverDescription}
+    <span class="server-desc">{session.serverDescription}</span>
+  {/if}
+  <span class="spacer"></span>
   <LangSwitch />
 </div>
 
@@ -34,8 +40,21 @@
     border-bottom: 1px solid var(--border);
     background: var(--bg-elev);
   }
+  .server-name {
+    color: var(--text);
+    font-weight: 600;
+    flex: none;
+  }
+  .server-desc {
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
   .spacer {
     flex: 1;
+    min-width: 0.5rem;
   }
   .dot {
     width: 8px;

@@ -23,6 +23,7 @@ export const tr = {
   appDescription: 'Tarayıcıdan Mumble sesli sohbet sunucusuna bağlanın.',
 
   login: {
+    tagline: 'Mumble Web İstemcisi',
     title: 'Sesli sohbete katıl',
     nickname: 'Takma ad',
     password: 'Sunucu şifresi',

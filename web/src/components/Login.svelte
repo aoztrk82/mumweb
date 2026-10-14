@@ -21,6 +21,11 @@
     void fetchLoginConfig().then((cfg) => {
       if (cfg.accessPassword) session.accessRequired = true
       if (cfg.reservedSlots) session.reservedSlots = true
+      if (cfg.serverName) {
+        session.serverName = cfg.serverName
+        document.title = `${cfg.serverName} — mumweb`
+      }
+      if (cfg.serverDescription) session.serverDescription = cfg.serverDescription
     })
   })
 
@@ -44,8 +49,9 @@
 <div class="wrap">
   <div class="lang-corner"><LangSwitch /></div>
   <form class="card" onsubmit={submit}>
-    <h1>{t.appName}</h1>
-    <p class="sub">{t.login.title}</p>
+    <h1>{session.serverName || t.appName}</h1>
+    <p class="tagline">{t.login.tagline}</p>
+    <p class="sub">{session.serverDescription || t.login.title}</p>
 
     {#if session.accessRequired}
       <label>
@@ -120,8 +126,16 @@
     margin: 0;
     font-size: 1.5rem;
   }
+  .tagline {
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+  }
   .sub {
-    margin: -0.5rem 0 0.25rem;
+    margin: 0 0 0.25rem;
     color: var(--text-dim);
   }
   label {

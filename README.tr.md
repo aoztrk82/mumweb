@@ -177,6 +177,9 @@ dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example`
          MUMWEB_TRUST_PROXY: "true"
          MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
          MUMWEB_LOG_LEVEL: ${MUMWEB_LOG_LEVEL:-info}
+         # Optional: shown on the login screen and in the status bar once connected (empty = just "mumweb").
+         MUMWEB_SERVER_NAME: ${MUMWEB_SERVER_NAME:-}
+         MUMWEB_SERVER_DESCRIPTION: ${MUMWEB_SERVER_DESCRIPTION:-}
          # Logging in as Mumble's SuperUser from the browser. Off by default: the web login
          # is reachable by anyone who knows the URL; use the desktop client for admin work.
          MUMWEB_ALLOW_SUPERUSER: ${MUMWEB_ALLOW_SUPERUSER:-false}
@@ -318,6 +321,16 @@ Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde yaşar. Yedekleme
 | `MUMWEB_RESERVED_SLOTS` | `0` | `MUMWEB_MAX_SESSIONS` içinden kaç slotun `MUMWEB_RESERVED_PASSWORD` sahiplerine (ve yönetim oturumlarına) ayrılacağı. Diğer kullanıcılar kalan slotları paylaşır. Şifre ve ayrılan sayıdan büyük bir sınır gerekir, yoksa kapalıdır |
 | `MUMWEB_RESERVED_PASSWORD` | boş | Ayrılmış slotların şifresi; giriş ekranındaki isteğe bağlı alana yazılır |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
+| `MUMWEB_SERVER_NAME` | boş | Giriş ekranında başlık olarak ve bağlandıktan sonra durum çubuğunda "Bağlı" yazısının yanında gösterilir. Boşsa "mumweb" yazar |
+| `MUMWEB_SERVER_DESCRIPTION` | boş | Giriş ekranında isim altında ve durum çubuğunda gösterilir. Düz metindir (HTML değil) |
+
+### Sunucu adı ve açıklaması
+
+Giriş ekranını ve durum çubuğunu salt "mumweb" başlığı yerine kendi sunucunuzun adıyla markalamak için
+`MUMWEB_SERVER_NAME` (isteğe bağlı olarak `MUMWEB_SERVER_DESCRIPTION` ile birlikte) ayarlayın. İkisi de düz metindir
+(HTML değil) ve ayarlandığı gibi gösterilir, temizlemeye (sanitize) gerek yoktur. Bu, bağlandıktan sonra sohbetin ilk
+satırı olarak görünmeye devam eden Mumble'ın kendi karşılama metninden bağımsızdır; bunu, o metinden önce ve ondan
+bağımsız olarak giriş sayfası ve başlığın gösterdiği şey olarak düşünün.
 
 ### Web erişim şifresi
 
