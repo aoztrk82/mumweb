@@ -64,7 +64,10 @@ Kalanlar:
       kontrolü gerekir), Caddy ve Mumble için salt okunur kök.
 - [ ] Taramaları tekrarlayan CI işi; frontend için Semgrep ve ESLint güvenlik kuralları.
 - [ ] Daha uzun fuzz koşuları ve gerçek sunucuya karşı protokol fuzzer'ı.
-- [ ] Sahibi: GitHub depo ayarlarında **Private vulnerability reporting**'i açın (Security → Reporting); politika oraya yönlendiriyor.
+- [x] Sahibi GitHub depo ayarlarında **Private vulnerability reporting**'i açtı (2026-10-14); politika oraya yönlendiriyor.
+- [x] Çalışan bir test dağıtımına canlı kara kutu testi (2026-10-14, `mumweb.aozturk.site`, 0.3.1 sürümü): başlıklar/TLS,
+      açık portlar, Origin kontrolü, kilitlemeler, IP başına sınır, aşırı büyük/bozuk çerçeveler, kontrol ve ses selleri,
+      boşta zaman aşımları, sohbet seli, kullanıcı adı alanında XSS, eşzamanlı giriş yükü. Her şey tuttu; bkz. SECURITY.md.
 
 ### 5. Kapasite testi ve kullanıcı sınırı
 - [ ] Yük testi aracı (repoda): N tarayıcı-benzeri oturum, değişen konuşan sayısı (1, 2, 5, hepsi), süre; gateway ve

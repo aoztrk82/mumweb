@@ -74,8 +74,11 @@ Goal: no input path may give access outside the container or to the host system.
 - [x] Log audit: no secrets logged.
 - [x] TLS: HSTS in the Caddyfiles; fingerprint pinning recommendation in SECURITY.md.
 - [x] Known protocol risks documented (desktop IP bans, SuperUser, rate limit).
-- [x] `docs/SECURITY.md` and a root `SECURITY.md` policy. [ ] Owner: enable **Private vulnerability reporting** in the
-      GitHub repository settings (Security → Reporting), the policy points to it.
+- [x] `docs/SECURITY.md` and a root `SECURITY.md` policy; owner enabled **Private vulnerability reporting** in the
+      GitHub repository settings (2026-10-14), which the policy points to.
+- [x] Live black-box test against a running test deployment (2026-10-14, `mumweb.aozturk.site`, release 0.3.1):
+      headers/TLS, port exposure, Origin check, lockouts, per-IP limit, oversized/malformed frames, control and audio
+      floods, idle timeouts, chat flood, username-field XSS, concurrent login load. Everything held; see SECURITY.md.
 
 ### 5. Capacity testing and user limit
 - [ ] A load-test tool (in the repo): N browser-like sessions, a varying number of speakers (1, 2, 5, all), duration;
