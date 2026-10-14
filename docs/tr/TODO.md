@@ -47,8 +47,7 @@ Son güncelleme: 2026-10-13. Ayrıntılı geçmiş ve doğrulama notları: [PROG
       anahtarla gönderip gateway'in taze çekilmiş listeye uygulaması (`completeBans` gibi).
 - [ ] Fikirler: panelden kullanıcıları kanallar arasında taşıma, kalıcı bir denetim log dosyası, tek ortak yönetici
       şifresi yerine bir admin grubunu panel erişimine bağlama, masaüstü IP yasakları için "bekçi hesabı" (bkz. C).
-- [ ] Bir sonraki imaj sürümünden sonra `make hub-readme` çalıştırın (`docs/DOCKERHUB.md` `MUMWEB_ADMIN_PASSWORD`'ı
-      zaten listeliyor, ancak yayınlanmış `0.1.0` imajında panel henüz yok; bu yüzden Hub sayfasına dokunulmadı).
+- [x] `0.2.0` olarak yayınlandı; Docker Hub sayfası yenilendi.
 
 ### 4. Ayrıntılı güvenlik incelemesi (production'dan ÖNCE, zorunlu)
 Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim sağlanamamalı.

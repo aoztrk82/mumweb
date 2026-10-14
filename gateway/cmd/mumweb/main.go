@@ -20,7 +20,7 @@ import (
 	"github.com/aoztrk82/mumweb/gateway/web"
 )
 
-const release = "mumweb 0.1"
+const release = "mumweb 0.2"
 
 const noBuildPage = `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><title>mumweb</title></head>

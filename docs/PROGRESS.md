@@ -611,6 +611,16 @@ desktop client using real microphones.
     use. The Docker Hub page was **not** updated (the published image has no panel yet).
 - Local deployment: `MUMWEB_ADMIN_PASSWORD` defaults to `admin` in `deploy/local/compose.yaml` and the dev compose file.
 
+## Addendum: release 0.2.0 (2026-10-14)
+
+- `aoztrk82/mumweb:0.2.0` and `:latest` pushed with `docker buildx build --builder mumweb-builder --platform
+  linux/amd64,linux/arm64 --push` (the same command `make publish` wraps; GNU Make is not installed on the Windows dev
+  machine). Index digest `sha256:c25f8ce3…`. Contents: the admin panel. `release` in `main.go` is now `mumweb 0.2`.
+- Verification: the manifest lists amd64 and arm64; the pulled image started with `MUMWEB_ADMIN_PASSWORD` answers
+  `/config` → `{"accessPassword":false,"admin":true}`, `/healthz` → `ok`, `/admin` → 301 to `/admin/` (200), runs as uid 100.
+  The arm64 image was again not run. Docker Hub page refreshed with `scripts/dockerhub-description.py` (lists
+  `MUMWEB_ADMIN_PASSWORD`).
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

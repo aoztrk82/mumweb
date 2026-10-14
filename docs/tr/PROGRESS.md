@@ -587,6 +587,16 @@ istemciyle konuşuldu.
     uzun süreli kullanım. Docker Hub sayfası **güncellenmedi** (yayınlanmış imajda panel henüz yok).
 - Yerel kurulum: `MUMWEB_ADMIN_PASSWORD` varsayılanı `deploy/local/compose.yaml` ve dev compose dosyasında `admin`'dir.
 
+## Ek — 0.2.0 sürümü (2026-10-14)
+
+- `aoztrk82/mumweb:0.2.0` ve `:latest`, `docker buildx build --builder mumweb-builder --platform linux/amd64,linux/arm64
+  --push` ile gönderildi (`make publish`'in sardığı komut; Windows geliştirme makinesinde GNU Make kurulu değil). Index
+  digest'i `sha256:c25f8ce3…`. İçerik: yönetim paneli. `main.go`'daki `release` artık `mumweb 0.2`.
+- Doğrulama: manifest amd64 ve arm64'ü listeliyor; çekilen imaj `MUMWEB_ADMIN_PASSWORD` ile başlatıldı: `/config` →
+  `{"accessPassword":false,"admin":true}`, `/healthz` → `ok`, `/admin` → `/admin/`'e 301 (200), uid 100 ile çalışıyor.
+  arm64 imajı yine çalıştırılmadı. Docker Hub sayfası `scripts/dockerhub-description.py` ile yenilendi
+  (`MUMWEB_ADMIN_PASSWORD` listeleniyor).
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

@@ -47,8 +47,7 @@ Last updated: 2026-10-13. Detailed history and verification notes: [PROGRESS.md]
       gateway apply them to a freshly fetched list, like `completeBans`.
 - [ ] Ideas: move users between channels from the panel, a persistent audit log file, mapping an admin group to
       panel access (instead of one shared admin password), a "guard account" for desktop IP bans (see C).
-- [ ] After the next image release run `make hub-readme` (`docs/DOCKERHUB.md` already lists `MUMWEB_ADMIN_PASSWORD`,
-      but the published `0.1.0` image does not have the panel yet, so the Hub page was left untouched).
+- [x] Released as `0.2.0`; Docker Hub page refreshed.
 
 ### 4. Detailed security review (REQUIRED before production)
 Goal: no input path may give access outside the container or to the host system.

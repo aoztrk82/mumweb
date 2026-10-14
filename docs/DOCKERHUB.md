@@ -21,7 +21,7 @@ Caddy (the compose file below does exactly that).
 | Tag | Meaning |
 |---|---|
 | `latest` | the newest release |
-| `0.1.0`, … | fixed releases (pin one for reproducible installs) |
+| `0.2.0`, … | fixed releases (pin one for reproducible installs) |
 
 Platforms: `linux/amd64`, `linux/arm64`.
 

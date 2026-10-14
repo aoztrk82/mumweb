@@ -171,8 +171,8 @@ The compose file runs three services: `mumble` (the official `mumblevoip/mumble-
 web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through). The same
 files live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`).
 
-Image tags: `latest` follows the newest release; `0.1.0`-style tags are fixed releases. Pin one by setting
-`MUMWEB_VERSION=0.1.0` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
+Image tags: `latest` follows the newest release; `0.2.0`-style tags are fixed releases. Pin one by setting
+`MUMWEB_VERSION=0.2.0` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
 
 ## Deployment
 
