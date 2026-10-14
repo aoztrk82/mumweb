@@ -4,7 +4,7 @@
 talk, with no Mumble install. Desktop Mumble clients and browser users share the same server, channels and voice.
 
 - Source code, full documentation, issues: **https://github.com/aoztrk82/mumweb**
-- Full setup guide: https://github.com/aoztrk82/mumweb#quick-start-production
+- Full setup guide: https://github.com/aoztrk82/mumweb#deployment
 - Türkçe: https://github.com/aoztrk82/mumweb/blob/main/README.tr.md
 
 ## What is in this image
@@ -29,7 +29,7 @@ Platforms: `linux/amd64`, `linux/arm64`.
 
 The full, ready-to-copy `docker-compose.yml` (Mumble server + mumweb + Caddy with automatic HTTPS), the `Caddyfile` and
 the `.env` are in the README on GitHub:
-**https://github.com/aoztrk82/mumweb#quick-start-production**
+**https://github.com/aoztrk82/mumweb#deployment**
 
 In short: point a DNS record at your server, put those three files in a folder, set `MUMWEB_DOMAIN` and
 `MUMBLE_SUPERUSER_PASSWORD` in `.env`, and run `docker compose up -d`.

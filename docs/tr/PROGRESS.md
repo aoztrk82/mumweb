@@ -665,6 +665,32 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   (4 saniyeden kısa sürede tamamlandı, `/healthz` etkilenmedi). Her şey tuttu; kod değişikliği gerekmedi. Ayrıntı ve her
   birinin gerekçesi: [SECURITY.md](SECURITY.md).
 
+## Ek — imaj digest sabitlemesinden geri dönüldü, yol haritası sadeleştirildi, dağıtım dokümanları yeniden yapılandırıldı (2026-10-14)
+
+- **Digest sabitleme geri alındı.** `deploy/docker-compose.yml`'de `MUMWEB_IMAGE`/`MUMBLE_IMAGE`/`CADDY_IMAGE`'ı
+  `sha256` digest'iyle sabitlemek (aynı gün biraz önce eklenmişti) geri alındı: sahibi bunu bu proje boyutu için
+  gereksiz mühendislik olarak değerlendirdi; çoğu self-hosting kullanıcısının bildiği standart güncelleme akışı olan
+  `docker compose pull && docker compose up -d`, biri elle yeni digest'i bulup dosyayı düzenlemeden hiçbir şey
+  yapmıyordu. Production imajları tekrar değişken etiketlere döndü (`mumblevoip/mumble-server:latest`,
+  `aoztrk82/mumweb:${MUMWEB_VERSION:-latest}`, `caddy:2`); `.env`'de belirli bir `MUMWEB_VERSION` etiketini sabitlemek
+  bir sürümde kalmanın belgelenmiş yolu olarak kaldı. `docs/tr/SECURITY.md` §5/§7 etiketle sabitlemeyi tekrar öneri
+  olarak, digest sabitlemeyi ise yapılmamış olası bir sıkılaştırma adımı olarak anlatıyor.
+- **`docs/TODO.md` / `docs/tr/TODO.md` yalnızca özellik içeren bir yol haritasına yeniden yazıldı.** Güvenlik
+  inceleme kontrol listesi (eski 4. bölüm, artık tamamen [SECURITY.md](SECURITY.md)'de) ve manuel test/CI/teknik borç
+  bölümleri TODO'dan kaldırıldı; tamamlanan işler artık işaretli kutu duvarı olarak değil bu günlükte duruyor.
+  Kalan şey düz bir "Planlanan özellikler" listesi ve kısa bir "Bilinen sınırlar" listesi; yani TODO artık tek bir
+  soruya cevap veriyor: geriye hangi özellik işi kaldı.
+- **README dağıtım bölümü, gerçek self-hosting kullanıcılarının nasıl çalıştığına göre yeniden yapılandırıldı.**
+  Çoğu kullanıcının zaten bir ters proxy'li compose dosyası (ve çoğunlukla kendi Mumble sunucusu) olduğundan, README
+  artık önce **A seçeneğini** anlatıyor (mumweb servisini mevcut compose dosyanıza ekleyin; Caddy/nginx/Traefik ters
+  proxy örnekleriyle), **B seçeneğini** (bu depodaki tam üç servisli compose) ise yalnızca sıfırdan bir sunucu için
+  sunuyor. Eski "kurulum" / "dağıtım" ayrımı kalktı; artık yukarıda bir servis tablosuyla ("parçalar nasıl bir araya
+  geliyor") tek bir "## Dağıtım" bölümü var. Eski `#quick-start-production` / `#kurulum-yeni-bir-sunucuda` çapa
+  bağlantılarına yapılan referanslar (`docs/BUILDING.md`, `docs/DEVELOPMENT.md`, `docs/DOCKERHUB.md`, ve Türkçe
+  karşılığı `docs/tr/BUILDING.md`) `#deployment` / `#dağıtım`'a güncellendi. Yaklaşan bir Reddit duyurusu bu işi
+  tetikledi: sahibi README'nin "bizim compose dosyamızı kopyala" eğitimi gibi değil, genel bir self-hosting kılavuzu
+  gibi okunmasını istiyor.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

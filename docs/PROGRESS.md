@@ -690,6 +690,31 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   (completed in under 4 s, `/healthz` unaffected). Everything held; no code change was needed. Full detail and the
   reasoning for each: [SECURITY.md](SECURITY.md).
 
+## Addendum: dropped image digest pinning, rewrote the roadmap, reworked the deployment docs (2026-10-14)
+
+- **Digest pinning reverted.** Pinning `MUMWEB_IMAGE`/`MUMBLE_IMAGE`/`CADDY_IMAGE` by `sha256` digest in
+  `deploy/docker-compose.yml` (added earlier the same day) was reverted: the owner judged it over-engineered for this
+  project's size, and it meant `docker compose pull && docker compose up -d` — the standard update flow every
+  self-hoster expects — silently did nothing until someone manually looked up and edited a new digest. Production
+  images go back to floating tags (`mumblevoip/mumble-server:latest`, `aoztrk82/mumweb:${MUMWEB_VERSION:-latest}`,
+  `caddy:2`); pinning a specific `MUMWEB_VERSION` tag in `.env` remains the documented way to hold a release.
+  `docs/SECURITY.md` §5/§7 describe pin-by-tag again as the recommendation, digest pinning as a possible but undone
+  hardening step.
+- **`docs/TODO.md` / `docs/tr/TODO.md` rewritten to a feature-only roadmap.** The security review checklist (former
+  section 4, now fully covered by [SECURITY.md](SECURITY.md)) and the manual-test/CI/technical-debt sections were
+  dropped from TODO; completed items live in this log instead of as a wall of ticked boxes. What remains is a flat
+  "Planned features" list plus a short "Known limitations" list, so TODO answers one question only: what feature
+  work is left.
+- **README deployment section restructured** around how real self-hosters actually run this: most already have a
+  compose file with a reverse proxy (and often their own Mumble server), so the README now leads with **Option A**
+  (add the `mumweb` service to your existing compose file, with Caddy/nginx/Traefik reverse-proxy snippets) and
+  only offers **Option B** (the full three-service compose from this repo) for a from-scratch server. The old
+  "quick start" / "deployment" split is gone; it is one "## Deployment" section now, with a services table
+  ("how the pieces fit") up top. Cross-references to the old `#quick-start-production` anchor
+  (`docs/BUILDING.md`, `docs/DEVELOPMENT.md`, `docs/DOCKERHUB.md`, and the Turkish equivalent in
+  `docs/tr/BUILDING.md`) were updated to `#deployment`. Driven by an upcoming Reddit announcement: the owner wants
+  the README to read like a general self-hosting guide, not a "copy our compose file" tutorial.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

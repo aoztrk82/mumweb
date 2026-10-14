@@ -3,7 +3,7 @@
 **English** | [Türkçe](tr/BUILDING.md)
 
 You only need this page to build mumweb yourself, change the code, run the tests or publish a release. To just run
-mumweb, use the ready-made Docker image from the [README](../README.md#quick-start-production).
+mumweb, use the ready-made Docker image from the [README](../README.md#deployment).
 
 ## Build and run from source
 

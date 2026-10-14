@@ -364,4 +364,4 @@ The steps are the same. What changes:
 |---|---|
 | `deploy/local/compose.yaml` | **This guide:** end-to-end trial over HTTPS, comparing with the desktop client |
 | `deploy/docker-compose.dev.yml` (`make dev`) | Gateway development and Go integration tests; no HTTPS, `http://localhost:8080` (localhost counts as a secure context) |
-| `deploy/docker-compose.yml` | Installing on a real server (Let's Encrypt), see the [README](../README.md#quick-start-production) |
+| `deploy/docker-compose.yml` | Installing on a real server (Let's Encrypt), see the [README](../README.md#deployment) |

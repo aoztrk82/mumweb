@@ -69,11 +69,85 @@ Known limit on Android: when the browser is sent to the background, the session 
 > **Just want to try it on your own computer?** Follow [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): a ready-made
 > `https://mumweb.test` setup with mkcert for Windows, macOS and Linux.
 
-## Quick start (production)
+## Deployment
 
-Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, ports 80 and 443 (TCP) and 64738
-(TCP + UDP) open, and a domain name. There is nothing to build: the ready-made image is
-[`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82/mumweb) on Docker Hub.
+There is nothing to build: the ready-made image is [`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82/mumweb) on
+Docker Hub, for `linux/amd64` and `linux/arm64`. You need a Linux server with Docker and Compose, and a domain name.
+
+### How the pieces fit
+
+| Service | Needed? | Purpose |
+|---|---|---|
+| `mumweb` | Always | The gateway and web UI. One instance talks to exactly one Mumble server. |
+| `mumble` (official `mumblevoip/mumble-server`) | Only if you don't already run a Mumble server | The voice server; desktop Mumble clients connect to it directly on `64738`. |
+| A reverse proxy with TLS (Caddy, nginx, Traefik…) | Always | Browsers need HTTPS for microphone access. It only needs to pass `/ws` through as a WebSocket. |
+
+**If you already have a server** — most self-hosters running a homelab or a VPS already have a compose file with a
+reverse proxy, and often a Mumble server too — add `mumweb` to what you already run (**Option A**). **Starting from a
+bare server**, our compose file brings up all three together (**Option B**).
+
+### Option A: add mumweb to your existing setup
+
+Add `mumweb` as one more service to your own `docker-compose.yml`, on whatever network your reverse proxy (and
+Mumble, if you have one) already use:
+
+```yaml
+services:
+  mumweb:
+    image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      MUMWEB_MUMBLE_ADDR: mumble:64738                  # host:port of your Mumble server
+      MUMWEB_ALLOWED_ORIGINS: https://voice.example.com  # exact address browsers will use, with scheme
+      MUMWEB_TRUST_PROXY: "true"                         # your proxy must add X-Forwarded-For
+      MUMWEB_MAX_SESSIONS: "50"
+    networks: [proxy, mumble]   # whatever networks your proxy and Mumble container already use
+```
+
+That's it for the gateway: everything else has a sane default, see
+[gateway environment variables](#gateway-environment-variables) for the full list. If you don't already run a
+Mumble server, copy the `mumble` service from [`deploy/docker-compose.yml`](deploy/docker-compose.yml) into your
+file as well, and read [Mumble autoban](#mumble-autoban-important) below — it matters from the first login.
+
+Then point your reverse proxy at `mumweb:8080` (the container's internal port) and make sure it passes WebSocket
+upgrades on `/ws`:
+
+Caddy:
+```
+voice.example.com {
+	encode zstd gzip
+	reverse_proxy mumweb:8080
+}
+```
+
+nginx:
+```nginx
+location / {
+    proxy_pass http://mumweb:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_read_timeout 120s;
+}
+```
+
+Traefik (compose labels on the `mumweb` service):
+```yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mumweb.rule=Host(`voice.example.com`)
+      - traefik.http.routers.mumweb.tls.certresolver=letsencrypt
+      - traefik.http.services.mumweb.loadbalancer.server.port=8080
+```
+
+`docker compose up -d` and open your domain.
+
+### Option B: starting from scratch (use our compose)
+
+No existing server to attach to? This brings up Mumble, mumweb and Caddy (automatic HTTPS) together. The same files
+live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`).
 
 1. **DNS:** point an `A` (and `AAAA`, if you have IPv6) record such as `voice.example.com` at the server. Caddy
    cannot obtain a certificate until it resolves (`dig +short voice.example.com` must show the server IP).
@@ -197,13 +271,11 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
 4. Open `https://voice.example.com`. Desktop Mumble clients connect to `voice.example.com:64738`.
 
 The compose file runs three services: `mumble` (the official `mumblevoip/mumble-server`), `mumweb` (gateway plus
-web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through). The same
-files live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`).
+web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through).
 
 Image tags: `latest` follows the newest release; `0.3.1`-style tags are fixed releases. Pin one by setting
-`MUMWEB_VERSION=0.3.1` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
-
-## Deployment
+`MUMWEB_VERSION=0.3.1` in `.env`. `docker compose pull` then only fetches that version, never a newer one, until you
+change it on purpose.
 
 ### Mumble autoban (important)
 
@@ -229,37 +301,8 @@ The `SuperUser` account cannot speak in Mumble (by design; it is for administrat
 web client is controlled by `MUMWEB_ALLOW_SUPERUSER` and is off in production; for administration use the
 [admin panel](#admin-panel-admin) (`MUMWEB_ADMIN_PASSWORD`) or the desktop client.
 
-### Behind an existing reverse proxy (Caddy, nginx, Traefik…)
-
-Remove the `caddy` service, attach `mumweb` to a network the proxy can reach, and add a site to the proxy. It must
-pass WebSocket upgrades on `/ws`. Keep `MUMWEB_TRUST_PROXY=true` (the proxy must add `X-Forwarded-For`) and set
-`MUMWEB_ALLOWED_ORIGINS` to the exact site address.
-
-Caddy:
-```
-voice.example.com {
-	encode zstd gzip
-	reverse_proxy mumweb:8080
-}
-```
-
-nginx:
-```nginx
-location / {
-    proxy_pass http://mumweb:8080;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_read_timeout 120s;
-}
-```
-
-### With an existing Mumble server
-
-Remove the `mumble` service and point `MUMWEB_MUMBLE_ADDR` at the existing server (for example
-`mumble-server:64738` on the same Docker network). Apply the autoban setting there too: in the official Docker
+If you went with Option A and already run Mumble elsewhere, just point `MUMWEB_MUMBLE_ADDR` at it (for example
+`mumble-server:64738` on the same Docker network) and apply the autoban setting there too: in the official Docker
 image `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false`, in `mumble-server.ini`
 `autobanSuccessfulConnections=false`.
 

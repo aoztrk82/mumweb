@@ -46,11 +46,85 @@ alınınca oturum yaklaşık 15–20 sn sonra odadan düşer (ekran kilidi sorun
 > **Kendi bilgisayarınızda denemek mi istiyorsunuz?** Windows (ve macOS/Linux) için mkcert sertifikası ve hosts
 > dosyasıyla `https://mumweb.test` üzerinde çalışan hazır ortam: **[docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md)**.
 
-## Kurulum (yeni bir sunucuda)
+## Dağıtım
 
-Gereksinimler: Docker + Docker Compose kurulu bir Linux sunucu (x86-64 veya ARM64), 80/443 (TCP) ve 64738 (TCP+UDP)
-portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub'da,
-[`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82/mumweb).
+Derlenecek bir şey yok: hazır imaj Docker Hub'da, [`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82/mumweb),
+`linux/amd64` ve `linux/arm64` için. Docker + Compose kurulu bir Linux sunucu ve bir alan adı gerekiyor.
+
+### Parçalar nasıl bir araya geliyor
+
+| Servis | Gerekli mi? | Ne işe yarar |
+|---|---|---|
+| `mumweb` | Her zaman | Gateway ve web arayüzü. Bir örnek tek bir Mumble sunucusuyla konuşur. |
+| `mumble` (resmî `mumblevoip/mumble-server`) | Zaten bir Mumble sunucunuz yoksa | Ses sunucusunun kendisi; masaüstü Mumble istemcileri de buraya doğrudan `64738`'den bağlanır. |
+| TLS'li bir ters proxy (Caddy, nginx, Traefik…) | Her zaman | Mikrofon erişimi için tarayıcıların HTTPS'e ihtiyacı var. Tek yapması gereken `/ws`'i WebSocket olarak aktarmak. |
+
+**Zaten bir sunucunuz varsa** — çoğu self-hosting kullanıcısının zaten bir ters proxy'li compose dosyası, çoğu zaman
+bir Mumble sunucusu da vardır — `mumweb`'i çalıştırdığınıza ekleyin (**A seçeneği**). **Sıfırdan bir sunucudan
+başlıyorsanız**, bizim compose dosyamız üçünü birden ayağa kaldırır (**B seçeneği**).
+
+### A seçeneği: mumweb'i mevcut kurulumunuza ekleyin
+
+`mumweb`'i kendi `docker-compose.yml`'inize bir servis daha olarak ekleyin; ters proxy'nizin (ve varsa Mumble'ın)
+zaten kullandığı ağda:
+
+```yaml
+services:
+  mumweb:
+    image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      MUMWEB_MUMBLE_ADDR: mumble:64738                  # Mumble sunucunuzun host:port'u
+      MUMWEB_ALLOWED_ORIGINS: https://ses.alanadiniz.com  # tarayıcıların kullanacağı tam adres, şema dahil
+      MUMWEB_TRUST_PROXY: "true"                         # proxy'niz X-Forwarded-For eklemeli
+      MUMWEB_MAX_SESSIONS: "50"
+    networks: [proxy, mumble]   # proxy'nizin ve Mumble container'ının zaten kullandığı ağlar
+```
+
+Gateway için bu kadar: gerisinin makul varsayılanları var, tam liste için
+[gateway ortam değişkenleri](#yapılandırma-gateway-ortam-değişkenleri). Zaten bir Mumble sunucunuz yoksa `mumble`
+servisini [`deploy/docker-compose.yml`](deploy/docker-compose.yml) dosyasından kendi dosyanıza da kopyalayın ve
+aşağıdaki [Mumble autoban](#mumble-autoban-ayarı-önemli) bölümünü okuyun — ilk girişten itibaren önemli.
+
+Sonra ters proxy'nizi `mumweb:8080`'e (container'ın iç portu) yönlendirin ve `/ws` üzerindeki WebSocket
+yükseltmelerini aktardığından emin olun:
+
+Caddy:
+```
+ses.alanadiniz.com {
+	encode zstd gzip
+	reverse_proxy mumweb:8080
+}
+```
+
+nginx:
+```nginx
+location / {
+    proxy_pass http://mumweb:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_read_timeout 120s;
+}
+```
+
+Traefik (`mumweb` servisinde compose label'ları):
+```yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mumweb.rule=Host(`ses.alanadiniz.com`)
+      - traefik.http.routers.mumweb.tls.certresolver=letsencrypt
+      - traefik.http.services.mumweb.loadbalancer.server.port=8080
+```
+
+`docker compose up -d` ve alan adınızı açın.
+
+### B seçeneği: sıfırdan başlangıç (bizim compose dosyamızı kullanın)
+
+Ekleyecek bir sunucunuz yok mu? Bu, Mumble, mumweb ve Caddy'yi (otomatik HTTPS) birlikte ayağa kaldırır. Aynı
+dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example` ile).
 
 1. **DNS:** `ses.alanadiniz.com` için sunucunun IP'sine işaret eden bir `A` (ve varsa `AAAA`) kaydı ekleyin.
    Kayıt yayılmadan Caddy sertifika alamaz (`dig +short ses.alanadiniz.com` sunucu IP'sini göstermeli).
@@ -176,10 +250,10 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
 
 Compose dosyası üç servis çalıştırır: `mumble` (resmî `mumblevoip/mumble-server`), `mumweb` (gateway + arayüz,
 root olmayan kullanıcı, `/healthz` sağlık kontrolü) ve `caddy` (otomatik HTTPS, WebSocket'i olduğu gibi aktarır).
-Aynı dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example` ile).
 
 İmaj etiketleri: `latest` en yeni sürümü izler; `0.3.1` gibi etiketler sabit sürümlerdir. `.env` içine
-`MUMWEB_VERSION=0.3.1` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
+`MUMWEB_VERSION=0.3.1` yazarak sabitleyebilirsiniz; `docker compose pull` o zaman siz bilerek değiştirene kadar
+başka bir sürüm çekmez.
 
 ### Mumble autoban ayarı (önemli)
 
@@ -206,40 +280,20 @@ biri olmazsa birkaç saniye sonra tekrar deneyin; masaüstü istemci için de ay
 `MUMWEB_ALLOW_SUPERUSER` ile açılır; production'da kapalıdır. Yönetim için [yönetim panelini](#yönetim-paneli-admin)
 (`MUMWEB_ADMIN_PASSWORD`) veya masaüstü istemciyi kullanın.
 
-## Mevcut bir kurulumla kullanım
-
-### 80/443'te zaten bir ters proxy (Caddy, nginx, Traefik…) varsa
-
-`caddy` servisini kaldırın, `mumweb` servisini proxy'nin erişebileceği ağa bağlayın ve proxy'ye bir site ekleyin.
-WebSocket yükseltmesinin (`/ws`) aktarılması gerekir. `MUMWEB_TRUST_PROXY=true` kalsın (proxy `X-Forwarded-For`
-eklemelidir) ve `MUMWEB_ALLOWED_ORIGINS` sitenin tam adresi olsun.
-
-Caddy:
-```
-ses.alanadiniz.com {
-	encode zstd gzip
-	reverse_proxy mumweb:8080
-}
-```
-
-nginx:
-```nginx
-location / {
-    proxy_pass http://mumweb:8080;
-    proxy_http_version 1.1;
-    proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_read_timeout 120s;
-}
-```
-
-### Zaten çalışan bir Mumble sunucusu varsa
-
-`mumble` servisini kaldırın ve `MUMWEB_MUMBLE_ADDR`'i mevcut sunucuya yönlendirin (ör. aynı Docker ağındaysa
-`mumble-server:64738`). O sunucuda da autoban ayarını yapın: resmî Docker imajında
+A seçeneğini kullanıyor ve Mumble'ı başka yerde çalıştırıyorsanız `MUMWEB_MUMBLE_ADDR`'i oraya yönlendirin (ör. aynı
+Docker ağındaysa `mumble-server:64738`) ve o sunucuda da autoban ayarını yapın: resmî Docker imajında
 `MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS=false`, `mumble-server.ini`'de `autobanSuccessfulConnections=false`.
+
+### Güncelleme
+
+```sh
+docker compose pull          # en yeni mumweb (ve Mumble) imajlarını çek
+docker compose up -d         # yalnızca değişeni yeniden oluştur
+docker image prune -f        # isteğe bağlı: eski imajları sil
+```
+
+Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde yaşar. Yedeklemek için:
+`docker run --rm -v mumweb_mumble-data:/d -v "$PWD":/b alpine tar czf /b/mumble-data.tgz -C /d .`
 
 ## Yapılandırma (gateway ortam değişkenleri)
 
@@ -323,17 +377,6 @@ değiştirin.
 Mumble sunucusunun parmak izini `mumprobe` yazdırır (`make gateway` sonrası):
 `./bin/mumprobe -addr <sunucu>:64738 -exit` → `server certificate SHA-256: AB:CD:…`. Bu değer
 `MUMWEB_TLS_FINGERPRINT`'e olduğu gibi yazılabilir. Not: sunucu sertifikası yenilenirse parmak izi değişir.
-
-## Güncelleme
-
-```sh
-docker compose pull          # en yeni mumweb (ve Mumble) imajlarını indir
-docker compose up -d         # yalnızca değişenleri yeniden oluştur
-docker image prune -f        # eski imajları temizle (isteğe bağlı)
-```
-
-Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde durur; yedek için:
-`docker run --rm -v mumweb_mumble-data:/d -v "$PWD":/b alpine tar czf /b/mumble-data.tgz -C /d .`
 
 ## Sorun giderme
 

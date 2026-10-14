@@ -3,7 +3,7 @@
 [English](../BUILDING.md) | **Türkçe**
 
 Bu sayfaya yalnızca mumweb'i kendiniz derlemek, kodu değiştirmek, testleri çalıştırmak veya sürüm yayınlamak için
-ihtiyacınız var. Sadece çalıştırmak için [README](../../README.tr.md#kurulum-yeni-bir-sunucuda) içindeki hazır Docker
+ihtiyacınız var. Sadece çalıştırmak için [README](../../README.tr.md#dağıtım) içindeki hazır Docker
 imajını kullanın.
 
 ## Kaynaktan derleme ve çalıştırma
