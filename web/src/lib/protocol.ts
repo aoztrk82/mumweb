@@ -15,6 +15,8 @@ export type ClientMessage =
       accessPassword: string
       /** Opens the reserved web slots (MUMWEB_RESERVED_PASSWORD); optional. */
       reservedPassword?: string
+      /** Stands in for accessPassword when invite links are enabled; optional. */
+      inviteToken?: string
       cert: CertPair | null
       tokens: string[]
       /** 'admin' for the /admin panel (needs the gateway's admin password). */
@@ -44,6 +46,7 @@ export type ClientMessage =
   | { t: 'adminUpdateUsers'; userUpdates: { id: number; name: string | null }[] }
   | { t: 'adminACL'; channelId: number }
   | { t: 'adminSetACL'; channelId: number; acl: AclData }
+  | { t: 'adminCreateInvite'; inviteTtlSeconds: number }
 
 // --- admin panel payloads ---
 
@@ -182,6 +185,7 @@ export type ServerMessage =
   | { t: 'userList'; users: RegisteredUser[] }
   | ({ t: 'acl'; channelId: number } & AclData)
   | { t: 'adminBusy' }
+  | { t: 'inviteCreated'; token: string; expiresAt: number }
   | { t: 'error'; code: 'invalid_certificate' | 'mumble_unavailable' | 'disconnected'; message: string }
 
 // --- binary audio frames (little endian) ---

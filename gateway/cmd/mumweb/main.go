@@ -50,6 +50,7 @@ func main() {
 		AdminPassword:    os.Getenv("MUMWEB_ADMIN_PASSWORD"),
 		ReservedSlots:    envInt("MUMWEB_RESERVED_SLOTS", 0),
 		ReservedPassword: os.Getenv("MUMWEB_RESERVED_PASSWORD"),
+		InviteSecret:     os.Getenv("MUMWEB_INVITE_SECRET"),
 		Release:          release,
 		Logger:           logger,
 	}
@@ -69,7 +70,7 @@ func main() {
 
 	go func() {
 		slog.Info("listening", "addr", addr, "mumble", bcfg.MumbleAddr, "tlsVerify", bcfg.TLSVerify,
-			"reservedSlots", ws.ReservedSlotsEnabled(), "pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "", "admin", bcfg.AdminPassword != "")
+			"reservedSlots", ws.ReservedSlotsEnabled(), "pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "", "admin", bcfg.AdminPassword != "", "invite", bcfg.InviteSecret != "")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "err", err)
 			os.Exit(1)
@@ -97,6 +98,7 @@ func newMux(dist fs.FS, ws *bridge.Handler) *http.ServeMux {
 			"accessPassword":    ws.AccessPasswordRequired(),
 			"admin":             ws.AdminEnabled(),
 			"reservedSlots":     ws.ReservedSlotsEnabled(),
+			"invite":            ws.InviteEnabled(),
 			"serverName":        os.Getenv("MUMWEB_SERVER_NAME"),
 			"serverDescription": os.Getenv("MUMWEB_SERVER_DESCRIPTION"),
 		})

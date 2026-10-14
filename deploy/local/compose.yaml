@@ -79,6 +79,8 @@ services:
       MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
       MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
       MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
+      # Lets the admin panel's Invites tab mint links; on by default here to make it easy to try.
+      MUMWEB_INVITE_SECRET: ${MUMWEB_INVITE_SECRET:-local-invite-secret}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

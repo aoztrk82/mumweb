@@ -93,6 +93,8 @@ func (s *session) audit(m clientMsg) {
 		if m.ACL != nil {
 			args = append(args, "acls", len(m.ACL.ACLs), "groups", len(m.ACL.Groups))
 		}
+	case "adminCreateInvite":
+		args = append(args, "ttlSeconds", m.InviteTTL)
 	}
 	s.log.Info("admin action", args...)
 }
@@ -131,6 +133,18 @@ func (s *session) adminAction(ctx context.Context, m clientMsg) error {
 	}
 
 	switch m.T {
+	case "adminCreateInvite":
+		if !s.h.InviteEnabled() {
+			return fmt.Errorf("%w: invite links are disabled", errProtocol)
+		}
+		ttl := time.Duration(m.InviteTTL) * time.Second
+		if ttl <= 0 || ttl > maxInviteTTL {
+			return fmt.Errorf("%w: bad invite ttl", errProtocol)
+		}
+		exp := time.Now().Add(ttl)
+		token := signInvite(s.h.cfg.InviteSecret, exp)
+		s.log.Info("invite link created", "ttlSeconds", m.InviteTTL)
+		return s.sendJSON(ctx, inviteCreatedMsg{T: "inviteCreated", Token: token, ExpiresAt: exp.Unix()})
 	case "adminSetBanList":
 		bans, err := s.checkBans(m.Bans)
 		if err != nil {

@@ -780,6 +780,41 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   - Doğrulandı: `npm run check` (0 hata), `npm test` (50 geçti), `npm run build`, ve yerel dev yığınına karşı
     İngilizce ve Türkçe görsel kontroller (ekran görüntüleri).
 
+## Ek — davet bağlantıları (2026-10-14)
+
+- `MUMWEB_INVITE_SECRET` eklendi: ayarlandığında, yönetim panelinin yeni **Davetler** sekmesi, süresi dolana kadar
+  web erişim şifresini atlayan bağlantılar (`/?invite=<token>`) oluşturabiliyor. Bir token **durumsuzdur**: 8 bayt
+  Unix son geçerlilik zaman damgası artı bu baytların gizli anahtarla hesaplanmış HMAC-SHA256'sı, base64url ile
+  kodlanmış (`gateway/internal/bridge/invite.go`). Gateway oluşturulan token'ların listesini tutmaz, bu yüzden
+  biri süresi dolmadan tek tek iptal edilemez; `MUMWEB_INVITE_SECRET`'i değiştirmek hepsini birden geçersiz kılar,
+  tek iptal mekanizması budur. Bir şifrenin aksine bir token tahmin edilemez (256 bit'lik bir MAC), bu yüzden
+  `checkInvite`'ın kendine ait bir IP kilitleme takipçisi yoktur — yanlış veya süresi dolmuş bir token sadece
+  reddedilir (`InviteInvalid`/`InviteExpired`).
+  - `session.run()`: yönetici olmayan bir hello'da boş olmayan bir `inviteToken` varsa (ve özellik açıksa), erişim
+    şifresi yerine bu kontrol edilir, ona ek olarak değil — davet, bu tek geçidin tam yerini tutar. Ayrı
+    yapılandırılan ayrılmış slot şifresine dokunmaz veya ayrılmış bir slot vermez; bunlar bağımsız kalır.
+  - Yönetim tarafı: `adminCreateInvite` (`{inviteTtlSeconds}`, `maxInviteTTL` = 30 günle sınırlı) `inviteCreated`
+    (`{token, expiresAt}`) döner; diğer yönetim yazmaları gibi denetlenir (yalnızca süre, token asla). Yönetim
+    arayüzü (`web/src/admin/InvitesTab.svelte`) tam URL'yi istemci tarafında oluşturur
+    (`location.origin + '?invite=' + token`) ve her kayıt için kopyala/kaldır ile oturuma özel bir liste tutar
+    (kalıcı değil, sunucuya geri gönderilmez) — "kaldır" yalnızca bu listeden düşürür, token'ı iptal etmez.
+  - Web girişi (`Login.svelte`): mount sırasında URL'den `?invite=`'ı bir kez okur, `session.inviteToken`'a kaydeder
+    ve adres çubuğunda kalmaması için `history.replaceState` ile hemen temizler (tarayıcı geçmişinde veya bir ekran
+    görüntüsünde kalmasın diye). Bir davet token'ı tutulduğu sürece, erişim şifresi alanı boş ve zorunlu gösterilmek
+    yerine kısa bir uyarıyla ("Davet bağlantısıyla giriyorsunuz…") değiştirilir. Nedeni `Invite` ile başlayan bir
+    reddetme, `session.inviteToken`'ı temizler, böylece yeniden deneme normal giriş formuna döner.
+  - `deploy/local/compose.yaml` artık varsayılan olarak (yönetici ve erişim şifrelerinde olduğu gibi) sabit bir dev
+    değeriyle `MUMWEB_INVITE_SECRET` ayarlıyor, böylece özellik yerel dev'de kutudan çıktığı gibi açık.
+  - Yerel HTTPS dev yığınına karşı puppeteer ile uçtan uca doğrulandı: `/admin/`'e SuperUser olarak giriş yapıldı,
+    Davetler sekmesi açıldı (`/config` `invite: true` dönünce görünen tek sekme), 1 günlük bir bağlantı oluşturuldu,
+    kopyalandı (düğme kısaca "Kopyalandı" gösteriyor), yeni bir sayfada açıldı — erişim şifresi alanı uyarıyla
+    değişti, yükleme sonrası davet parametresi adres çubuğundan kayboldu, ve yeni bir takma adla hiçbir şifre
+    girmeden bağlanmak çalıştı. `/?invite=...` üzerinde uydurma bir token "Bu davet bağlantısı geçersiz." ile doğru
+    şekilde reddedildi. `go test ./...` (yeni `invite_test.go`: imzalama/doğrulama gidiş-dönüşü, kurcalama, yanlış
+    gizli anahtar, süresi dolmuş/geçersiz/özellik-kapalı reddi, ve geçerli bir davetin yapılandırılmış erişim
+    şifresini atladığını ama yokluğunda şifrenin hâlâ gerektiğini kontrol eder), `go vet`, `gofmt`, `npm run check`
+    (yedi i18n sözlüğünün hepsinde 0 hata), `npm test` (50 geçti) ve `npm run build` hepsi geçiyor.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

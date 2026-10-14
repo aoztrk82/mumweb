@@ -72,6 +72,7 @@ export const loadAcl = (channelId: number): void => send({ t: 'adminACL', channe
 export const saveBans = (bans: BanEntry[]): void => send({ t: 'adminSetBanList', bans })
 export const updateRegistered = (userUpdates: { id: number; name: string | null }[]): void => send({ t: 'adminUpdateUsers', userUpdates })
 export const saveAcl = (channelId: number, acl: AclData): void => send({ t: 'adminSetACL', channelId, acl })
+export const createInvite = (ttlSeconds: number): void => send({ t: 'adminCreateInvite', inviteTtlSeconds: ttlSeconds })
 
 // --- existing session commands, reused from the voice protocol ---
 
@@ -141,6 +142,10 @@ function handleMessage(m: ServerMessage): void {
 
     case 'adminBusy':
       admin.toast('error', t.admin.busy)
+      break
+
+    case 'inviteCreated':
+      admin.invites = [{ token: m.token, url: `${location.origin}/?invite=${m.token}`, expiresAt: m.expiresAt }, ...admin.invites]
       break
 
     case 'denied': {

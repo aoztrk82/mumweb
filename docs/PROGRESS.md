@@ -801,6 +801,40 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   - Verified: `npm run check` (0 errors), `npm test` (50 passed), `npm run build`, and visual checks against the
     local dev stack in English and Turkish (screenshots).
 
+## Addendum: invite links (2026-10-14)
+
+- Added `MUMWEB_INVITE_SECRET`: when set, the admin panel's new **Invites** tab mints links
+  (`/?invite=<token>`) that skip the web access password until they expire. A token is **stateless**: 8 bytes of
+  Unix expiry plus an HMAC-SHA256 of those bytes keyed by the secret, base64url-encoded
+  (`gateway/internal/bridge/invite.go`). The gateway keeps no list of issued tokens, so one cannot be revoked
+  individually before it expires; rotating `MUMWEB_INVITE_SECRET` invalidates all of them at once, which is the
+  only revoke mechanism. Unlike a password, a token is unguessable (a 256-bit MAC), so `checkInvite` gets no
+  per-IP lockout tracker — a wrong or expired token is just refused (`InviteInvalid`/`InviteExpired`).
+  - `session.run()`: a non-admin hello with a non-empty `inviteToken` (and the feature on) is checked instead of
+    the access password, not in addition to it — the invite fully substitutes for that one gate. It does not touch
+    the separately-configured reserved-slot password or grant a reserved slot; those stay independent.
+  - Admin side: `adminCreateInvite` (`{inviteTtlSeconds}`, capped at `maxInviteTTL` = 30 days) returns
+    `inviteCreated` (`{token, expiresAt}`); audited like other admin writes (TTL only, never the token). The admin
+    UI (`web/src/admin/InvitesTab.svelte`) builds the full URL client-side (`location.origin + '?invite=' + token`)
+    and keeps a session-local list (not persisted, not sent back to the server) with copy/remove per entry — "remove"
+    only drops it from this list, it does not revoke the token.
+  - Web login (`Login.svelte`): reads `?invite=` from the URL once on mount, stores it in `session.inviteToken`,
+    and immediately strips it from the address bar with `history.replaceState` so it does not linger in browser
+    history or a screenshot. While an invite token is held, the access-password field is replaced with a short
+    notice ("You're joining with an invite link…") instead of being shown empty and required. A reject whose
+    reason starts with `Invite` clears `session.inviteToken` so a retry falls back to the normal login form.
+  - `deploy/local/compose.yaml` now sets `MUMWEB_INVITE_SECRET` to a fixed dev value by default (like the admin
+    and access passwords already did) so the feature is on out of the box in local dev.
+  - Verified end-to-end against the local HTTPS dev stack with puppeteer: logged into `/admin/` as SuperUser,
+    opened the Invites tab (only tab list that appears when `/config` reports `invite: true`), created a 1-day
+    link, copied it (button briefly shows "Copied"), opened it in a fresh page — the access-password field was
+    replaced by the notice, the invite param was gone from the address bar after load, and connecting as a new
+    nickname worked without any password. A garbage token on `/?invite=...` was correctly rejected with "This
+    invite link is invalid." `go test ./...` (new `invite_test.go`: sign/verify round trip, tampering, wrong
+    secret, expired/invalid/disabled-feature rejection, and that a valid invite bypasses a configured access
+    password while its absence still requires one), `go vet`, `gofmt`, `npm run check` (0 errors across all seven
+    i18n dictionaries), `npm test` (50 passed) and `npm run build` all pass.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

@@ -30,6 +30,7 @@ stores no certificates; it sees a user's private key in memory while that user's
 | Rates and limits | per-IP new connections (`MUMWEB_CONN_RATE`), **per-IP concurrent sessions** (`MUMWEB_MAX_SESSIONS_PER_IP`, default 10), total sessions (`MUMWEB_MAX_SESSIONS`), optional **reserved slots** for a second password (`MUMWEB_RESERVED_SLOTS`; wrong guesses delayed and locked out like the access password), audio 100 packets/s (burst 150), **control messages 50/s (burst 200), 500 dropped in a row ends the session**, admin commands paced to 0.8/s |
 | HTTP server | header timeout 10 s, idle timeout 120 s, header size limit 16 KiB, non-root user |
 | Passwords | access and admin password compared in constant time after hashing; 1 s delay per wrong guess; 5 wrong guesses lock the IP for 10 minutes; separate counters for access and admin; never logged |
+| Invite links | optional (`MUMWEB_INVITE_SECRET`), stateless signed token (expiry + HMAC-SHA256, constant-time compare): no server-side list, so an individual link cannot be revoked before it expires; rotating the secret invalidates all of them at once. Stands in for the access password only, not the Mumble server password or the reserved-slot password |
 | Names | a name already used by a session with another certificate is refused (`UsernameInUse`), so nobody can kick another web user by reusing their name |
 | SuperUser | refused on the main login by default; allowed only on admin sessions that passed the admin password |
 | Admin panel | off without `MUMWEB_ADMIN_PASSWORD`; admin commands refused on normal sessions; new bans from the panel must be certificate-only; SuperUser registration cannot be changed; sizes and permission masks bounded; every state-changing action audited (ids, never secrets) |
@@ -137,6 +138,9 @@ hardening).
   Put these lines inside the site block, before `reverse_proxy`. The panel stays usable only from that address.
   (Tested against the local Caddy: `/` answered 200, `/admin/` and `/admin` answered 404 for other addresses.)
 - Use a long random `MUMWEB_ADMIN_PASSWORD` and a different Mumble SuperUser password.
+- If you use invite links (`MUMWEB_INVITE_SECRET`): share a minted link like a password, not in a public place —
+  anyone who has it can join until it expires, and there is no way to revoke a single link early (only rotating
+  the secret, which invalidates every link minted so far).
 - Keep Mumble's own server password or registration rules if the server should not be open to the world.
 - Update policy: run `docker compose pull && docker compose up -d` after every release; maintainers re-run the checks
   below before a release and fix HIGH/CRITICAL findings first.

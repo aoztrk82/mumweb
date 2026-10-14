@@ -59,7 +59,10 @@ type Config struct {
 	// sessions); everyone else shares MaxSessions-ReservedSlots. Both must be set, else the feature is off.
 	ReservedSlots    int
 	ReservedPassword string
-	Logger           *slog.Logger
+	// InviteSecret enables invite links: a browser that sends a valid inviteToken in hello
+	// (see invite.go) skips the access password. Empty disables the feature.
+	InviteSecret string
+	Logger       *slog.Logger
 }
 
 // Handler accepts browser WebSocket sessions on /ws.
@@ -113,6 +116,9 @@ func (h *Handler) AdminEnabled() bool { return h.cfg.AdminPassword != "" }
 
 // ReservedSlotsEnabled reports whether some slots are kept for holders of the reserved-slot password.
 func (h *Handler) ReservedSlotsEnabled() bool { return h.cfg.ReservedSlots > 0 }
+
+// InviteEnabled reports whether invite links are switched on (MUMWEB_INVITE_SECRET set).
+func (h *Handler) InviteEnabled() bool { return h.cfg.InviteSecret != "" }
 
 // acquireSlot takes a web slot after login checks passed. Anyone may use the general slots
 // (MaxSessions-ReservedSlots); privileged sessions (reserved password, admin) may also use the
@@ -256,6 +262,12 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		s.admin = true
 		s.ws.SetReadLimit(maxAdminJSONSize)
 		s.log = s.log.With("role", roleAdmin)
+	} else if hello.InviteToken != "" && s.h.cfg.InviteSecret != "" {
+		// A valid invite token stands in for the access password; it does not need one too.
+		if reason, msg := s.checkInvite(hello.InviteToken); reason != "" {
+			_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
+			return websocket.StatusNormalClosure, "invite denied"
+		}
 	} else if reason, msg := s.checkAccess(ctx, hello.AccessPassword); reason != "" {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
 		return websocket.StatusNormalClosure, "access denied"
@@ -584,7 +596,7 @@ func (s *session) handleControl(ctx context.Context, m clientMsg) error {
 		}
 	}
 	switch m.T {
-	case "adminBanList", "adminSetBanList", "adminUserList", "adminUpdateUsers", "adminACL", "adminSetACL":
+	case "adminBanList", "adminSetBanList", "adminUserList", "adminUpdateUsers", "adminACL", "adminSetACL", "adminCreateInvite":
 		if !s.admin {
 			return fmt.Errorf("%w: %s on a non-admin session", errProtocol, m.T)
 		}

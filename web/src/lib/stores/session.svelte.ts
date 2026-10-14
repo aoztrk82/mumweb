@@ -32,6 +32,8 @@ class SessionState {
   accessRequired = $state(false)
   /** The gateway keeps some slots for a reserved-slot password (from /config). */
   reservedSlots = $state(false)
+  /** Invite token read from the URL (?invite=...) on login, cleared once it is used or rejected. */
+  inviteToken = $state('')
   /** Operator-set display name/description (MUMWEB_SERVER_NAME/_DESCRIPTION, from /config). */
   serverName = $state('')
   serverDescription = $state('')

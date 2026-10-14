@@ -17,24 +17,24 @@ import { displayName, userPref } from './stores/userPrefs.svelte'
 import { gatewayUrl, ReconnectingSocket } from './ws'
 
 let socket: ReconnectingSocket | null = null
-let credentials = { username: '', password: '', accessPassword: '', reservedPassword: '' }
+let credentials = { username: '', password: '', accessPassword: '', reservedPassword: '', inviteToken: '' }
 
 /** Starts a session. Call from a click handler: it also unlocks audio playback. */
-export function connect(username: string, password: string, accessPassword = '', reservedPassword = ''): void {
+export function connect(username: string, password: string, accessPassword = '', reservedPassword = '', inviteToken = ''): void {
   unlockAudio()
   void startAudio()
   socket?.stop()
-  credentials = { username, password, accessPassword, reservedPassword }
+  credentials = { username, password, accessPassword, reservedPassword, inviteToken }
   session.error = null
   session.notice = null
   session.joined = false
   session.clearChat()
-  openSocket(username, password, accessPassword, reservedPassword)
+  openSocket(username, password, accessPassword, reservedPassword, inviteToken)
 }
 
-function openSocket(username: string, password: string, accessPassword: string, reservedPassword: string): void {
+function openSocket(username: string, password: string, accessPassword: string, reservedPassword: string, inviteToken: string): void {
   socket = new ReconnectingSocket(gatewayUrl(), {
-    hello: async () => ({ t: 'hello', username, password, accessPassword, reservedPassword, cert: await loadCert(), tokens: tokens.all() }),
+    hello: async () => ({ t: 'hello', username, password, accessPassword, reservedPassword, inviteToken, cert: await loadCert(), tokens: tokens.all() }),
     message: handleMessage,
     audio: handleAudioFrame,
     status: (s, attempt, retryIn) => {
@@ -68,11 +68,11 @@ async function startAudio(): Promise<void> {
 /** Reconnects with the same credentials (e.g. after changing the certificate). */
 export function reconnect(): void {
   if (!credentials.username) return
-  const { username, password, accessPassword, reservedPassword } = credentials
+  const { username, password, accessPassword, reservedPassword, inviteToken } = credentials
   socket?.stop()
   socket = null
   session.joined = true // keep the main view while reconnecting
-  openSocket(username, password, accessPassword, reservedPassword)
+  openSocket(username, password, accessPassword, reservedPassword, inviteToken)
 }
 
 export function disconnect(): void {
@@ -399,6 +399,7 @@ function handleMessage(m: ServerMessage): void {
         session.accessRequired = true
         if (m.reason === 'AccessPasswordWrong') accessPassword.forget()
       }
+      if (m.reason.startsWith('Invite')) session.inviteToken = ''
       fail(t.errors.reject[m.reason] ?? (m.message || t.errors.reject.None))
       break
 

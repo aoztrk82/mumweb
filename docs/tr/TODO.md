@@ -13,7 +13,6 @@ Son güncelleme: 2026-10-14. Bu sadece özellik yol haritası. Yapılan işler v
   kalmayacağına karar ver (`web/src/i18n/index.svelte.ts` içinde `FALLBACK`).
 - Reddit duyurusu için README cilası: sürüm ve CI rozetleri, diğer Mumble web istemcileriyle "Neden mumweb?"
   karşılaştırması (ekran görüntüsü ve demo GIF'i tamam, bkz. `docs/images/`).
-- Davet bağlantısı (imzalı, süreli token), erişim şifresine alternatif veya ek olarak.
 - Kendi açıklamasını düzenleme; avatar gösterme/yükleme.
 - Kanal açıklamasını görüntüleme (düzenleme var).
 - Fısıltı/bağırma (whisper/shout, VoiceTarget).

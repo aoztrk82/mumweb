@@ -213,6 +213,8 @@ live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`
          # Keep some of the MUMWEB_MAX_SESSIONS slots for people who know this password (off if either is empty).
          MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
          MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
+         # Lets the admin panel mint invite links that skip the access password (empty = feature off).
+         MUMWEB_INVITE_SECRET: ${MUMWEB_INVITE_SECRET:-}
        # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
        # internet: the gateway only sits on the internal network with Mumble and Caddy.
        read_only: true
@@ -345,6 +347,7 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_ADMIN_PASSWORD` | empty | If set, switches on the admin panel at `/admin`; admin sessions must send it. Empty = panel off (see below) |
 | `MUMWEB_RESERVED_SLOTS` | `0` | How many of `MUMWEB_MAX_SESSIONS` are reserved for holders of `MUMWEB_RESERVED_PASSWORD` (and for admin sessions). Other users share the remaining slots. Needs the password and a limit above the reserved count, else off |
 | `MUMWEB_RESERVED_PASSWORD` | empty | Password for the reserved slots, typed in an optional login field |
+| `MUMWEB_INVITE_SECRET` | empty | If set, the admin panel can mint invite links (`/?invite=...`) that skip the access password until they expire. Empty = feature off (see below) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `MUMWEB_SERVER_NAME` | empty | Shown as the heading on the login screen and next to "Connected" in the status bar once connected. Empty falls back to "mumweb" |
 | `MUMWEB_SERVER_DESCRIPTION` | empty | Shown under the name on the login screen and in the status bar. Plain text (not HTML) |
@@ -364,6 +367,7 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_ACCESS_PASSWORD` | empty | See above |
 | `MUMWEB_ADMIN_PASSWORD` | empty | See above |
 | `MUMWEB_RESERVED_SLOTS`, `MUMWEB_RESERVED_PASSWORD` | `0`, empty | See above |
+| `MUMWEB_INVITE_SECRET` | empty | See above |
 
 ### Server name and description
 
@@ -399,6 +403,23 @@ use the last 2. The field appears only when the feature is on.
   so a typo does not silently use up a general slot.
 - It is a shared "door code" like the access password: use HTTPS. Desktop Mumble clients are not affected.
 
+### Invite links
+
+Set `MUMWEB_INVITE_SECRET` to a long random value and the admin panel's **Invites** tab can mint links such as
+`https://your-domain/?invite=eyJ...` that let someone join without typing the access password, until they expire.
+Pick how long a link stays valid (1 hour to 30 days) and share it; opening it fills in the invite automatically and
+hides the access password field.
+
+- A link is a signed, **stateless** token (an expiry timestamp plus an HMAC using `MUMWEB_INVITE_SECRET`): the
+  gateway keeps no list of issued links, so a single one cannot be revoked early. Changing `MUMWEB_INVITE_SECRET`
+  invalidates every link that was ever minted, all at once; that is the only way to revoke.
+- It only stands in for the access password, not the Mumble server password. The reserved-slot password, if any,
+  is still separate — an invite does not grant a reserved slot.
+- Unlike a password, a link cannot be brute-forced (it is unguessable, like a long random token), so it has no
+  lockout of its own. A wrong or expired token is simply refused.
+- The admin panel does not persist the list of links it created; it only remembers them for the current browser tab,
+  as a convenience for copying. Treat a minted link like a password: share it over a private channel, not in public.
+
 ### Admin panel (`/admin`)
 
 Set `MUMWEB_ADMIN_PASSWORD` to switch on the admin panel at `https://your-domain/admin/`. Without it the panel is
@@ -409,6 +430,7 @@ off and its login is refused. It manages what the Mumble protocol exposes:
   (rules and their order, allow/deny per permission, inherit flags, group members).
 - **Bans:** the ban list. You can remove any entry (also IP bans made from the desktop client) and add certificate bans.
 - **Registered users:** list, rename, delete.
+- **Invites:** mint invite links when `MUMWEB_INVITE_SECRET` is set (see above); hidden otherwise.
 
 Server settings (welcome text, bandwidth, user limit) are not part of the Mumble protocol; change them in the
 server's configuration.

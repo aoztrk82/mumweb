@@ -32,6 +32,9 @@ class AdminState {
   /** ACL of the channel being edited. */
   acl = $state<({ channelId: number } & AclData) | null>(null)
 
+  /** Invite links created this session (newest first); the server keeps no list of its own. */
+  invites = $state<{ token: string; url: string; expiresAt: number }[]>([])
+
   toasts = $state<Toast[]>([])
   private nextId = 1
 

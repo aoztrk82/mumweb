@@ -17,6 +17,16 @@
   let rememberReserved = $state(savedReserved !== '')
   const busy = $derived(session.status === 'connecting' || session.status === 'reconnecting')
 
+  // An invite link (?invite=...) stands in for the access password; read it once, then drop it
+  // from the address bar so it doesn't linger in history or get shared in a screenshot.
+  const inviteParam = new URLSearchParams(location.search).get('invite')
+  if (inviteParam) {
+    session.inviteToken = inviteParam
+    const url = new URL(location.href)
+    url.searchParams.delete('invite')
+    history.replaceState(null, '', url)
+  }
+
   // Ask the gateway whether it wants its web access password; the field only appears then.
   $effect(() => {
     void fetchLoginConfig().then((cfg) => {
@@ -43,7 +53,7 @@
       if (rememberReserved && reserved) reservedPassword.save(reserved)
       else reservedPassword.forget()
     }
-    connect(name, password, session.accessRequired ? access : '', session.reservedSlots ? reserved : '')
+    connect(name, password, session.accessRequired && !session.inviteToken ? access : '', session.reservedSlots ? reserved : '', session.inviteToken)
   }
 </script>
 
@@ -54,7 +64,9 @@
     <p class="tagline">{t.login.tagline}</p>
     <p class="sub">{session.serverDescription || t.login.title}</p>
 
-    {#if session.accessRequired}
+    {#if session.inviteToken}
+      <p class="notice" role="status">{t.login.inviteNotice}</p>
+    {:else if session.accessRequired}
       <label>
         <span>{t.login.accessPassword}</span>
         <PasswordField bind:value={access} autocomplete="off" required />
@@ -95,7 +107,11 @@
       <p class="notice" role="status">{session.notice}</p>
     {/if}
 
-    <button class="primary" type="submit" disabled={busy || !username.trim() || (session.accessRequired && !access)}>
+    <button
+      class="primary"
+      type="submit"
+      disabled={busy || !username.trim() || (session.accessRequired && !session.inviteToken && !access)}
+    >
       {busy ? t.login.connecting : t.login.connect}
     </button>
   </form>

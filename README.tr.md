@@ -190,6 +190,8 @@ dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example`
          # Keep some of the MUMWEB_MAX_SESSIONS slots for people who know this password (off if either is empty).
          MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
          MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
+         # Lets the admin panel mint invite links that skip the access password (empty = feature off).
+         MUMWEB_INVITE_SECRET: ${MUMWEB_INVITE_SECRET:-}
        # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
        # internet: the gateway only sits on the internal network with Mumble and Caddy.
        read_only: true
@@ -320,6 +322,7 @@ Kullanıcı kayıtları ve kanallar `mumble-data` volume'ünde yaşar. Yedekleme
 | `MUMWEB_ADMIN_PASSWORD` | boş | Doluysa `/admin` yönetim panelini açar; yönetim oturumları bunu göndermek zorundadır. Boşsa panel kapalıdır (aşağıya bakın) |
 | `MUMWEB_RESERVED_SLOTS` | `0` | `MUMWEB_MAX_SESSIONS` içinden kaç slotun `MUMWEB_RESERVED_PASSWORD` sahiplerine (ve yönetim oturumlarına) ayrılacağı. Diğer kullanıcılar kalan slotları paylaşır. Şifre ve ayrılan sayıdan büyük bir sınır gerekir, yoksa kapalıdır |
 | `MUMWEB_RESERVED_PASSWORD` | boş | Ayrılmış slotların şifresi; giriş ekranındaki isteğe bağlı alana yazılır |
+| `MUMWEB_INVITE_SECRET` | boş | Doluysa yönetim paneli, süresi dolana kadar erişim şifresini atlayan davet bağlantıları (`/?invite=...`) oluşturabilir. Boşsa özellik kapalıdır (aşağıya bakın) |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `MUMWEB_SERVER_NAME` | boş | Giriş ekranında başlık olarak ve bağlandıktan sonra durum çubuğunda "Bağlı" yazısının yanında gösterilir. Boşsa "mumweb" yazar |
 | `MUMWEB_SERVER_DESCRIPTION` | boş | Giriş ekranında isim altında ve durum çubuğunda gösterilir. Düz metindir (HTML değil) |
@@ -358,6 +361,25 @@ da kullanabilir. Alan yalnızca özellik açıkken görünür.
   hatası sessizce genel bir slot harcamaz.
 - Erişim şifresi gibi ortak bir "kapı kodu"dur: HTTPS kullanın. Masaüstü Mumble istemcileri etkilenmez.
 
+### Davet bağlantıları
+
+`MUMWEB_INVITE_SECRET`'i uzun, rastgele bir değere ayarlayın; yönetim panelinin **Davetler** sekmesi
+`https://alan-adiniz/?invite=eyJ...` gibi bağlantılar oluşturabilir — bunlar, süresi dolana kadar erişim şifresi
+yazmadan katılmayı sağlar. Bağlantının ne kadar geçerli kalacağını seçin (1 saatten 30 güne kadar) ve paylaşın;
+bağlantı açıldığında davet otomatik doldurulur ve erişim şifresi alanı gizlenir.
+
+- Bir bağlantı, imzalı ve **durumsuz (stateless)** bir token'dır (bir son geçerlilik zaman damgası artı
+  `MUMWEB_INVITE_SECRET` ile hesaplanan bir HMAC): gateway oluşturulan bağlantıların listesini tutmaz, bu yüzden tek
+  bir bağlantı erken iptal edilemez. `MUMWEB_INVITE_SECRET`'i değiştirmek, o ana kadar oluşturulmuş tüm bağlantıları
+  bir kerede geçersiz kılar; iptal etmenin tek yolu budur.
+- Yalnızca erişim şifresinin yerini tutar, Mumble sunucu şifresinin değil. Varsa ayrılmış slot şifresi hâlâ ayrıdır —
+  davet, ayrılmış bir slot vermez.
+- Bir şifrenin aksine bir bağlantı kaba kuvvetle denenemez (uzun rastgele bir token gibi tahmin edilemez), bu yüzden
+  kendine ait bir kilitlenmesi yoktur. Yanlış veya süresi dolmuş bir token sadece reddedilir.
+- Yönetim paneli oluşturduğu bağlantıların listesini kalıcı tutmaz; bunları yalnızca kopyalama kolaylığı için o anki
+  tarayıcı sekmesinde hatırlar. Oluşturulan bir bağlantıyı şifre gibi düşünün: herkese açık değil, özel bir kanaldan
+  paylaşın.
+
 ### Yönetim paneli (`/admin`)
 
 `https://alan-adiniz/admin/` adresindeki yönetim panelini açmak için `MUMWEB_ADMIN_PASSWORD` ayarlayın. Ayarlı değilse
@@ -369,6 +391,7 @@ panel kapalıdır ve girişi reddedilir. Panel, Mumble protokolünün sunduklar�
 - **Yasaklar:** yasak listesi. Her kaydı silebilirsiniz (masaüstü istemciden yapılan IP yasakları dahil) ve sertifika
   yasağı ekleyebilirsiniz.
 - **Kayıtlı kullanıcılar:** listele, yeniden adlandır, sil.
+- **Davetler:** `MUMWEB_INVITE_SECRET` ayarlıysa davet bağlantısı oluşturur (yukarıya bakın); aksi halde gizlidir.
 
 Sunucu ayarları (karşılama metni, bant genişliği, kullanıcı sınırı) Mumble protokolünde yoktur; sunucunun yapılandırmasından
 değiştirin.

@@ -41,9 +41,11 @@ type clientMsg struct {
 	// AccessPassword is the web access password (MUMWEB_ACCESS_PASSWORD), not the Mumble server password.
 	AccessPassword string `json:"accessPassword"`
 	// ReservedPassword opens the reserved web slots (MUMWEB_RESERVED_PASSWORD); optional.
-	ReservedPassword string    `json:"reservedPassword"`
-	Cert             *certPair `json:"cert"`
-	Tokens           []string  `json:"tokens"`
+	ReservedPassword string `json:"reservedPassword"`
+	// InviteToken stands in for AccessPassword when invite links are enabled; optional.
+	InviteToken string    `json:"inviteToken"`
+	Cert        *certPair `json:"cert"`
+	Tokens      []string  `json:"tokens"`
 	// Role is "admin" for the /admin panel (needs AdminPassword); anything else is a normal session.
 	Role          string `json:"role"`
 	AdminPassword string `json:"adminPassword"`
@@ -88,6 +90,9 @@ type clientMsg struct {
 	Bans        []banEntryJSON   `json:"bans"`
 	UserUpdates []userUpdateJSON `json:"userUpdates"`
 	ACL         *aclJSON         `json:"acl"`
+
+	// adminCreateInvite
+	InviteTTL int `json:"inviteTtlSeconds"`
 }
 
 // --- admin panel payloads ---
@@ -159,6 +164,13 @@ type aclMsg struct {
 // adminBusyMsg tells the panel that an admin command was dropped by the pacing limit.
 type adminBusyMsg struct {
 	T string `json:"t"` // "adminBusy"
+}
+
+// inviteCreatedMsg answers adminCreateInvite with the minted token.
+type inviteCreatedMsg struct {
+	T         string `json:"t"` // "inviteCreated"
+	Token     string `json:"token"`
+	ExpiresAt int64  `json:"expiresAt"` // unix seconds
 }
 
 func newBanListMsg(bans []mumble.BanEntry) banListMsg {

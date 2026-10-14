@@ -1,17 +1,24 @@
 <script lang="ts">
   import LangSwitch from '../components/LangSwitch.svelte'
   import { t } from '../i18n/index.svelte'
+  import { fetchLoginConfig } from '../lib/accessPassword'
   import AdminLogin from './AdminLogin.svelte'
   import BansTab from './BansTab.svelte'
   import ChannelsTab from './ChannelsTab.svelte'
+  import InvitesTab from './InvitesTab.svelte'
   import OnlineTab from './OnlineTab.svelte'
   import RegisteredTab from './RegisteredTab.svelte'
   import { disconnect } from './client'
   import { admin } from './state.svelte'
 
-  type Tab = 'online' | 'channels' | 'bans' | 'registered'
-  const TABS: Tab[] = ['online', 'channels', 'bans', 'registered']
+  type Tab = 'online' | 'channels' | 'bans' | 'registered' | 'invites'
+  let inviteEnabled = $state(false)
+  const TABS = $derived<Tab[]>(['online', 'channels', 'bans', 'registered', ...(inviteEnabled ? (['invites'] as const) : [])])
   let tab = $state<Tab>('online')
+
+  $effect(() => {
+    void fetchLoginConfig().then((cfg) => (inviteEnabled = cfg.invite))
+  })
 </script>
 
 {#if !admin.joined}
@@ -41,6 +48,7 @@
       {#if tab === 'channels'}<ChannelsTab />{/if}
       {#if tab === 'bans'}<BansTab />{/if}
       {#if tab === 'registered'}<RegisteredTab />{/if}
+      {#if tab === 'invites'}<InvitesTab />{/if}
     </main>
 
     <div class="toasts" aria-live="polite">

@@ -30,6 +30,7 @@ saklamaz; bir kullanıcının oturumu açıkken özel anahtarını bellekte gör
 | Hız ve sınırlar | IP başına yeni bağlantı (`MUMWEB_CONN_RATE`), **IP başına eşzamanlı oturum** (`MUMWEB_MAX_SESSIONS_PER_IP`, varsayılan 10), toplam oturum (`MUMWEB_MAX_SESSIONS`), ikinci bir şifreyle açılan isteğe bağlı **ayrılmış slotlar** (`MUMWEB_RESERVED_SLOTS`; yanlış denemeler erişim şifresi gibi geciktirilir ve kilitlenir), ses 100 paket/sn (burst 150), **kontrol mesajları 50/sn (burst 200), art arda 500 düşen mesaj oturumu bitirir**, yönetim komutları 0,8/sn'ye yavaşlatılır |
 | HTTP sunucusu | başlık zaman aşımı 10 sn, boşta zaman aşımı 120 sn, başlık boyutu sınırı 16 KiB, root olmayan kullanıcı |
 | Şifreler | erişim ve yönetici şifresi özetlenip sabit zamanlı karşılaştırılır; yanlış denemede 1 sn gecikme; 5 yanlış deneme IP'yi 10 dakika kilitler; erişim ve yönetici için ayrı sayaç; asla loglanmaz |
+| Davet bağlantıları | isteğe bağlı (`MUMWEB_INVITE_SECRET`), durumsuz imzalı token (son geçerlilik + HMAC-SHA256, sabit zamanlı karşılaştırma): sunucuda liste tutulmaz, bu yüzden tek bir bağlantı süresi dolmadan iptal edilemez; gizli anahtarı değiştirmek hepsini birden geçersiz kılar. Yalnızca erişim şifresinin yerini tutar, Mumble sunucu şifresinin veya ayrılmış slot şifresinin değil |
 | Adlar | başka sertifikalı bir oturumun kullandığı ad reddedilir (`UsernameInUse`); kimse adı yeniden kullanarak başka web kullanıcısını atamaz |
 | SuperUser | ana girişte varsayılan olarak reddedilir; yalnızca yönetici şifresini geçen yönetim oturumlarında serbest |
 | Yönetim paneli | `MUMWEB_ADMIN_PASSWORD` olmadan kapalı; yönetici olmayan oturumlarda yönetim komutları reddedilir; panelden yeni yasaklar yalnızca sertifika yasağı olabilir; SuperUser kaydı değiştirilemez; boyutlar ve izin maskeleri sınırlı; durumu değiştiren her işlem denetlenir (kimlikler, asla sırlar) |
@@ -135,6 +136,10 @@ OpenSSH 10.0 çalıştırıyor).
   Bu satırları site bloğunun içine, `reverse_proxy`'den önce koyun. Panel yalnızca o adresten kullanılabilir kalır.
   (Yerel Caddy'ye karşı denendi: `/` 200, başka adreslerden `/admin/` ve `/admin` 404 döndü.)
 - Uzun, rastgele bir `MUMWEB_ADMIN_PASSWORD` ve farklı bir Mumble SuperUser şifresi kullanın.
+- Davet bağlantıları kullanıyorsanız (`MUMWEB_INVITE_SECRET`): oluşturulan bağlantıyı bir şifre gibi düşünün, herkese
+  açık yerde paylaşmayın — süresi dolana kadar bağlantıyı bilen herkes katılabilir, ve tek bir bağlantıyı erken iptal
+  etmenin yolu yoktur (yalnızca gizli anahtarı değiştirmek, bu da o ana kadar oluşturulmuş tüm bağlantıları geçersiz
+  kılar).
 - Sunucu dünyaya açık olmasın istiyorsanız Mumble'ın kendi sunucu şifresini veya kayıt kurallarını koruyun.
 - Güncelleme politikası: her sürümden sonra `docker compose pull && docker compose up -d`; bakımcılar sürümden önce aşağıdaki
   kontrolleri yeniden çalıştırır ve önce HIGH/CRITICAL bulguları düzeltir.
