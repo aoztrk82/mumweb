@@ -90,7 +90,7 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
 
    services:
      mumble:
-       image: ${MUMBLE_IMAGE:-mumblevoip/mumble-server:latest@sha256:018ad3515932e513d8fdc970df918373a2664c4da32b09a89a4aaee28eb7507a}
+       image: mumblevoip/mumble-server:latest
        restart: unless-stopped
        ports:
          # Desktop Mumble clients connect here directly.
@@ -113,7 +113,7 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
        networks: [default, backend]
 
      mumweb:
-       image: ${MUMWEB_IMAGE:-aoztrk82/mumweb:0.3.1@sha256:0e627df0611c6904a30f2d721ed166b566f7f6dda471b54165614443c6a56a3c}
+       image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
        restart: unless-stopped
        environment:
          MUMWEB_MUMBLE_ADDR: mumble:64738
@@ -145,7 +145,7 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
          - mumble
 
      caddy:
-       image: ${CADDY_IMAGE:-caddy:2@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af}
+       image: caddy:2
        restart: unless-stopped
        ports:
          - "80:80"
@@ -200,10 +200,8 @@ The compose file runs three services: `mumble` (the official `mumblevoip/mumble-
 web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through). The same
 files live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`).
 
-All three images (`mumweb`, `mumble-server`, `caddy`) are **pinned by digest** in `docker-compose.yml`, so
-`docker compose pull` changes nothing until you deliberately update `MUMWEB_IMAGE`, `MUMBLE_IMAGE` or `CADDY_IMAGE` in
-`.env` (see `deploy/.env.example` for the current defaults and where to find newer ones). Images are published for
-`linux/amd64` and `linux/arm64`.
+Image tags: `latest` follows the newest release; `0.3.1`-style tags are fixed releases. Pin one by setting
+`MUMWEB_VERSION=0.3.1` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
 
 ## Deployment
 

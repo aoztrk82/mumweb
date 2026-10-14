@@ -55,10 +55,8 @@ Goal: no input path may give access outside the container or to the host system.
 - [x] Container hardening: gateway `read_only`, `cap_drop: ALL`, `no-new-privileges`, memory/pids/cpu limits; Caddy and
       Mumble got `no-new-privileges` and limits (Caddy keeps only `NET_BIND_SERVICE`; Mumble's entrypoint breaks with
       `cap_drop: ALL`).
-- [x] Image digest pinning in the compose files (2026-10-14): `MUMWEB_IMAGE`/`MUMBLE_IMAGE`/`CADDY_IMAGE` default to
-      `repo:tag@sha256:…` in `docker-compose.yml`; `docker compose pull` cannot silently change what runs.
-- [ ] Still open there: a distroless/scratch gateway image (needs a built-in health check), read-only root for Caddy
-      and Mumble.
+- [ ] Still open there: image digest pinning in the compose files (documented as an operator recommendation), a
+      distroless/scratch gateway image (needs a built-in health check), read-only root for Caddy and Mumble.
 - [x] Network: the gateway sits on an `internal` network and has no route to the internet (verified); the Mumble Ice
       port listens on 127.0.0.1 inside its container only.
 - [x] Dependency scanning once: `govulncheck`, `npm audit`, Trivy on the published image: all clean. Update policy in

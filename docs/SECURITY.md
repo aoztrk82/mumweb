@@ -119,9 +119,9 @@ hardening).
 
 ## 5. Recommendations for operators
 
-- HTTPS only; keep `MUMWEB_ALLOWED_ORIGINS` set. All three images are pinned by digest by default in
-  `docker-compose.yml` (`MUMWEB_IMAGE`, `MUMBLE_IMAGE`, `CADDY_IMAGE`), so `docker compose pull` cannot silently
-  change what runs; update on purpose by copying a newer `repo:tag@sha256:…` into `.env` (see `deploy/.env.example`).
+- HTTPS only; keep `MUMWEB_ALLOWED_ORIGINS` set. Pin the image: `MUMWEB_VERSION=0.3.1` in `.env`, or a digest
+  (`image: aoztrk82/mumweb@sha256:…`) and update on purpose (`docker compose pull`). Same for `mumblevoip/mumble-server`
+  and `caddy`.
 - Pin the Mumble certificate if the gateway reaches it over a network you do not control:
   `MUMWEB_TLS_FINGERPRINT` (`mumprobe -addr host:64738 -exit` prints it). On the compose network this is optional.
 - Restrict the admin page to your own address in `Caddyfile` (replace `203.0.113.7`):
@@ -161,6 +161,7 @@ If Trivy's default database mirror fails, add `--db-repository ghcr.io/aquasecur
 - Semgrep and ESLint security rules for the frontend; a CI job that runs the scans above.
 - Distroless/scratch runtime image (the Alpine image only adds a shell and `wget` for the health check; a built-in
   `-healthcheck` flag would remove that).
+- Image digest pinning inside the compose files (documented as a recommendation instead, so installs do not go stale).
 - Read-only root filesystem for Caddy and Mumble (they need writable paths; test before enabling).
 - Long fuzz runs; a protocol fuzzer against a real Mumble server.
 - Capacity and abuse testing under load (TODO 5).

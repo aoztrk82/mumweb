@@ -95,9 +95,3 @@ kullanır, ek token gerekmez. GitHub'daki README ile tutarlı tutun, doğru kayn
 Sürümü
 `gateway/cmd/mumweb/main.go` içindeki `release` ve `Makefile`'daki varsayılan `VERSION` ile birlikte artırın,
 yayını [PROGRESS.md](PROGRESS.md)'ye yazın.
-
-`deploy/docker-compose.yml`, `mumweb`'i digest ile sabitler (`MUMWEB_IMAGE`'ın varsayılanı). Yayınladıktan sonra yeni
-index digest'ini alın (`docker buildx imagetools inspect aoztrk82/mumweb:<sürüm>`) ve bu varsayılanı
-`docker-compose.yml`'de, `README.md` / `README.tr.md` kopyalarında ve `deploy/.env.example`'da birlikte güncelleyin;
-böylece depoyu yeni klonlayan biri `.env`'e dokunmadan yeni sürümü çalıştırır. `.env`'inde zaten eski bir digest
-sabitlemiş operatörler, bilerek güncelleyene kadar o sürümde kalır — bu tasarım gereği.
