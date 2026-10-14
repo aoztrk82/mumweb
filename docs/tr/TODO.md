@@ -10,8 +10,8 @@ Son güncelleme: 2026-10-14. Bu sadece özellik yol haritası. Yapılan işler v
 
 - Diğer tarayıcı dilleri için varsayılanın Türkçe yerine İngilizce olup olmayacağına karar ver
   (`web/src/i18n/index.svelte.ts` içinde `FALLBACK`); başka diller eklenecek mi?
-- Reddit duyurusu için README cilası: web arayüzü ekran görüntüleri / kısa demo GIF'i, sürüm ve CI rozetleri, diğer
-  Mumble web istemcileriyle "Neden mumweb?" karşılaştırması.
+- Reddit duyurusu için README cilası: sürüm ve CI rozetleri, diğer Mumble web istemcileriyle "Neden mumweb?"
+  karşılaştırması (ekran görüntüsü ve demo GIF'i tamam, bkz. `docs/images/`).
 - Davet bağlantısı (imzalı, süreli token), erişim şifresine alternatif veya ek olarak.
 - Kendi açıklamasını düzenleme; avatar gösterme/yükleme.
 - Kanal açıklamasını görüntüleme (düzenleme var).

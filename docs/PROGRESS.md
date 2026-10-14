@@ -715,6 +715,24 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   `docs/tr/BUILDING.md`) were updated to `#deployment`. Driven by an upcoming Reddit announcement: the owner wants
   the README to read like a general self-hosting guide, not a "copy our compose file" tutorial.
 
+## Addendum: README screenshot and demo GIF (2026-10-14)
+
+- Removed two unused leftover dev screenshots (`docs/superuser_right_click_channel_menu.png`,
+  `docs/superuser_right_click_user_menu.png`) that nothing referenced.
+- Added `docs/images/screenshot.png` and `docs/images/demo.gif`, embedded near the top of `README.md` and
+  `README.tr.md`, right after the intro paragraph. Captured against the local HTTPS dev stack (`deploy/local`,
+  `https://mumweb.test`) with two scripted browser sessions ("Alice", "Sam") joining a channel and chatting, plus a
+  right-click user context menu to show that feature off; the leftover `test`/`wwww`/`test33` channels from earlier
+  admin-panel testing were renamed to `General`/`Gaming` via the admin panel first so the channel tree looks
+  presentable. Captured with puppeteer-core + headless Chrome, assembled into a GIF with `ffmpeg` (palette-based,
+  ~900px wide, ~145 KB). Scripts are scratch (not added to the repo).
+  - Found along the way: running two tabs in the **same** headless Chrome instance with
+    `--use-fake-device-for-media-stream` reliably deadlocks Puppeteer's `Runtime.callFunctionOn` (times out even at
+    a 180 s protocol timeout) once both tabs are producing fake audio; a single tab, or multiple tabs without the
+    fake device, works fine. Worked around by giving each simulated user its own full browser process instead of a
+    second tab — not a mumweb bug, just a headless-Chrome/fake-audio quirk worth remembering for future UI capture
+    scripts.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

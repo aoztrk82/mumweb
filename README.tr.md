@@ -5,6 +5,10 @@
 Tarayıcıdan [Mumble](https://www.mumble.info/) sunucusuna bağlanan web istemcisi. Mumble yüklü olmayan
 arkadaşlar bir adresi açıp takma adlarını yazarak sesli sohbete katılır.
 
+![mumweb ekran görüntüsü: kanal ağacı, sohbet ve ses kontrolleri](docs/images/screenshot.png)
+
+![mumweb demosu: kanala katılma, sohbet ve sağ tık kullanıcı menüsü](docs/images/demo.gif)
+
 ```
  Tarayıcı (Svelte SPA)            Docker ağı
  ┌──────────────────────┐  WSS  ┌──────────────┐  TLS/TCP  ┌───────────────┐

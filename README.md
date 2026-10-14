@@ -6,6 +6,10 @@ A self-hosted web client for [Mumble](https://www.mumble.info/) voice chat. Your
 nickname and talk: no Mumble install, no plugins. Desktop Mumble clients and browser users share the same
 server, channels and voice.
 
+![mumweb screenshot: channel tree, chat and voice controls](docs/images/screenshot.png)
+
+![mumweb demo: joining a channel, chatting and the right-click user menu](docs/images/demo.gif)
+
 ```
  Browser (Svelte SPA)             Docker network
  ┌──────────────────────┐  WSS  ┌──────────────┐  TLS/TCP  ┌───────────────┐

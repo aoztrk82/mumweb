@@ -691,6 +691,24 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   tetikledi: sahibi README'nin "bizim compose dosyamızı kopyala" eğitimi gibi değil, genel bir self-hosting kılavuzu
   gibi okunmasını istiyor.
 
+## Ek — README ekran görüntüsü ve demo GIF'i (2026-10-14)
+
+- Hiçbir yerden referans verilmeyen iki eski geliştirme ekran görüntüsü silindi
+  (`docs/superuser_right_click_channel_menu.png`, `docs/superuser_right_click_user_menu.png`).
+- `docs/images/screenshot.png` ve `docs/images/demo.gif` eklendi; `README.md` ve `README.tr.md`'de giriş
+  paragrafının hemen altına yerleştirildi. Yerel HTTPS test ortamına (`deploy/local`, `https://mumweb.test`) karşı,
+  bir kanala katılıp sohbet eden ve sağ tık kullanıcı menüsünü gösteren iki betiklenmiş tarayıcı oturumuyla
+  ("Alice", "Sam") çekildi; önceki admin paneli testlerinden kalan `test`/`wwww`/`test33` kanalları önce admin
+  panelinden `General`/`Gaming` olarak yeniden adlandırıldı ki kanal ağacı sunuma uygun görünsün. puppeteer-core +
+  başsız Chrome ile çekildi, `ffmpeg` ile GIF'e dönüştürüldü (palet tabanlı, ~900px genişlik, ~145 KB). Betikler
+  geçici (repoya eklenmedi).
+  - Yol boyunca bulunan: aynı başsız Chrome örneğinde `--use-fake-device-for-media-stream` ile iki sekme açmak, her
+    iki sekme de sahte ses üretmeye başladığında Puppeteer'ın `Runtime.callFunctionOn`'ını güvenilir biçimde
+    kilitliyor (180 sn protokol zaman aşımında bile zaman aşımına uğruyor); tek sekme, veya sahte cihaz olmadan
+    birden fazla sekme sorunsuz çalışıyor. Her simüle edilen kullanıcıya ikinci bir sekme yerine kendi tam tarayıcı
+    sürecini vererek aşıldı — bir mumweb hatası değil, ileride arayüz görüntüsü alma betikleri için hatırlanmaya
+    değer bir başsız-Chrome/sahte-ses tuhaflığı.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

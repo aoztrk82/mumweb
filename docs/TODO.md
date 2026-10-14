@@ -10,8 +10,8 @@ Last updated: 2026-10-14. This is a feature roadmap only. Completed work and ver
 
 - Decide the i18n fallback for browser languages other than English/Turkish (`FALLBACK` in
   `web/src/i18n/index.svelte.ts`), and whether to add more languages.
-- README polish for a public announcement: screenshots / a short demo GIF, a release badge, a CI badge, a
-  "why mumweb?" comparison with other Mumble web clients.
+- README polish for a public announcement: a release badge, a CI badge, a "why mumweb?" comparison with other
+  Mumble web clients (the screenshot and demo GIF are done, see `docs/images/`).
 - Invite link (signed, expiring token) as an alternative or addition to the access password.
 - Editing your own comment; showing/uploading avatars.
 - Viewing the channel description (editing already exists).
