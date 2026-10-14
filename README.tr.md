@@ -67,7 +67,7 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
 
    services:
      mumble:
-       image: mumblevoip/mumble-server:latest
+       image: ${MUMBLE_IMAGE:-mumblevoip/mumble-server:latest@sha256:018ad3515932e513d8fdc970df918373a2664c4da32b09a89a4aaee28eb7507a}
        restart: unless-stopped
        ports:
          # Desktop Mumble clients connect here directly.
@@ -90,7 +90,7 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
        networks: [default, backend]
 
      mumweb:
-       image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
+       image: ${MUMWEB_IMAGE:-aoztrk82/mumweb:0.3.1@sha256:0e627df0611c6904a30f2d721ed166b566f7f6dda471b54165614443c6a56a3c}
        restart: unless-stopped
        environment:
          MUMWEB_MUMBLE_ADDR: mumble:64738
@@ -122,7 +122,7 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
          - mumble
 
      caddy:
-       image: caddy:2
+       image: ${CADDY_IMAGE:-caddy:2@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af}
        restart: unless-stopped
        ports:
          - "80:80"
@@ -178,8 +178,10 @@ Compose dosyası üç servis çalıştırır: `mumble` (resmî `mumblevoip/mumbl
 root olmayan kullanıcı, `/healthz` sağlık kontrolü) ve `caddy` (otomatik HTTPS, WebSocket'i olduğu gibi aktarır).
 Aynı dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example` ile).
 
-İmaj etiketleri: `latest` en yeni sürümü izler; `0.3.1` gibi etiketler sabit sürümlerdir. `.env` içine
-`MUMWEB_VERSION=0.3.1` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
+Üç imajın da (`mumweb`, `mumble-server`, `caddy`) `docker-compose.yml` içinde **digest'i sabittir**; bu yüzden
+`docker compose pull` siz `.env` içinde `MUMWEB_IMAGE`, `MUMBLE_IMAGE` veya `CADDY_IMAGE`'ı bilerek değiştirmeden hiçbir
+şeyi değiştirmez (geçerli varsayılanlar ve yenilerini nereden bulacağınız `deploy/.env.example`'da). İmajlar
+`linux/amd64` ve `linux/arm64` için yayınlanır.
 
 ### Mumble autoban ayarı (önemli)
 

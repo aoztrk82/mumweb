@@ -665,6 +665,17 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   (4 saniyeden kısa sürede tamamlandı, `/healthz` etkilenmedi). Her şey tuttu; kod değişikliği gerekmedi. Ayrıntı ve her
   birinin gerekçesi: [SECURITY.md](SECURITY.md).
 
+## Ek — imaj digest sabitleme (2026-10-14)
+
+- `deploy/docker-compose.yml` artık `mumble`, `mumweb` ve `caddy` için `latest` / çıplak bir `MUMWEB_VERSION` etiketi
+  yerine `MUMBLE_IMAGE`, `MUMWEB_IMAGE`, `CADDY_IMAGE` (`.env`'de değiştirilebilir) üzerinden `repo:etiket@sha256:…`
+  referanslarını varsayılan yapıyor. Production compose'da `docker compose pull`, bir operatör (veya bir yayın) bu üç
+  değişkenden birini bilerek değiştirene kadar hiçbir şey yapmıyor. Bugün sabitlenen digest'ler:
+  `aoztrk82/mumweb:0.3.1@sha256:0e627df0…`, `mumblevoip/mumble-server:latest@sha256:018ad351…`,
+  `caddy:2@sha256:685ae3d7…` (hepsi çok mimarili index digest, amd64+arm64 kapsıyor). `MUMWEB_VERSION` yerini
+  `MUMWEB_IMAGE`'a bıraktı; test dağıtımı (`deploy/test/`) bilerek değişken etiketlerde kalıyor, kısa ömürlü olması
+  tasarım gereği. BUILDING.md'deki yayın süreci güncellendi: her yayında `mumweb` varsayılanını birlikte artırın.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

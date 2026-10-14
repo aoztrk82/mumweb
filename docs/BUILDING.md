@@ -96,3 +96,9 @@ token. Keep it consistent with the README on GitHub, which is the source of trut
 
 Bump `release` in `gateway/cmd/mumweb/main.go` and the default `VERSION` in the `Makefile` together, and record the
 release in [PROGRESS.md](PROGRESS.md).
+
+`deploy/docker-compose.yml` pins `mumweb` by digest (`MUMWEB_IMAGE`'s default). After publishing, get the new index
+digest (`docker buildx imagetools inspect aoztrk82/mumweb:<version>`) and update that default in
+`docker-compose.yml`, its copies in `README.md` / `README.tr.md`, and `deploy/.env.example` together, so a fresh
+clone of the repository runs the new release without anyone having to edit `.env`. Operators who already pinned an
+older digest in their own `.env` keep running it until they update it on purpose, by design.

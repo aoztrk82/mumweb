@@ -117,9 +117,9 @@ OpenSSH 10.0 çalıştırıyor).
 
 ## 5. Operatörler için öneriler
 
-- Yalnızca HTTPS; `MUMWEB_ALLOWED_ORIGINS` ayarlı kalsın. İmajı sabitleyin: `.env` içinde `MUMWEB_VERSION=0.3.1` veya
-  digest (`image: aoztrk82/mumweb@sha256:…`) ve bilerek güncelleyin (`docker compose pull`). `mumblevoip/mumble-server`
-  ve `caddy` için de aynısı.
+- Yalnızca HTTPS; `MUMWEB_ALLOWED_ORIGINS` ayarlı kalsın. Üç imaj da `docker-compose.yml`'de varsayılan olarak digest'le
+  sabitlenmiştir (`MUMWEB_IMAGE`, `MUMBLE_IMAGE`, `CADDY_IMAGE`); bu yüzden `docker compose pull` çalışanı sessizce
+  değiştiremez. Güncellemek için `.env`'e yeni bir `repo:etiket@sha256:…` yapıştırın (bkz. `deploy/.env.example`).
 - Gateway Mumble'a kontrol etmediğiniz bir ağdan ulaşıyorsa Mumble sertifikasını sabitleyin:
   `MUMWEB_TLS_FINGERPRINT` (`mumprobe -addr host:64738 -exit` yazdırır). Compose ağında isteğe bağlıdır.
 - Yönetim sayfasını `Caddyfile` içinde kendi adresinize kısıtlayın (`203.0.113.7`'yi değiştirin):
@@ -159,7 +159,6 @@ aynası başarısız olursa `--db-repository ghcr.io/aquasecurity/trivy-db:2` ek
 - Frontend için Semgrep ve ESLint güvenlik kuralları; yukarıdaki taramaları çalıştıran bir CI işi.
 - Distroless/scratch çalışma imajı (Alpine imajı yalnızca sağlık kontrolü için bir kabuk ve `wget` ekler; yerleşik bir
   `-healthcheck` bayrağı bunu kaldırır).
-- Compose dosyalarında imaj digest sabitleme (kurulumlar bayatlamasın diye öneri olarak belgelendi).
 - Caddy ve Mumble için salt okunur kök dosya sistemi (yazılabilir yollara ihtiyaçları var; açmadan önce denenmeli).
 - Uzun fuzz koşuları; gerçek bir Mumble sunucusuna karşı protokol fuzzer'ı.
 - Yük altında kapasite ve kötüye kullanım testi (TODO 5).

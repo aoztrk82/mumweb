@@ -690,6 +690,17 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   (completed in under 4 s, `/healthz` unaffected). Everything held; no code change was needed. Full detail and the
   reasoning for each: [SECURITY.md](SECURITY.md).
 
+## Addendum: image digest pinning (2026-10-14)
+
+- `deploy/docker-compose.yml` now defaults `mumble`, `mumweb` and `caddy` to `repo:tag@sha256:…` references via
+  `MUMBLE_IMAGE`, `MUMWEB_IMAGE`, `CADDY_IMAGE` (overridable in `.env`), instead of `latest` / a bare `MUMWEB_VERSION`
+  tag. `docker compose pull` on the production compose is now a no-op until an operator (or a release) deliberately
+  changes one of those three variables. Digests pinned today: `aoztrk82/mumweb:0.3.1@sha256:0e627df0…`,
+  `mumblevoip/mumble-server:latest@sha256:018ad351…`, `caddy:2@sha256:685ae3d7…` (all multi-arch index digests,
+  amd64+arm64 covered). `MUMWEB_VERSION` is retired in favour of `MUMWEB_IMAGE`; the test deployment
+  (`deploy/test/`) intentionally keeps floating tags, it is short-lived by design. Release process updated in
+  BUILDING.md: bump the `mumweb` default together with every release.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

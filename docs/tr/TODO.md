@@ -60,8 +60,9 @@ Permissions-Policy, COOP (gateway) ve HSTS (Caddy); 21 XSS yük testi; tarayıc�
 ihtiyaç duyduğu için çıkarılamaz anahtar mümkün değil, kabul edilen risk); log denetimi (sır yok); `docs/SECURITY.md` ve kök
 `SECURITY.md` politikası.
 Kalanlar:
-- [ ] Compose dosyalarında imaj digest sabitleme (şimdilik operatör önerisi), distroless/scratch gateway imajı (yerleşik sağlık
-      kontrolü gerekir), Caddy ve Mumble için salt okunur kök.
+- [x] Compose dosyalarında imaj digest sabitleme (2026-10-14): `docker-compose.yml`'de `MUMWEB_IMAGE`/`MUMBLE_IMAGE`/
+      `CADDY_IMAGE` varsayılanları `repo:etiket@sha256:…`; `docker compose pull` çalışanı sessizce değiştiremez.
+- [ ] Distroless/scratch gateway imajı (yerleşik sağlık kontrolü gerekir), Caddy ve Mumble için salt okunur kök.
 - [ ] Taramaları tekrarlayan CI işi; frontend için Semgrep ve ESLint güvenlik kuralları.
 - [ ] Daha uzun fuzz koşuları ve gerçek sunucuya karşı protokol fuzzer'ı.
 - [x] Sahibi GitHub depo ayarlarında **Private vulnerability reporting**'i açtı (2026-10-14); politika oraya yönlendiriyor.
