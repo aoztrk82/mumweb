@@ -83,6 +83,11 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
          # (10 connections / 120 s, successful ones included) would lock them all out
          # for 5 minutes after a few logins. Count only failed attempts.
          MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
+       # Hardening: no extra privileges. (cap_drop: ALL breaks the image's entrypoint, which sets
+       # capabilities before it drops to its own user.) Reachable by the gateway on the internal network.
+       security_opt: ["no-new-privileges:true"]
+       pids_limit: 512
+       networks: [default, backend]
 
      mumweb:
        image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
@@ -101,6 +106,15 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
          MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
          # Switches on the /admin panel (empty = panel off). Separate from the access password.
          MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
+       # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
+       # internet: the gateway only sits on the internal network with Mumble and Caddy.
+       read_only: true
+       cap_drop: [ALL]
+       security_opt: ["no-new-privileges:true"]
+       mem_limit: 256m
+       pids_limit: 200
+       cpus: 1.0
+       networks: [backend]
        depends_on:
          - mumble
 
@@ -117,8 +131,18 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
          - ./Caddyfile:/etc/caddy/Caddyfile:ro
          - caddy-data:/data
          - caddy-config:/config
+       cap_drop: [ALL]
+       cap_add: [NET_BIND_SERVICE]
+       security_opt: ["no-new-privileges:true"]
+       pids_limit: 200
+       networks: [default, backend]
        depends_on:
          - mumweb
+
+   networks:
+     # No route to the outside: only Mumble, the gateway and Caddy talk here.
+     backend:
+       internal: true
 
    volumes:
      mumble-data:
@@ -151,8 +175,8 @@ Compose dosyası üç servis çalıştırır: `mumble` (resmî `mumblevoip/mumbl
 root olmayan kullanıcı, `/healthz` sağlık kontrolü) ve `caddy` (otomatik HTTPS, WebSocket'i olduğu gibi aktarır).
 Aynı dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example` ile).
 
-İmaj etiketleri: `latest` en yeni sürümü izler; `0.2.0` gibi etiketler sabit sürümlerdir. `.env` içine
-`MUMWEB_VERSION=0.2.0` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
+İmaj etiketleri: `latest` en yeni sürümü izler; `0.3.0` gibi etiketler sabit sürümlerdir. `.env` içine
+`MUMWEB_VERSION=0.3.0` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
 
 ### Mumble autoban ayarı (önemli)
 
@@ -223,6 +247,7 @@ location / {
 | `MUMWEB_TLS_VERIFY` | `false` | Mumble sunucu sertifikasını doğrula (kendinden imzalıysa kapalı kalmalı) |
 | `MUMWEB_TLS_FINGERPRINT` | boş | Doluysa sunucu sertifikasının SHA-256 parmak izi sabitlenir |
 | `MUMWEB_MAX_SESSIONS` | `50` | Eşzamanlı web oturumu sınırı |
+| `MUMWEB_MAX_SESSIONS_PER_IP` | `10` | İstemci IP'si başına eşzamanlı web oturumu sınırı (`0` = kapalı). Aynı NAT arkasındakiler paylaşır; proxy arkasında `MUMWEB_TRUST_PROXY` ayarlayın |
 | `MUMWEB_ALLOWED_ORIGINS` | boş | Virgülle ayrılmış izinli `Origin`'ler (ör. `https://ses.alanadi.com`; varsayılan port yazılsa da olur); boşsa yalnızca aynı host |
 | `MUMWEB_CONN_RATE` | `10` | IP başına dakikada yeni bağlantı sınırı (`0` = kapalı) |
 | `MUMWEB_TRUST_PROXY` | `false` | İstemci IP'sini `X-Forwarded-For`'dan al (ters proxy arkasında `true`) |
@@ -271,6 +296,7 @@ değiştirin.
 - Durumu değiştiren her yönetim işlemi loglanır (işlem, kimlikler, sayılar; asla şifre, sohbet veya ACL grup adı, çünkü
   `#ad` biçimli grup bir kanal şifresidir). Yazma işlemleri Mumble'ın mesaj hız sınırının altında kalacak şekilde
   yavaşlatılır.
+- Güvenlik incelemesi, tehdit modeli ve `/admin`'i kendi IP'nize kısıtlayan Caddy örneği: [docs/tr/SECURITY.md](docs/tr/SECURITY.md).
 - Production'da HTTPS gerekir (şifre WebSocket üzerinden gider). Değeri uzun ve rastgele seçin. Sayfanın hiç
   erişilebilir olmasını istemiyorsanız ters proxy'nizde `/admin*` yolunu engelleyin.
 

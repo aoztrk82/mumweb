@@ -54,7 +54,7 @@ make test                                                    # Go birim testleri
 MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 MUMWEB_TEST_SUPERUSER_PASSWORD=<şifre> go test ./internal/bridge   # gerçek sunucuya karşı (gateway/ içinde); SuperUser şifresi yönetim testlerini açar
 ```
 
-- Go: yönetim paneli (yasak listesi, kayıtlı kullanıcılar ve sahte sunucuyla ACL gidiş-dönüş; yönetici şifresi, kilit ayrımı, yasak/ACL doğrulama, hız yavaşlatma), framing encode/decode ve hatalar, kısmi `UserState`/`ChannelState` birleştirme, `MumbleUDP.Audio` encode/decode,
+- Go: güvenlik başlıkları, IP başına oturum sınırı, kontrol mesajı seli (entegrasyon), fuzz hedefleri (`go test ./internal/bridge -run '^$' -fuzz FuzzClientMessage -fuzztime 1m`; aynı şekilde `FuzzParseAudioFrame` ve `internal/mumble` içinde `FuzzReadFrame`, `FuzzDecodeAudio`, `FuzzStateMessages`); yönetim paneli (yasak listesi, kayıtlı kullanıcılar ve sahte sunucuyla ACL gidiş-dönüş; yönetici şifresi, kilit ayrımı, yasak/ACL doğrulama, hız yavaşlatma), framing encode/decode ve hatalar, kısmi `UserState`/`ChannelState` birleştirme, `MumbleUDP.Audio` encode/decode,
   sahte TLS sunucusuyla istemci (handshake, bilinmeyen mesaj tipleri, reject, zaman aşımı, parmak izi, kapanış),
   sertifika üretimi, köprü ikili çerçeveleri, Origin/oturum/IP sınırları; entegrasyon: WS ↔ Mumble metin, ses,
   durum, sertifika kalıcılığı, goroutine sızıntısı.
@@ -84,11 +84,11 @@ gerekmez.
 ```sh
 docker login                                                                   # bir kez
 docker buildx create --name mumweb-builder --driver docker-container --bootstrap   # bir kez
-make publish VERSION=0.2.0       # :latest ve :0.2.0 gönderir
+make publish VERSION=0.3.0       # :latest ve :0.3.0 gönderir
 ```
 
 Sonra kontrol edin: `docker buildx imagetools inspect aoztrk82/mumweb:latest` iki platformu da listelemeli ve temiz bir
-`docker run -p 8080:8080 aoztrk82/mumweb:0.2.0` için `curl localhost:8080/healthz` `ok` dönmeli. Docker Hub sayfası (kısa açıklama ve README) [DOCKERHUB.md](../DOCKERHUB.md) dosyasından gelir (yalnızca İngilizce).
+`docker run -p 8080:8080 aoztrk82/mumweb:0.3.0` için `curl localhost:8080/healthz` `ok` dönmeli. Docker Hub sayfası (kısa açıklama ve README) [DOCKERHUB.md](../DOCKERHUB.md) dosyasından gelir (yalnızca İngilizce).
 Değiştirdikten sonra `make hub-readme` çalıştırın; betik Docker Desktop'ın mevcut Docker girişini (credential helper)
 kullanır, ek token gerekmez. GitHub'daki README ile tutarlı tutun, doğru kaynak odur.
 

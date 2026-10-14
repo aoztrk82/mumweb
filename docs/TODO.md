@@ -49,29 +49,33 @@ Last updated: 2026-10-13. Detailed history and verification notes: [PROGRESS.md]
       panel access (instead of one shared admin password), a "guard account" for desktop IP bans (see C).
 - [x] Released as `0.2.0`; Docker Hub page refreshed.
 
-### 4. Detailed security review (REQUIRED before production)
+### 4. Detailed security review (first pass done 2026-10-14; results in [SECURITY.md](SECURITY.md))
 Goal: no input path may give access outside the container or to the host system.
-- [ ] Threat model: anonymous internet user, malicious web user, malicious Mumble user (a harmful Mumble message to
-      the gateway), stolen browser data.
-- [ ] Container hardening: `read_only: true`, `cap_drop: [ALL]`, `security_opt: no-new-privileges`, tmpfs, resource
-      limits (`mem_limit`, `pids_limit`, `cpus`), default seccomp profile, non-root user (exists), pinned image
-      versions (version + digest instead of `latest`), a distroless/scratch runtime image if possible.
-- [ ] Network: the gateway should only be able to reach Mumble (separate internal network, no egress); the Mumble
-      admin (Ice) port closed.
-- [ ] Dependency scanning: `govulncheck`, `npm audit`, image scanning (Trivy/Grype); an update policy.
-- [ ] Static analysis: `gosec`, `staticcheck`, Semgrep; ESLint security rules for the frontend.
-- [ ] Gateway protocol fuzzing: WS JSON and binary frames, protobuf messages from Mumble (go-fuzz / `testing.F`).
-- [ ] DoS: review message size/rate limits (exist), slow clients (slowloris) and memory use, per-session queue
-      limits, audio packet floods.
-- [ ] Web: Content-Security-Policy, HSTS, `X-Frame-Options` / `frame-ancestors`, Referrer-Policy,
-      Permissions-Policy (Caddy or the gateway); XSS tests for chat/description HTML (DOMPurify).
-- [ ] The private key stored in the browser (IndexedDB) and saved channel passwords (localStorage) can be stolen if
-      XSS happens; evaluate a non-extractable WebCrypto key or encryption.
-- [ ] Audit the logs for secrets (passwords, keys, tokens, chat).
-- [ ] TLS: Caddy settings, a recommendation to pin the fingerprint for gateway ↔ Mumble.
-- [ ] Known protocol risks: IP bans made from the desktop (see C), using SuperUser from the web (off), the Mumble
-      message rate limit.
-- [ ] Findings go to `docs/SECURITY.md`; a vulnerability reporting path (a SECURITY policy).
+- [x] Threat model (SECURITY.md section 1).
+- [x] Container hardening: gateway `read_only`, `cap_drop: ALL`, `no-new-privileges`, memory/pids/cpu limits; Caddy and
+      Mumble got `no-new-privileges` and limits (Caddy keeps only `NET_BIND_SERVICE`; Mumble's entrypoint breaks with
+      `cap_drop: ALL`).
+- [ ] Still open there: image digest pinning in the compose files (documented as an operator recommendation), a
+      distroless/scratch gateway image (needs a built-in health check), read-only root for Caddy and Mumble.
+- [x] Network: the gateway sits on an `internal` network and has no route to the internet (verified); the Mumble Ice
+      port listens on 127.0.0.1 inside its container only.
+- [x] Dependency scanning once: `govulncheck`, `npm audit`, Trivy on the published image: all clean. Update policy in
+      SECURITY.md.
+- [ ] A CI job that repeats the scans; Semgrep and ESLint security rules for the frontend.
+- [x] Static analysis: `gosec` (3 accepted findings), `staticcheck` (1 test note).
+- [x] Fuzzing with `testing.F`: WS JSON + admin validators, audio frames, Mumble framing/protobuf/state: 25 s each, no
+      crash. [ ] Longer runs and a protocol fuzzer against a real server.
+- [x] DoS: per-IP concurrent sessions, control-message rate limit with session end on floods, HTTP idle timeout and
+      header limit; slow readers end their own session.
+- [x] Web: CSP, `X-Frame-Options` / `frame-ancestors`, Referrer-Policy, Permissions-Policy, COOP (gateway), HSTS
+      (Caddy); 21 XSS payload tests; the UI and the panel run without CSP violations.
+- [x] Browser-stored private key and channel passwords: evaluated; a non-extractable key is impossible because the
+      gateway needs the PEM (accepted risk, SECURITY.md 4.7).
+- [x] Log audit: no secrets logged.
+- [x] TLS: HSTS in the Caddyfiles; fingerprint pinning recommendation in SECURITY.md.
+- [x] Known protocol risks documented (desktop IP bans, SuperUser, rate limit).
+- [x] `docs/SECURITY.md` and a root `SECURITY.md` policy. [ ] Owner: enable **Private vulnerability reporting** in the
+      GitHub repository settings (Security → Reporting), the policy points to it.
 
 ### 5. Capacity testing and user limit
 - [ ] A load-test tool (in the repo): N browser-like sessions, a varying number of speakers (1, 2, 5, all), duration;
@@ -95,7 +99,7 @@ Goal: no input path may give access outside the container or to the host system.
 - [ ] Echo without headphones (browser AEC).
 - [ ] Firefox (Windows) with a real microphone; Safari 26+ (iOS/macOS): per the WebKit source WebCodecs Opus exists,
       untested on a device.
-- [ ] The 17-item manual acceptance list in [TESTING.md](TESTING.md) (items 13–17: admin panel).
+- [ ] The 20-item manual acceptance list in [TESTING.md](TESTING.md) (13–17: admin panel, 18–20: security checks).
 
 ## C. Known limits and deferred decisions
 - Found by the owner on Android (2026-10-13, Samsung Internet): voice and chat work, the responsive layout is good, and

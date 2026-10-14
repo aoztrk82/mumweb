@@ -1,5 +1,10 @@
 {$MUMWEB_DOMAIN} {
 	encode zstd gzip
+	header {
+		# Browsers keep using HTTPS for a year after the first visit.
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
 	# Caddy proxies WebSocket upgrades (/ws) transparently.
 	reverse_proxy mumweb:8080
 }

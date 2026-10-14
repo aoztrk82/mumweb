@@ -20,7 +20,7 @@ import (
 	"github.com/aoztrk82/mumweb/gateway/web"
 )
 
-const release = "mumweb 0.2"
+const release = "mumweb 0.3"
 
 const noBuildPage = `<!doctype html>
 <html lang="tr"><head><meta charset="utf-8"><title>mumweb</title></head>
@@ -41,6 +41,7 @@ func main() {
 		TLSVerify:      envBool("MUMWEB_TLS_VERIFY", false),
 		Fingerprint:    env("MUMWEB_TLS_FINGERPRINT", ""),
 		MaxSessions:    envInt("MUMWEB_MAX_SESSIONS", 50),
+		MaxPerIP:       envInt("MUMWEB_MAX_SESSIONS_PER_IP", 10),
 		AllowedOrigins: envList("MUMWEB_ALLOWED_ORIGINS"),
 		ConnsPerMinute: envInt("MUMWEB_CONN_RATE", 10),
 		TrustProxy:     envBool("MUMWEB_TRUST_PROXY", false),
@@ -54,8 +55,10 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           newMux(web.Dist(), ws),
+		Handler:           securityHeaders(newMux(web.Dist(), ws)),
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    16 << 10,
 	}
 	srv.RegisterOnShutdown(ws.Shutdown)
 
@@ -110,6 +113,28 @@ func newMux(dist fs.FS, ws *bridge.Handler) *http.ServeMux {
 		mux.Handle("GET /", cacheHeaders(http.FileServerFS(dist)))
 	}
 	return mux
+}
+
+// Content-Security-Policy of the UI. Scripts only from the gateway itself (no inline script, no
+// eval); inline styles stay allowed because Svelte sets style attributes; images may be data: URIs
+// (pictures pasted into Mumble chat); the WebSocket is same-origin.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+	"img-src 'self' data: blob:; connect-src 'self'; media-src 'self' blob:; worker-src 'self' blob:; " +
+	"object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+
+// securityHeaders adds the browser hardening headers to every response. HSTS is left to the
+// TLS-terminating proxy (see deploy/Caddyfile): the gateway itself may be served over plain HTTP.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", contentSecurityPolicy)
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "no-referrer")
+		h.Set("Permissions-Policy", "microphone=(self), camera=(), geolocation=(), payment=(), usb=()")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func init() {

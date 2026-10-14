@@ -34,3 +34,13 @@ Admin panel (`MUMWEB_ADMIN_PASSWORD` set; the local environment uses `admin`):
     again. A ban made from the desktop client (IP + hash) can be removed here.
 17. **Registered users:** register a user from **Online**, rename it and delete it in the panel. Do ten quick actions in
     a row and check none is silently lost (a "too many actions" message may appear instead).
+
+Security checks (see [SECURITY.md](SECURITY.md)):
+
+18. With the browser's developer tools open, use the voice client and every admin tab: the console shows no
+    Content-Security-Policy violation. `curl -sI https://your-domain/` lists the CSP, `X-Frame-Options`,
+    `Referrer-Policy` and `Strict-Transport-Security` headers.
+19. `docker exec <gateway container> wget -T 4 -O- http://1.1.1.1` fails with "Network unreachable", and
+    `docker exec <gateway container> touch /x` fails (read-only).
+20. Open more than `MUMWEB_MAX_SESSIONS_PER_IP` tabs from one computer: the extra ones are refused ("too many
+    sessions") while the first ones keep working.

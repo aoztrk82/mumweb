@@ -692,3 +692,37 @@ func TestNameTakeover(t *testing.T) {
 	c.until("ready")
 	waitEvent(t, obs, func(e mumble.UserRemoveEvent) bool { return e.Session == as })
 }
+
+// A flood of control messages must not reach Mumble forever: the session ends.
+func TestControlFlood(t *testing.T) {
+	addr := mumbleAddr(t)
+	srv := httptest.NewServer(New(Config{MumbleAddr: addr}))
+	defer srv.Close()
+	url := "ws" + strings.TrimPrefix(srv.URL, "http")
+	c := dialBridge(t, url, map[string]any{"username": "flood-" + strconv.FormatInt(time.Now().UnixNano()%1e6, 36)})
+	defer c.ws.CloseNow()
+	c.until("ready")
+
+	// A login-time burst (permissions of many channels) is fine ...
+	for i := 0; i < 150; i++ {
+		c.send(map[string]any{"t": "queryPermissions", "channelId": 0})
+	}
+	// ... a sustained flood is not.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go func() {
+		for i := 0; i < 5000; i++ {
+			if c.ws.Write(ctx, websocket.MessageText, []byte(`{"t":"ping","ts":1}`)) != nil {
+				return
+			}
+		}
+	}()
+	for {
+		if _, _, err := c.ws.Read(ctx); err != nil {
+			if websocket.CloseStatus(err) != websocket.StatusPolicyViolation {
+				t.Fatalf("flood ended with %v", err)
+			}
+			return
+		}
+	}
+}

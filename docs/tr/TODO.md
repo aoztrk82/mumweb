@@ -49,28 +49,22 @@ Son güncelleme: 2026-10-13. Ayrıntılı geçmiş ve doğrulama notları: [PROG
       şifresi yerine bir admin grubunu panel erişimine bağlama, masaüstü IP yasakları için "bekçi hesabı" (bkz. C).
 - [x] `0.2.0` olarak yayınlandı; Docker Hub sayfası yenilendi.
 
-### 4. Ayrıntılı güvenlik incelemesi (production'dan ÖNCE, zorunlu)
+### 4. Ayrıntılı güvenlik incelemesi (ilk tur 2026-10-14'te yapıldı; sonuçlar [SECURITY.md](SECURITY.md)'de)
 Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim sağlanamamalı.
-- [ ] Tehdit modeli: internetten anonim kullanıcı, kötü niyetli web kullanıcısı, kötü niyetli Mumble kullanıcısı
-      (gateway'e zararlı Mumble mesajı), çalınmış tarayıcı verisi.
-- [ ] Container sertleştirme: `read_only: true`, `cap_drop: [ALL]`, `security_opt: no-new-privileges`, tmpfs,
-      kaynak sınırları (`mem_limit`, `pids_limit`, `cpus`), seccomp varsayılan profili, root olmayan kullanıcı (var),
-      imaj sürümlerinin sabitlenmesi (`latest` yerine sürüm + digest), mümkünse distroless/scratch çalışma imajı.
-- [ ] Ağ: gateway yalnızca Mumble'a çıkabilsin (ayrı iç ağ, dışarı çıkış yok); Mumble yönetim (Ice) portu kapalı.
-- [ ] Bağımlılık taraması: `govulncheck`, `npm audit`, imaj taraması (Trivy/Grype); güncelleme politikası.
-- [ ] Statik analiz: `gosec`, `staticcheck`, Semgrep; frontend için ESLint güvenlik kuralları.
-- [ ] Gateway protokol fuzzing: WS JSON ve ikili çerçeveler, Mumble'dan gelen protobuf mesajları (go-fuzz / `testing.F`).
-- [ ] DoS: mesaj boyutu/oranı sınırları (var) gözden geçirilecek, yavaş istemci (slowloris) ve bellek tüketimi,
-      oturum başına kuyruk sınırları, ses paketi flood'u.
-- [ ] Web: Content-Security-Policy, HSTS, `X-Frame-Options`/`frame-ancestors`, Referrer-Policy, Permissions-Policy
-      (Caddy veya gateway); sohbet/açıklama HTML'i (DOMPurify) için XSS testleri.
-- [ ] Tarayıcıda saklanan özel anahtar (IndexedDB) ve kayıtlı kanal şifreleri (localStorage): XSS olursa çalınabilir;
-      non-extractable WebCrypto anahtarı veya şifreleme değerlendirmesi.
-- [ ] Loglarda gizli bilgi olmadığının denetimi (şifre, anahtar, token, sohbet).
-- [ ] TLS: Caddy ayarları, gateway ↔ Mumble için parmak izi sabitleme önerisi.
-- [ ] Bilinen protokol riskleri: masaüstünden yapılan IP ban (bkz. C), SuperUser'ın web'den kullanımı (kapalı),
-      Mumble mesaj hız sınırı.
-- [ ] Bulgular `docs/SECURITY.md`'ye; güvenlik açığı bildirimi yolu (SECURITY policy).
+Yapılanlar (ayrıntı ve gerekçe SECURITY.md'de): tehdit modeli; gateway `read_only` + `cap_drop: ALL` + `no-new-privileges` +
+bellek/işlem/CPU sınırları, Caddy ve Mumble için `no-new-privileges` ve sınırlar (Mumble'ın giriş betiği `cap_drop: ALL` ile
+bozuluyor); gateway `internal` ağda, internete yolu yok (doğrulandı); bir kez `govulncheck`, `npm audit` ve yayınlanan imajda
+Trivy: temiz; `gosec` (3 kabul edilen bulgu) ve `staticcheck`; `testing.F` ile 5 fuzz hedefi (25'er sn, çökme yok); IP başına
+eşzamanlı oturum sınırı, kontrol mesajı hız sınırı, HTTP boşta/başlık sınırları; CSP, `X-Frame-Options`, Referrer-Policy,
+Permissions-Policy, COOP (gateway) ve HSTS (Caddy); 21 XSS yük testi; tarayıcıdaki özel anahtar değerlendirildi (gateway PEM'e
+ihtiyaç duyduğu için çıkarılamaz anahtar mümkün değil, kabul edilen risk); log denetimi (sır yok); `docs/SECURITY.md` ve kök
+`SECURITY.md` politikası.
+Kalanlar:
+- [ ] Compose dosyalarında imaj digest sabitleme (şimdilik operatör önerisi), distroless/scratch gateway imajı (yerleşik sağlık
+      kontrolü gerekir), Caddy ve Mumble için salt okunur kök.
+- [ ] Taramaları tekrarlayan CI işi; frontend için Semgrep ve ESLint güvenlik kuralları.
+- [ ] Daha uzun fuzz koşuları ve gerçek sunucuya karşı protokol fuzzer'ı.
+- [ ] Sahibi: GitHub depo ayarlarında **Private vulnerability reporting**'i açın (Security → Reporting); politika oraya yönlendiriyor.
 
 ### 5. Kapasite testi ve kullanıcı sınırı
 - [ ] Yük testi aracı (repoda): N tarayıcı-benzeri oturum, değişen konuşan sayısı (1, 2, 5, hepsi), süre; gateway ve
@@ -92,7 +86,7 @@ Hedef: hiçbir girdi yoluyla container dışına veya sunucu sistemine erişim s
       Android Chrome (test Samsung Internet ile yapıldı).
 - [ ] Kulaklıksız kullanımda yankı (tarayıcı AEC'si).
 - [ ] Firefox (Windows) gerçek mikrofon; Safari 26+ (iOS/macOS) — WebKit kaynağına göre WebCodecs Opus var, cihazda denenmedi.
-- [ ] [TESTING.md](TESTING.md)'deki 17 maddelik manuel kabul listesi (13–17. maddeler: yönetim paneli).
+- [ ] [TESTING.md](TESTING.md)'deki 20 maddelik manuel kabul listesi (13–17. maddeler: yönetim paneli, 18–20.: güvenlik kontrolleri).
 
 ## C. Bilinen sınırlar ve ertelenen kararlar
 - Sahibinin Android'de bulduğu (2026-10-13, Samsung Internet): ses ve mesaj çalışıyor, mobil görünüm iyi, ekran

@@ -621,6 +621,46 @@ desktop client using real microphones.
   The arm64 image was again not run. Docker Hub page refreshed with `scripts/dockerhub-description.py` (lists
   `MUMWEB_ADMIN_PASSWORD`).
 
+## Addendum: security review, first pass (2026-10-14)
+
+Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions and the verification.
+
+- **Scans:** `govulncheck` (needs the tool built with the project's Go version, `GOTOOLCHAIN=go1.27.2`, else it cannot read
+  Go 1.27 code), `npm audit`, Trivy on the published `aoztrk82/mumweb:0.2.0` (needed `--db-repository
+  ghcr.io/aquasecurity/trivy-db:2`, the default mirror returned 404): all clean. `gosec`: 3 accepted findings;
+  `staticcheck`: one deliberate repeated call in a test.
+- **Changes:** CSP and other hardening headers from the gateway (`securityHeaders` in `cmd/mumweb`), HSTS from Caddy;
+  per-IP concurrent session limit (`MUMWEB_MAX_SESSIONS_PER_IP`, 10) because the per-IP rate alone still let one address fill
+  all slots; a control-message token bucket (50/s, burst 200 so the login-time permission queries pass; 500 dropped in a
+  row ends the session); HTTP `IdleTimeout` and `MaxHeaderBytes`; compose hardening (gateway read-only, no capabilities,
+  limits, `internal` network without egress; Caddy keeps `NET_BIND_SERVICE`; Mumble only `no-new-privileges` and a
+  process limit).
+- **Decision: Mumble keeps its capabilities.** `cap_drop: ALL` made its entrypoint exit ("Failed to set initial
+  capabilities", then a permission error on `/data`). Left out on purpose; recorded in SECURITY.md.
+- **Decision: no non-extractable WebCrypto key.** The gateway builds the TLS client certificate and therefore needs the PEM
+  on every connect; the strict CSP and the XSS tests are the mitigation, the exposure is an accepted risk.
+- **Decision: HSTS in Caddy, not in the gateway** (the gateway may be served over HTTP in development). The Caddyfile in the
+  docs restricts `/admin` to one address; it was tested on the local Caddy (404 for other addresses, `/` 200).
+- **Verification:**
+  - Go: five fuzz targets (`FuzzParseAudioFrame`, `FuzzClientMessage`, `FuzzReadFrame`, `FuzzDecodeAudio`, `FuzzStateMessages`),
+    25 s each, no crash; new unit tests for the headers, per-IP limit (also over HTTP: the third socket from one IP gets
+    429) and, against a real Mumble 1.5.915, a control flood that ends the session while a 150-message login burst is
+    accepted. The whole integration suite passed again.
+  - Web: 25 XSS unit tests for the sanitizer (jsdom, a new dev dependency) and `textToHtml`.
+  - Local deployment rebuilt with the hardened compose: headers seen through Caddy (CSP, HSTS, X-Frame-Options, ...);
+    the gateway container is read-only (`touch /x` fails), has no route out (`wget http://1.1.1.1` → network
+    unreachable), runs with `CapDrop ALL`, 256 MiB and 200 processes; headless Chrome ran the voice client (login, chat
+    with an `<img onerror>` payload shown as text) and all admin tabs with **no console or CSP errors**.
+  - On this Windows machine the local Mumble container cannot publish UDP 64738 (port reservation), so it was started
+    through a throw-away override that drops the Mumble port mapping; that file is not part of the repository.
+- Not done yet: see SECURITY.md section 7 (CI scans, Semgrep/ESLint, long fuzzing, digest pinning, distroless).
+
+## Addendum: release 0.3.0 (2026-10-14)
+
+- Ships the security first pass: security headers and CSP, per-IP session limit (`MUMWEB_MAX_SESSIONS_PER_IP`), control-message
+  rate limit, HTTP idle/header limits, hardened compose files, HSTS in the Caddyfiles. `release` in `main.go` is `mumweb 0.3`.
+  Version chosen as a minor bump because of the new setting. GitHub private vulnerability reporting was enabled by the owner.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

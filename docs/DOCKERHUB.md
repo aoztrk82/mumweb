@@ -21,7 +21,7 @@ Caddy (the compose file below does exactly that).
 | Tag | Meaning |
 |---|---|
 | `latest` | the newest release |
-| `0.2.0`, … | fixed releases (pin one for reproducible installs) |
+| `0.3.0`, … | fixed releases (pin one for reproducible installs) |
 
 Platforms: `linux/amd64`, `linux/arm64`.
 
@@ -61,6 +61,7 @@ Update with `docker compose pull && docker compose up -d`.
 | `MUMWEB_ACCESS_PASSWORD` | empty | If set, web users must enter this password (separate from the Mumble server password) |
 | `MUMWEB_ADMIN_PASSWORD` | empty | If set, switches on the admin panel at `/admin` (ban list, ACLs, registered users); empty = off |
 | `MUMWEB_MAX_SESSIONS` | `50` | Maximum concurrent web sessions |
+| `MUMWEB_MAX_SESSIONS_PER_IP` | `10` | Maximum concurrent web sessions per client IP (`0` = off) |
 | `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web |
 | `MUMWEB_TLS_VERIFY` | `false` | Verify the Mumble server certificate |

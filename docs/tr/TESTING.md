@@ -32,3 +32,13 @@ Yönetim paneli (`MUMWEB_ADMIN_PASSWORD` ayarlı; yerel ortamda `admin`):
     kullanıcı yeniden girebilir. Masaüstünden yapılmış bir yasak (IP + özet) burada silinebilir.
 17. **Kayıtlı kullanıcılar:** **Çevrimiçi**'den bir kullanıcıyı kaydedin, panelde yeniden adlandırın ve silin. Art arda
     on hızlı işlem yapın ve hiçbirinin sessizce kaybolmadığını kontrol edin (yerine "çok fazla işlem" mesajı çıkabilir).
+
+Güvenlik kontrolleri ([SECURITY.md](SECURITY.md)):
+
+18. Tarayıcı geliştirici araçları açıkken sesli istemciyi ve her yönetim sekmesini kullanın: konsolda Content-Security-Policy
+    ihlali görünmez. `curl -sI https://alan-adiniz/` CSP, `X-Frame-Options`, `Referrer-Policy` ve
+    `Strict-Transport-Security` başlıklarını listeler.
+19. `docker exec <gateway container> wget -T 4 -O- http://1.1.1.1` "Network unreachable" ile başarısız olur ve
+    `docker exec <gateway container> touch /x` başarısız olur (salt okunur).
+20. Tek bilgisayardan `MUMWEB_MAX_SESSIONS_PER_IP`'den fazla sekme açın: fazlalıklar reddedilir ("too many sessions"),
+    ilk açılanlar çalışmaya devam eder.

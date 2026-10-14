@@ -35,7 +35,7 @@ make test                                                           # Go unit te
 cd gateway && MUMWEB_TEST_MUMBLE_ADDR=localhost:64738 MUMWEB_TEST_SUPERUSER_PASSWORD=<pw> go test ./internal/bridge   # integration, needs a Mumble server (`make dev`); the SuperUser password enables the admin tests
 ```
 
-- **Go:** admin panel (ban list, registered users and an ACL round trip against a fake server; admin password, lockout isolation, ban/ACL validation, pacing); message framing, partial `UserState` / `ChannelState` merging, `MumbleUDP.Audio` encoding, a fake TLS
+- **Go:** security headers, per-IP session limit, control-message flood (integration), fuzz targets (`go test ./internal/bridge -run '^$' -fuzz FuzzClientMessage -fuzztime 1m`, likewise `FuzzParseAudioFrame` and in `internal/mumble` `FuzzReadFrame`, `FuzzDecodeAudio`, `FuzzStateMessages`); admin panel (ban list, registered users and an ACL round trip against a fake server; admin password, lockout isolation, ban/ACL validation, pacing); message framing, partial `UserState` / `ChannelState` merging, `MumbleUDP.Audio` encoding, a fake TLS
   Mumble server for the client (handshake, unknown message types, reject, timeouts, fingerprint pinning, shutdown),
   certificate generation, bridge binary frames, Origin / session / IP limits. Integration: WebSocket ↔ Mumble
   text, audio, state, certificate persistence, admin actions, channel passwords, name-takeover protection, goroutine leaks.
@@ -85,11 +85,11 @@ Images go to Docker Hub as [`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82
 ```sh
 docker login                                                                   # once
 docker buildx create --name mumweb-builder --driver docker-container --bootstrap   # once
-make publish VERSION=0.2.0       # pushes :latest and :0.2.0
+make publish VERSION=0.3.0       # pushes :latest and :0.3.0
 ```
 
 Afterwards check the result: `docker buildx imagetools inspect aoztrk82/mumweb:latest` should list both platforms,
-and a fresh `docker run -p 8080:8080 aoztrk82/mumweb:0.2.0` should answer `curl localhost:8080/healthz` with `ok`.
+and a fresh `docker run -p 8080:8080 aoztrk82/mumweb:0.3.0` should answer `curl localhost:8080/healthz` with `ok`.
 The Docker Hub page (short description and README) comes from [DOCKERHUB.md](DOCKERHUB.md). After changing it, run
 `make hub-readme`; the script reuses the Docker login of Docker Desktop (its credential helper) and needs no extra
 token. Keep it consistent with the README on GitHub, which is the source of truth.

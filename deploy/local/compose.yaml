@@ -49,6 +49,10 @@ services:
       MUMBLE_CONFIG_SSLKEY: /certs/key.pem
       # All web users share the gateway's IP; don't autoban successful logins.
       MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
+    # Same hardening as the production compose.
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 512
+    networks: [default, backend]
     depends_on:
       certs:
         condition: service_completed_successfully
@@ -70,6 +74,13 @@ services:
       MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-test}
       # Admin panel at /admin (SuperUser works there even though the main UI refuses it).
       MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-admin}
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
+    pids_limit: 200
+    cpus: 1.0
+    networks: [backend]
     depends_on:
       - mumble
 
@@ -86,8 +97,17 @@ services:
       - ./certs:/certs:ro
       - caddy-data:/data
       - caddy-config:/config
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    pids_limit: 200
+    networks: [default, backend]
     depends_on:
       - mumweb
+
+networks:
+  backend:
+    internal: true
 
 volumes:
   mumble-data:

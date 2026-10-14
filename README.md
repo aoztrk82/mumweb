@@ -28,7 +28,9 @@ server, channels and voice.
 - **Admin panel.** An optional `/admin/` page (off until you set a password) with an ACL and group editor, ban list,
   registered users and channel management; it runs next to the voice client in the same browser.
 - **Safe by default.** One fixed Mumble target (browsers cannot pick an address), Origin checks, per-IP and
-  per-session limits, HTML-sanitised chat, SuperUser login from the web disabled unless you enable it.
+  per-session limits, a strict Content-Security-Policy, HTML-sanitised chat, SuperUser login from the web disabled unless
+  you enable it, and a hardened compose file (read-only gateway without network egress). See
+  [docs/SECURITY.md](docs/SECURITY.md).
 - **Persistent identity.** Each browser keeps a client certificate (IndexedDB), so users can register on Mumble and
   keep their permissions. The gateway stores no certificates on disk.
 
@@ -104,6 +106,11 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
          # (10 connections / 120 s, successful ones included) would lock them all out
          # for 5 minutes after a few logins. Count only failed attempts.
          MUMBLE_CONFIG_AUTOBAN_SUCCESSFUL_CONNECTIONS: "false"
+       # Hardening: no extra privileges. (cap_drop: ALL breaks the image's entrypoint, which sets
+       # capabilities before it drops to its own user.) Reachable by the gateway on the internal network.
+       security_opt: ["no-new-privileges:true"]
+       pids_limit: 512
+       networks: [default, backend]
 
      mumweb:
        image: aoztrk82/mumweb:${MUMWEB_VERSION:-latest}
@@ -122,6 +129,15 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
          MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
          # Switches on the /admin panel (empty = panel off). Separate from the access password.
          MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
+       # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
+       # internet: the gateway only sits on the internal network with Mumble and Caddy.
+       read_only: true
+       cap_drop: [ALL]
+       security_opt: ["no-new-privileges:true"]
+       mem_limit: 256m
+       pids_limit: 200
+       cpus: 1.0
+       networks: [backend]
        depends_on:
          - mumble
 
@@ -138,8 +154,18 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
          - ./Caddyfile:/etc/caddy/Caddyfile:ro
          - caddy-data:/data
          - caddy-config:/config
+       cap_drop: [ALL]
+       cap_add: [NET_BIND_SERVICE]
+       security_opt: ["no-new-privileges:true"]
+       pids_limit: 200
+       networks: [default, backend]
        depends_on:
          - mumweb
+
+   networks:
+     # No route to the outside: only Mumble, the gateway and Caddy talk here.
+     backend:
+       internal: true
 
    volumes:
      mumble-data:
@@ -171,8 +197,8 @@ The compose file runs three services: `mumble` (the official `mumblevoip/mumble-
 web UI, non-root user, `/healthz` health check) and `caddy` (automatic HTTPS, passes WebSockets through). The same
 files live in [`deploy/`](deploy/) in this repository (with a commented `.env.example`).
 
-Image tags: `latest` follows the newest release; `0.2.0`-style tags are fixed releases. Pin one by setting
-`MUMWEB_VERSION=0.2.0` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
+Image tags: `latest` follows the newest release; `0.3.0`-style tags are fixed releases. Pin one by setting
+`MUMWEB_VERSION=0.3.0` in `.env`. Images are published for `linux/amd64` and `linux/arm64`.
 
 ## Deployment
 
@@ -257,6 +283,7 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_TLS_VERIFY` | `false` | Verify the Mumble server certificate (leave off for self-signed) |
 | `MUMWEB_TLS_FINGERPRINT` | empty | If set, pin the server certificate's SHA-256 fingerprint |
 | `MUMWEB_MAX_SESSIONS` | `50` | Maximum concurrent web sessions |
+| `MUMWEB_MAX_SESSIONS_PER_IP` | `10` | Maximum concurrent web sessions per client IP (`0` = off). People behind one NAT share it; behind a proxy set `MUMWEB_TRUST_PROXY` |
 | `MUMWEB_ALLOWED_ORIGINS` | empty | Comma-separated allowed `Origin`s (e.g. `https://voice.example.com`; the default port may be included). Empty means same host only |
 | `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
 | `MUMWEB_TRUST_PROXY` | `false` | Take the client IP from `X-Forwarded-For` (set `true` behind a reverse proxy) |
@@ -359,6 +386,7 @@ Gateway logs are JSON: `docker compose logs -f mumweb`. Passwords, certificate k
 | Manual acceptance tests | [docs/TESTING.md](docs/TESTING.md) | [docs/tr/TESTING.md](docs/tr/TESTING.md) |
 | Progress log and findings | [docs/PROGRESS.md](docs/PROGRESS.md) | [docs/tr/PROGRESS.md](docs/tr/PROGRESS.md) |
 | Roadmap / TODO | [docs/TODO.md](docs/TODO.md) | [docs/tr/TODO.md](docs/tr/TODO.md) |
+| Security review, threat model, hardening | [docs/SECURITY.md](docs/SECURITY.md) (policy: [SECURITY.md](SECURITY.md)) | [docs/tr/SECURITY.md](docs/tr/SECURITY.md) |
 
 ## License
 

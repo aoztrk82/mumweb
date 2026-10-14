@@ -597,6 +597,45 @@ istemciyle konuşuldu.
   arm64 imajı yine çalıştırılmadı. Docker Hub sayfası `scripts/dockerhub-description.py` ile yenilendi
   (`MUMWEB_ADMIN_PASSWORD` listeleniyor).
 
+## Ek — güvenlik incelemesi, ilk tur (2026-10-14)
+
+Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı tutar.
+
+- **Taramalar:** `govulncheck` (aracın projenin Go sürümüyle, `GOTOOLCHAIN=go1.27.2`, derlenmesi gerekir; yoksa Go 1.27 kodunu
+  okuyamaz), `npm audit`, yayınlanan `aoztrk82/mumweb:0.2.0` üzerinde Trivy (`--db-repository ghcr.io/aquasecurity/trivy-db:2`
+  gerekti, varsayılan ayna 404 verdi): hepsi temiz. `gosec`: 3 kabul edilen bulgu; `staticcheck`: bir testte bilerek tekrarlanan çağrı.
+- **Değişiklikler:** gateway'den CSP ve diğer sertleştirme başlıkları (`cmd/mumweb` içinde `securityHeaders`), Caddy'den HSTS;
+  IP başına eşzamanlı oturum sınırı (`MUMWEB_MAX_SESSIONS_PER_IP`, 10), çünkü yalnızca IP başına hız yine de tek adresin tüm
+  yuvaları doldurmasına izin veriyordu; kontrol mesajı kovası (50/sn, giriş sırasındaki izin sorguları geçsin diye burst 200;
+  art arda 500 düşen mesaj oturumu bitirir); HTTP `IdleTimeout` ve `MaxHeaderBytes`; compose sertleştirmesi (gateway salt
+  okunur, capability yok, sınırlar, internetsiz `internal` ağ; Caddy `NET_BIND_SERVICE`'i korur; Mumble yalnızca
+  `no-new-privileges` ve işlem sınırı).
+- **Karar: Mumble capability'lerini korur.** `cap_drop: ALL` giriş betiğinin çıkmasına yol açtı ("Failed to set initial
+  capabilities", sonra `/data` izin hatası). Bilerek bırakıldı; SECURITY.md'de kayıtlı.
+- **Karar: çıkarılamaz (non-extractable) WebCrypto anahtarı yok.** Gateway TLS istemci sertifikasını kurar, bu yüzden her
+  bağlanışta PEM'e ihtiyaç duyar; azaltma sıkı CSP ve XSS testleridir, maruz kalma kabul edilen risktir.
+- **Karar: HSTS gateway'de değil Caddy'de** (gateway geliştirmede HTTP ile sunulabilir). Dokümandaki Caddyfile `/admin`'i tek
+  adrese kısıtlar; yerel Caddy'de denendi (başka adreslere 404, `/` 200).
+- **Doğrulama:**
+  - Go: beş fuzz hedefi (`FuzzParseAudioFrame`, `FuzzClientMessage`, `FuzzReadFrame`, `FuzzDecodeAudio`, `FuzzStateMessages`),
+    25'er sn, çökme yok; başlıklar, IP başına sınır (HTTP üzerinden de: aynı IP'den üçüncü soket 429 alır) ve gerçek bir
+    Mumble 1.5.915'e karşı oturumu bitiren kontrol seli (150 mesajlık giriş patlaması kabul edilirken) için yeni testler.
+    Entegrasyon paketinin tamamı yine geçti.
+  - Web: sanitizer ve `textToHtml` için 25 XSS birim testi (jsdom, yeni bir geliştirme bağımlılığı).
+  - Sertleştirilmiş compose ile yeniden kurulan yerel ortam: başlıklar Caddy üzerinden görüldü (CSP, HSTS, X-Frame-Options, ...);
+    gateway container'ı salt okunur (`touch /x` başarısız), çıkış yolu yok (`wget http://1.1.1.1` → ağa ulaşılamıyor),
+    `CapDrop ALL`, 256 MiB ve 200 işlemle çalışıyor; başsız Chrome sesli istemciyi (giriş, `<img onerror>` yüklü sohbetin metin
+    olarak görünmesi) ve tüm yönetim sekmelerini **konsol veya CSP hatası olmadan** çalıştırdı.
+  - Bu Windows makinesinde yerel Mumble container'ı UDP 64738'i yayınlayamıyor (port rezervasyonu); bu yüzden Mumble port
+    eşlemesini düşüren geçici bir override ile başlatıldı; o dosya depoda yok.
+- Henüz yapılmayanlar: SECURITY.md 7. bölüm (CI taramaları, Semgrep/ESLint, uzun fuzz, digest sabitleme, distroless).
+
+## Ek — 0.3.0 sürümü (2026-10-14)
+
+- Güvenlik ilk turunu yayınlar: güvenlik başlıkları ve CSP, IP başına oturum sınırı (`MUMWEB_MAX_SESSIONS_PER_IP`), kontrol
+  mesajı hız sınırı, HTTP boşta/başlık sınırları, sertleştirilmiş compose dosyaları, Caddyfile'larda HSTS. `main.go`'daki
+  `release` artık `mumweb 0.3`. Yeni ayar nedeniyle minor sürüm seçildi. Sahibi GitHub özel güvenlik açığı bildirimini açtı.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

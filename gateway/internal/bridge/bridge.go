@@ -34,6 +34,11 @@ const (
 	maxTokenLen       = 128
 	audioPacketsPerS  = 100
 	audioPacketsBurst = 150
+	// JSON control messages (joins, permission queries, chat...). Generous, since a client
+	// asks for the permissions of every channel after login; it only stops floods.
+	controlPerS       = 50
+	controlBurst      = 200
+	controlFloodLimit = 500 // consecutive dropped messages that end the session
 )
 
 // Config configures the WebSocket bridge.
@@ -42,6 +47,7 @@ type Config struct {
 	TLSVerify      bool
 	Fingerprint    string
 	MaxSessions    int
+	MaxPerIP       int      // concurrent sessions per client IP; 0 disables the limit
 	AllowedOrigins []string // allowed Origin values (default ports may be explicit); empty = same-host check only
 	ConnsPerMinute int      // per client IP; 0 disables the limit
 	TrustProxy     bool     // take client IP from X-Forwarded-For
@@ -62,6 +68,8 @@ type Handler struct {
 	limiter    *ipLimiter
 	fails      *failTracker
 	adminFails *failTracker // separate from fails: admin guesses must not lock the main UI out
+	ipMu       sync.Mutex
+	ipSessions map[string]int
 	sessions   atomic.Int64
 }
 
@@ -95,6 +103,34 @@ func (h *Handler) AdminEnabled() bool { return h.cfg.AdminPassword != "" }
 // Sessions returns the number of open sessions.
 func (h *Handler) Sessions() int { return int(h.sessions.Load()) }
 
+// acquireIP counts a session for ip and reports whether it is within MaxPerIP.
+func (h *Handler) acquireIP(ip string) bool {
+	if h.cfg.MaxPerIP <= 0 {
+		return true
+	}
+	h.ipMu.Lock()
+	defer h.ipMu.Unlock()
+	if h.ipSessions == nil {
+		h.ipSessions = map[string]int{}
+	}
+	if h.ipSessions[ip] >= h.cfg.MaxPerIP {
+		return false
+	}
+	h.ipSessions[ip]++
+	return true
+}
+
+func (h *Handler) releaseIP(ip string) {
+	if h.cfg.MaxPerIP <= 0 {
+		return
+	}
+	h.ipMu.Lock()
+	defer h.ipMu.Unlock()
+	if h.ipSessions[ip]--; h.ipSessions[ip] <= 0 {
+		delete(h.ipSessions, ip)
+	}
+}
+
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ip := clientIP(r, h.cfg.TrustProxy)
 	log := h.log.With("ip", ip)
@@ -121,6 +157,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer h.sessions.Add(-1)
+	if !h.acquireIP(ip) {
+		log.Warn("ws per-ip session limit reached", "max", h.cfg.MaxPerIP)
+		http.Error(w, "too many sessions from this address", http.StatusTooManyRequests)
+		return
+	}
+	defer h.releaseIP(ip)
 
 	ws, err := websocket.Accept(w, r, opts)
 	if err != nil {
@@ -403,8 +445,8 @@ var errProtocol = errors.New("bridge: protocol violation")
 
 // readLoop handles browser messages until the WebSocket closes or errs.
 func (s *session) readLoop(ctx context.Context) error {
-	var audio tokenBucket
-	dropped := 0
+	var audio, control tokenBucket
+	dropped, controlDropped := 0, 0
 	for {
 		rctx, cancel := context.WithTimeout(ctx, browserIdle)
 		typ, data, err := s.ws.Read(rctx)
@@ -432,6 +474,16 @@ func (s *session) readLoop(ctx context.Context) error {
 			continue
 		}
 
+		if !control.take(time.Now(), controlPerS, controlBurst) {
+			if controlDropped++; controlDropped == 1 {
+				s.log.Warn("control message rate limit exceeded; dropping messages")
+			}
+			if controlDropped >= controlFloodLimit {
+				return fmt.Errorf("%w: control message flood", errProtocol)
+			}
+			continue
+		}
+		controlDropped = 0
 		var m clientMsg
 		if err := json.Unmarshal(data, &m); err != nil {
 			return fmt.Errorf("%w: bad JSON: %v", errProtocol, err)
