@@ -2,7 +2,7 @@ GATEWAY_MODULE := github.com/aoztrk82/mumweb/gateway
 COMPOSE_DEV    := docker compose -f deploy/docker-compose.dev.yml
 IMAGE          ?= mumweb:dev
 DOCKER_REPO    ?= aoztrk82/mumweb
-VERSION        ?= 0.3.1
+VERSION        ?= 0.4.0
 BUILDER        ?= mumweb-builder
 
 .PHONY: proto web gateway dev docker publish hub-readme test

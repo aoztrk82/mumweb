@@ -733,6 +733,31 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
     `docs/DOCKERHUB.md`'ye de eklendi; Docker Hub sayfa metnini göndermek için bir bakımcının hâlâ `make hub-readme`
     çalıştırması gerekiyor.
 
+## Ek — beş yeni arayüz dili (2026-10-14)
+
+- Arapça, Almanca, İspanyolca, İtalyanca ve Rusça sözlükleri eklendi (`web/src/i18n/{ar,de,es,it,ru}.ts`), mevcut
+  İngilizce ve Türkçe'nin yanına; arayüz artık yedi dilde. `tr.ts` şekli tanımlayan kaynak olarak kaldı
+  (`Translations` tipi); her yeni dosya anahtarları birebir eşleyip sadece değerleri çevirerek yazıldı, Mumble/
+  protokol özel adları (SuperUser, ACL, Opus, PEM, SHA-1, TCP/UDP) Latin alfabesinde bırakıldı ve Almanca/
+  İspanyolca/Rusça'da samimi hitap (du/tú/ты) kullanıldı, mevcut Türkçe tonuyla uyumlu. `lang` nesnesi her sözlükte
+  yedi anahtara çıkarıldı (özgün dil adları, çevrilmiş `label`).
+  - Arapça RTL: `index.svelte.ts`'teki `apply()` artık `document.documentElement.dir`'i bir `RTL` kümesinden
+    (`{'ar'}`) ayarlıyor, açılışta da uygulanıyor, sadece manuel değiştirmede değil. Hiçbir yerde özel RTL CSS'i
+    gerekmedi — flexbox ve yerel `dir` özniteliği giriş kartının tamamını kendi başına doğru şekilde aynaladı.
+  - `LangSwitch.svelte` düğme-sırası düzenini korudu (açılır menü değil), yedi iki-harfli düğmenin taşmadan
+    sarmalanması için `flex-wrap` eklendi.
+  - Doğrulandı: `npm run check` (0 hata, yedi sözlük de `Translations`'a karşı tip kontrolünden geçiyor), `npm test`
+    (50 geçti), `npm run build`, ve yerel dev yığınına karşı görsel kontrol — yedi dil düğmesi de render ediliyor,
+    AR'a tıklamak `dir`/`lang`'i çeviriyor ve giriş kartını aynalıyor, DE'ye geri dönmek `dir="ltr"`'yi doğru Almanca
+    metinle geri getiriyor.
+
+## Ek — 0.4.0 sürümü (2026-10-14)
+
+- `gateway/cmd/mumweb/main.go`'daki `release` ve `Makefile`'daki `VERSION` 0.3.1'den 0.4.0'a çıkarıldı: digest
+  sabitlemesinin geri alınması, README/TODO yeniden yapılandırması, ekran görüntüsü/demo GIF'i, operatörün
+  ayarlayacağı sunucu adı/açıklaması ve beş yeni arayüz dili dahil — yukarıdaki tüm özellik/dokümantasyon işi, kırıcı
+  değişiklik yok. `aoztrk82/mumweb:0.4.0` ve `:latest`, `make publish VERSION=0.4.0` ile gönderildi (amd64+arm64).
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

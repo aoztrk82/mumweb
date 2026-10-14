@@ -754,6 +754,31 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
     deployments) and to `deploy/.env.example`, the README env var tables (English and Turkish), and
     `docs/DOCKERHUB.md`; `make hub-readme` still needs a maintainer to run it to push the Docker Hub page text.
 
+## Addendum: five new UI languages (2026-10-14)
+
+- Added Arabic, German, Spanish, Italian and Russian dictionaries (`web/src/i18n/{ar,de,es,it,ru}.ts`), alongside
+  the existing English and Turkish ones, bringing the UI to seven languages. `tr.ts` stays the canonical shape
+  (`Translations` type); each new file was written by mirroring its keys and translating only the values, keeping
+  Mumble/protocol proper nouns (SuperUser, ACL, Opus, PEM, SHA-1, TCP/UDP) in Latin script and informal address
+  (du/tú/ты) for German/Spanish/Russian, matching the existing Turkish tone. `lang` was extended to seven keys in
+  every dictionary (native autonyms, translated `label`).
+  - Arabic is RTL: `apply()` in `index.svelte.ts` now sets `document.documentElement.dir` from a `RTL` set
+    (`{'ar'}`), applied at bootstrap too, not just on manual switch. No RTL-specific CSS was needed anywhere —
+    flexbox plus the native `dir` attribute mirrored the whole login card correctly on its own.
+  - `LangSwitch.svelte` kept its button-row layout (not a dropdown) with `flex-wrap` added so seven two-letter
+    buttons wrap instead of overflowing.
+  - Verified: `npm run check` (0 errors, all seven dictionaries type-check against `Translations`), `npm test` (50
+    passed), `npm run build`, and a visual check against the local dev stack — all seven language buttons render,
+    clicking AR flips `dir`/`lang` and mirrors the login card, clicking back to DE restores `dir="ltr"` with correct
+    German text.
+
+## Addendum: release 0.4.0 (2026-10-14)
+
+- Bumped `release` in `gateway/cmd/mumweb/main.go` and `VERSION` in the `Makefile` from 0.3.1 to 0.4.0: covers the
+  digest-pinning revert, the README/TODO restructure, the screenshot/demo GIF, operator-set server name/description,
+  and the five new UI languages — all feature/doc work above, no breaking changes. `aoztrk82/mumweb:0.4.0` and
+  `:latest` pushed with `make publish VERSION=0.4.0` (amd64+arm64).
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

@@ -84,11 +84,11 @@ gerekmez.
 ```sh
 docker login                                                                   # bir kez
 docker buildx create --name mumweb-builder --driver docker-container --bootstrap   # bir kez
-make publish VERSION=0.3.1       # :latest ve :0.3.1 gönderir
+make publish VERSION=0.4.0       # :latest ve :0.4.0 gönderir
 ```
 
 Sonra kontrol edin: `docker buildx imagetools inspect aoztrk82/mumweb:latest` iki platformu da listelemeli ve temiz bir
-`docker run -p 8080:8080 aoztrk82/mumweb:0.3.1` için `curl localhost:8080/healthz` `ok` dönmeli. Docker Hub sayfası (kısa açıklama ve README) [DOCKERHUB.md](../DOCKERHUB.md) dosyasından gelir (yalnızca İngilizce).
+`docker run -p 8080:8080 aoztrk82/mumweb:0.4.0` için `curl localhost:8080/healthz` `ok` dönmeli. Docker Hub sayfası (kısa açıklama ve README) [DOCKERHUB.md](../DOCKERHUB.md) dosyasından gelir (yalnızca İngilizce).
 Değiştirdikten sonra `make hub-readme` çalıştırın; betik Docker Desktop'ın mevcut Docker girişini (credential helper)
 kullanır, ek token gerekmez. GitHub'daki README ile tutarlı tutun, doğru kaynak odur.
 
