@@ -461,6 +461,7 @@ Gateway logs are JSON: `docker compose logs -f mumweb`. Passwords, certificate k
 | | English | Türkçe |
 |---|---|---|
 | Overview and deployment | this file | [README.tr.md](README.tr.md) |
+| Contributing (this project is AI-coded, and that's welcome) | [CONTRIBUTING.md](CONTRIBUTING.md) | [CONTRIBUTING.tr.md](CONTRIBUTING.tr.md) |
 | Docker Hub page text | [docs/DOCKERHUB.md](docs/DOCKERHUB.md) | (English only) |
 | Building from source, testing, publishing the image | [docs/BUILDING.md](docs/BUILDING.md) | [docs/tr/BUILDING.md](docs/tr/BUILDING.md) |
 | Local HTTPS test environment | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | [docs/tr/DEVELOPMENT.md](docs/tr/DEVELOPMENT.md) |

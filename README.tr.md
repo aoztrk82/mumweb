@@ -420,7 +420,9 @@ Gateway logları JSON'dur: `docker compose logs -f mumweb`. Şifre, sertifika an
 ## Dokümantasyon
 
 Ana sürüm İngilizcedir: [README.md](README.md), [docs/](docs/). Türkçe belgeler `docs/tr/` altındadır.
-Derleme, test ve imaj yayınlama: [docs/tr/BUILDING.md](docs/tr/BUILDING.md).
+Derleme, test ve imaj yayınlama: [docs/tr/BUILDING.md](docs/tr/BUILDING.md). Katkıda bulunmak isterseniz
+[CONTRIBUTING.tr.md](CONTRIBUTING.tr.md)'ye bakın — bu proje AI ile yazıldı ve AI destekli katkılar burada hoş
+karşılanıyor.
 
 ## Lisans
 

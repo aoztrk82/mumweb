@@ -67,6 +67,7 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
 | `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `ar.ts`, `de.ts`, `es.ts`, `it.ts`, `ru.ts`, `index.svelte.ts` (reactive `t`, language detection, RTL for Arabic) |
 | `deploy/` | Production compose (pulls `aoztrk82/mumweb`) + `docker-compose.build.yml` override, Caddyfile, dev compose, `local/` HTTPS test environment, `test/` loose-limit compose for the 1-2 day server test |
 | `docs/` | English docs; Turkish mirror in `docs/tr/` |
+| `CONTRIBUTING.md` / `CONTRIBUTING.tr.md` | How to contribute; says explicitly that this project is AI-coded and that AI-assisted PRs are welcome, judged like any other |
 
 ## Conventions
 
