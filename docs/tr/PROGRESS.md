@@ -647,6 +647,12 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   `WebFull`, `ReservedPasswordWrong`, `ReservedRateLimited`. Web sınırı zaten vardı (`MUMWEB_MAX_SESSIONS`, Mumble
   sunucusunun kullanıcı sınırından bağımsız). Birim testleri: `slots_test.go`.
 
+## Ek — 0.3.1 sürümü (2026-10-14)
+
+- Ayrılmış web slotlarını ekler. `aoztrk82/mumweb:0.3.1` ve `:latest` gönderildi (amd64+arm64, index digest `sha256:0e627df0…`);
+  Trivy: 0 HIGH/CRITICAL; ayarlıyken imaj `/config` için `reservedSlots:true` döner; Docker Hub sayfası yenilendi.
+  Sunucu test dağıtımı (`deploy/test/`) bu imajı çeker.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

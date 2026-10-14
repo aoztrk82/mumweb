@@ -85,11 +85,11 @@ Images go to Docker Hub as [`aoztrk82/mumweb`](https://hub.docker.com/r/aoztrk82
 ```sh
 docker login                                                                   # once
 docker buildx create --name mumweb-builder --driver docker-container --bootstrap   # once
-make publish VERSION=0.3.0       # pushes :latest and :0.3.0
+make publish VERSION=0.3.1       # pushes :latest and :0.3.1
 ```
 
 Afterwards check the result: `docker buildx imagetools inspect aoztrk82/mumweb:latest` should list both platforms,
-and a fresh `docker run -p 8080:8080 aoztrk82/mumweb:0.3.0` should answer `curl localhost:8080/healthz` with `ok`.
+and a fresh `docker run -p 8080:8080 aoztrk82/mumweb:0.3.1` should answer `curl localhost:8080/healthz` with `ok`.
 The Docker Hub page (short description and README) comes from [DOCKERHUB.md](DOCKERHUB.md). After changing it, run
 `make hub-readme`; the script reuses the Docker login of Docker Desktop (its credential helper) and needs no extra
 token. Keep it consistent with the README on GitHub, which is the source of truth.

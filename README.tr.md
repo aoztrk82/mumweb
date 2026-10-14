@@ -178,8 +178,8 @@ Compose dosyası üç servis çalıştırır: `mumble` (resmî `mumblevoip/mumbl
 root olmayan kullanıcı, `/healthz` sağlık kontrolü) ve `caddy` (otomatik HTTPS, WebSocket'i olduğu gibi aktarır).
 Aynı dosyalar bu depoda [`deploy/`](deploy/) altındadır (yorumlu bir `.env.example` ile).
 
-İmaj etiketleri: `latest` en yeni sürümü izler; `0.3.0` gibi etiketler sabit sürümlerdir. `.env` içine
-`MUMWEB_VERSION=0.3.0` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
+İmaj etiketleri: `latest` en yeni sürümü izler; `0.3.1` gibi etiketler sabit sürümlerdir. `.env` içine
+`MUMWEB_VERSION=0.3.1` yazarak sabitleyebilirsiniz. İmajlar `linux/amd64` ve `linux/arm64` için yayınlanır.
 
 ### Mumble autoban ayarı (önemli)
 

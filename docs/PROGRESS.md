@@ -672,6 +672,12 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   reasons `WebFull`, `ReservedPasswordWrong`, `ReservedRateLimited`. The web limit itself already existed
   (`MUMWEB_MAX_SESSIONS`, independent of the Mumble server's user limit). Unit tests: `slots_test.go`.
 
+## Addendum: release 0.3.1 (2026-10-14)
+
+- Adds the reserved web slots. `aoztrk82/mumweb:0.3.1` and `:latest` pushed (amd64+arm64, index digest `sha256:0e627df0…`);
+  Trivy: 0 HIGH/CRITICAL; the image answers `/config` with `reservedSlots:true` when configured; Docker Hub page refreshed.
+  The server test deployment (`deploy/test/`) pulls this image.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small
