@@ -6,6 +6,11 @@ export const tr = {
     label: 'Dil',
     tr: 'Türkçe',
     en: 'English',
+    ar: 'العربية',
+    de: 'Deutsch',
+    es: 'Español',
+    it: 'Italiano',
+    ru: 'Русский',
   },
 
   keys: {

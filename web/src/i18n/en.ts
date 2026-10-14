@@ -8,6 +8,11 @@ export const en: Translations = {
     label: 'Language',
     tr: 'Türkçe',
     en: 'English',
+    ar: 'العربية',
+    de: 'Deutsch',
+    es: 'Español',
+    it: 'Italiano',
+    ru: 'Русский',
   },
 
   keys: {

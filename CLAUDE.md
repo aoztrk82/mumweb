@@ -64,14 +64,18 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
 | `web/src/lib` | WS client (`client.ts`), protocol (`protocol.ts`), audio pipeline (`audio/`), stores (`stores/`) |
 | `web/src/components` | Svelte 5 components (runes) |
 | `web/src/admin`, `web/admin` | Admin panel: second Vite page at `/admin/` (own client + store, no audio; ACL/ban/user-list editors) |
-| `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `index.svelte.ts` (reactive `t`, language detection) |
+| `web/src/i18n` | UI strings: `tr.ts` (defines the shape), `en.ts`, `ar.ts`, `de.ts`, `es.ts`, `it.ts`, `ru.ts`, `index.svelte.ts` (reactive `t`, language detection, RTL for Arabic) |
 | `deploy/` | Production compose (pulls `aoztrk82/mumweb`) + `docker-compose.build.yml` override, Caddyfile, dev compose, `local/` HTTPS test environment, `test/` loose-limit compose for the 1-2 day server test |
 | `docs/` | English docs; Turkish mirror in `docs/tr/` |
 
 ## Conventions
 
 - **Language:** English is primary for code, comments, commit messages, docs and deploy files. Turkish is an
-  additional language: `README.tr.md` and `docs/tr/`. The web UI has English and Turkish dictionaries (`web/src/i18n/`); every user-visible string goes through `t` and must exist in both.
+  additional language: `README.tr.md` and `docs/tr/`. The web UI has seven dictionaries — `tr.ts` (defines the
+  shape), `en.ts`, `ar.ts`, `de.ts`, `es.ts`, `it.ts`, `ru.ts` (`web/src/i18n/`); every user-visible string goes
+  through `t` and must exist in all of them (`npm run check` catches a missing key as a type error). Arabic is the
+  only RTL language: `apply()` in `index.svelte.ts` flips `<html dir>`; there is no other RTL-specific styling, so a
+  new component should avoid hardcoding `left`/`right` and prefer flexbox/logical properties where it matters.
 - **Commits:** Conventional Commits (`feat:`, `fix(gateway):`, `docs:`, `style:`…), small and focused, imperative
   subject.
 - **Go:** `gofmt`, standard library first, no new dependency without a reason. Never log passwords, certificate

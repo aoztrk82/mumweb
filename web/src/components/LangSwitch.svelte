@@ -20,17 +20,19 @@
 <style>
   .lang {
     display: inline-flex;
+    flex-wrap: wrap;
+    max-width: 100%;
     border: 1px solid var(--border);
     border-radius: 8px;
     overflow: hidden;
   }
   button {
-    padding: 0.25rem 0.6rem;
+    padding: 0.25rem 0.45rem;
     border: 0;
     border-radius: 0;
     background: transparent;
     color: var(--text-dim);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.03em;
     cursor: pointer;
