@@ -74,6 +74,9 @@ services:
       MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-test}
       # Admin panel at /admin (SuperUser works there even though the main UI refuses it).
       MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-admin}
+      MUMWEB_MAX_SESSIONS: ${MUMWEB_MAX_SESSIONS:-50}
+      MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
+      MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

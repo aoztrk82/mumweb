@@ -10,31 +10,31 @@ import { isSuperUser, Perm } from './permissions'
 import type { ServerMessage, UserInfo } from './protocol'
 import { sanitizeHtml, textToHtml } from './sanitize'
 import { session } from './stores/session.svelte'
-import { accessPassword } from './accessPassword'
+import { accessPassword, reservedPassword } from './accessPassword'
 import { tokens } from './stores/tokens.svelte'
 import { ui } from './stores/ui.svelte'
 import { displayName, userPref } from './stores/userPrefs.svelte'
 import { gatewayUrl, ReconnectingSocket } from './ws'
 
 let socket: ReconnectingSocket | null = null
-let credentials = { username: '', password: '', accessPassword: '' }
+let credentials = { username: '', password: '', accessPassword: '', reservedPassword: '' }
 
 /** Starts a session. Call from a click handler: it also unlocks audio playback. */
-export function connect(username: string, password: string, accessPassword = ''): void {
+export function connect(username: string, password: string, accessPassword = '', reservedPassword = ''): void {
   unlockAudio()
   void startAudio()
   socket?.stop()
-  credentials = { username, password, accessPassword }
+  credentials = { username, password, accessPassword, reservedPassword }
   session.error = null
   session.notice = null
   session.joined = false
   session.clearChat()
-  openSocket(username, password, accessPassword)
+  openSocket(username, password, accessPassword, reservedPassword)
 }
 
-function openSocket(username: string, password: string, accessPassword: string): void {
+function openSocket(username: string, password: string, accessPassword: string, reservedPassword: string): void {
   socket = new ReconnectingSocket(gatewayUrl(), {
-    hello: async () => ({ t: 'hello', username, password, accessPassword, cert: await loadCert(), tokens: tokens.all() }),
+    hello: async () => ({ t: 'hello', username, password, accessPassword, reservedPassword, cert: await loadCert(), tokens: tokens.all() }),
     message: handleMessage,
     audio: handleAudioFrame,
     status: (s, attempt, retryIn) => {
@@ -68,11 +68,11 @@ async function startAudio(): Promise<void> {
 /** Reconnects with the same credentials (e.g. after changing the certificate). */
 export function reconnect(): void {
   if (!credentials.username) return
-  const { username, password, accessPassword } = credentials
+  const { username, password, accessPassword, reservedPassword } = credentials
   socket?.stop()
   socket = null
   session.joined = true // keep the main view while reconnecting
-  openSocket(username, password, accessPassword)
+  openSocket(username, password, accessPassword, reservedPassword)
 }
 
 export function disconnect(): void {
@@ -394,6 +394,7 @@ function handleMessage(m: ServerMessage): void {
     }
 
     case 'reject':
+      if (m.reason === 'ReservedPasswordWrong') reservedPassword.forget()
       if (m.reason.startsWith('Access')) {
         session.accessRequired = true
         if (m.reason === 'AccessPasswordWrong') accessPassword.forget()

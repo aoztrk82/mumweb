@@ -17,14 +17,27 @@ export const accessPassword = {
   },
 }
 
-/** Asks the gateway whether it requires an access password. Failures mean "no". */
-export async function fetchAccessRequired(): Promise<boolean> {
+/** The reserved-slot password (MUMWEB_RESERVED_PASSWORD) and whether this browser remembers it. */
+export const reservedPassword = {
+  saved(): string {
+    return getSetting<string>('reservedPassword', '')
+  },
+  save(value: string): void {
+    setSetting('reservedPassword', value)
+  },
+  forget(): void {
+    setSetting('reservedPassword', '')
+  },
+}
+
+/** Asks the gateway which login fields it wants. Failures mean "none". */
+export async function fetchLoginConfig(): Promise<{ accessPassword: boolean; reservedSlots: boolean }> {
   try {
     const res = await fetch('/config', { cache: 'no-store' })
-    if (!res.ok) return false
-    const cfg = (await res.json()) as { accessPassword?: boolean }
-    return cfg.accessPassword === true
+    if (!res.ok) return { accessPassword: false, reservedSlots: false }
+    const cfg = (await res.json()) as { accessPassword?: boolean; reservedSlots?: boolean }
+    return { accessPassword: cfg.accessPassword === true, reservedSlots: cfg.reservedSlots === true }
   } catch {
-    return false
+    return { accessPassword: false, reservedSlots: false }
   }
 }

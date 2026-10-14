@@ -62,6 +62,8 @@ Update with `docker compose pull && docker compose up -d`.
 | `MUMWEB_ADMIN_PASSWORD` | empty | If set, switches on the admin panel at `/admin` (ban list, ACLs, registered users); empty = off |
 | `MUMWEB_MAX_SESSIONS` | `50` | Maximum concurrent web sessions |
 | `MUMWEB_MAX_SESSIONS_PER_IP` | `10` | Maximum concurrent web sessions per client IP (`0` = off) |
+| `MUMWEB_RESERVED_SLOTS` | `0` | Of `MUMWEB_MAX_SESSIONS`, how many are kept for people who enter `MUMWEB_RESERVED_PASSWORD` (and admin sessions) |
+| `MUMWEB_RESERVED_PASSWORD` | empty | Password for the reserved slots (optional login field); both must be set |
 | `MUMWEB_CONN_RATE` | `10` | New connections per IP per minute (`0` = off) |
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web |
 | `MUMWEB_TLS_VERIFY` | `false` | Verify the Mumble server certificate |

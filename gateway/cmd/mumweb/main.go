@@ -37,19 +37,21 @@ func main() {
 
 	addr := env("MUMWEB_LISTEN", ":8080")
 	bcfg := bridge.Config{
-		MumbleAddr:     env("MUMWEB_MUMBLE_ADDR", "mumble:64738"),
-		TLSVerify:      envBool("MUMWEB_TLS_VERIFY", false),
-		Fingerprint:    env("MUMWEB_TLS_FINGERPRINT", ""),
-		MaxSessions:    envInt("MUMWEB_MAX_SESSIONS", 50),
-		MaxPerIP:       envInt("MUMWEB_MAX_SESSIONS_PER_IP", 10),
-		AllowedOrigins: envList("MUMWEB_ALLOWED_ORIGINS"),
-		ConnsPerMinute: envInt("MUMWEB_CONN_RATE", 10),
-		TrustProxy:     envBool("MUMWEB_TRUST_PROXY", false),
-		AllowSuperUser: envBool("MUMWEB_ALLOW_SUPERUSER", false),
-		AccessPassword: os.Getenv("MUMWEB_ACCESS_PASSWORD"),
-		AdminPassword:  os.Getenv("MUMWEB_ADMIN_PASSWORD"),
-		Release:        release,
-		Logger:         logger,
+		MumbleAddr:       env("MUMWEB_MUMBLE_ADDR", "mumble:64738"),
+		TLSVerify:        envBool("MUMWEB_TLS_VERIFY", false),
+		Fingerprint:      env("MUMWEB_TLS_FINGERPRINT", ""),
+		MaxSessions:      envInt("MUMWEB_MAX_SESSIONS", 50),
+		MaxPerIP:         envInt("MUMWEB_MAX_SESSIONS_PER_IP", 10),
+		AllowedOrigins:   envList("MUMWEB_ALLOWED_ORIGINS"),
+		ConnsPerMinute:   envInt("MUMWEB_CONN_RATE", 10),
+		TrustProxy:       envBool("MUMWEB_TRUST_PROXY", false),
+		AllowSuperUser:   envBool("MUMWEB_ALLOW_SUPERUSER", false),
+		AccessPassword:   os.Getenv("MUMWEB_ACCESS_PASSWORD"),
+		AdminPassword:    os.Getenv("MUMWEB_ADMIN_PASSWORD"),
+		ReservedSlots:    envInt("MUMWEB_RESERVED_SLOTS", 0),
+		ReservedPassword: os.Getenv("MUMWEB_RESERVED_PASSWORD"),
+		Release:          release,
+		Logger:           logger,
 	}
 	ws := bridge.New(bcfg)
 
@@ -67,7 +69,7 @@ func main() {
 
 	go func() {
 		slog.Info("listening", "addr", addr, "mumble", bcfg.MumbleAddr, "tlsVerify", bcfg.TLSVerify,
-			"pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "", "admin", bcfg.AdminPassword != "")
+			"reservedSlots", ws.ReservedSlotsEnabled(), "pinned", bcfg.Fingerprint != "", "maxSessions", bcfg.MaxSessions, "origins", bcfg.AllowedOrigins, "allowSuperUser", bcfg.AllowSuperUser, "accessPassword", bcfg.AccessPassword != "", "admin", bcfg.AdminPassword != "")
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("server failed", "err", err)
 			os.Exit(1)
@@ -91,7 +93,7 @@ func newMux(dist fs.FS, ws *bridge.Handler) *http.ServeMux {
 	mux.HandleFunc("GET /config", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "no-store")
-		_ = json.NewEncoder(w).Encode(map[string]bool{"accessPassword": ws.AccessPasswordRequired(), "admin": ws.AdminEnabled()})
+		_ = json.NewEncoder(w).Encode(map[string]bool{"accessPassword": ws.AccessPasswordRequired(), "admin": ws.AdminEnabled(), "reservedSlots": ws.ReservedSlotsEnabled()})
 	})
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")

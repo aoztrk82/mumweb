@@ -83,6 +83,7 @@ Toolchain: Go 1.27+, Node 24 LTS, Docker + Compose.
   write instead of trusting its draft. New ban entries from the panel must be certificate-only (`100::/128` + hash).
 - **Security headers/CSP** live in `securityHeaders` (`gateway/cmd/mumweb`): no inline script or eval in the UI (`script-src 'self'`). Check the browser console for CSP errors when adding a script, worker or remote resource. HSTS is set in the Caddyfiles, not the gateway.
 - **Compose hardening** (gateway read-only, no caps, internal network without egress): do not add gateway features that write to disk or call out. Mumble must not get `cap_drop: ALL` (its entrypoint breaks).
+- **Reserved web slots** (`MUMWEB_RESERVED_SLOTS` + `_PASSWORD`): `acquireSlot` in `bridge.go` runs after the login checks; the hard `MaxSessions` check stays at socket accept. Admin sessions count as privileged. Reject reasons `WebFull`/`ReservedPassword*` must exist in both i18n dictionaries.
 - **Limits:** per-IP sessions, control-message bucket (50/s, burst 200: login queries permissions of every channel) and audio bucket; keep them when changing `readLoop`. Security results and the operator guide: [docs/SECURITY.md](docs/SECURITY.md) (re-run the scans listed there before a release).
 - **`sw.js` must never cache `/admin*`** and may only store `/` as the app shell (bump `CACHE` when its logic changes).
 - Windows checkout has CRLF files: check Go formatting with `tr -d '\r' < f | gofmt -l`, not `gofmt -l` on the CRLF file.

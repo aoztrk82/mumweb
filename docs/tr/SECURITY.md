@@ -27,7 +27,7 @@ saklamaz; bir kullanıcının oturumu açıkken özel anahtarını bellekte gör
 |---|---|
 | Hedef | tek ve sabit `MUMWEB_MUMBLE_ADDR`; tarayıcı adres seçemez (SSRF yok) |
 | WebSocket | Origin izin listesi (`MUMWEB_ALLOWED_ORIGINS`), 16 KiB JSON sınırı (yönetim oturumlarında 512 KiB), 4 KiB ses çerçevesi, 10 sn içinde hello, 60 sn boşta zaman aşımı, 10 sn yazma zaman aşımı |
-| Hız ve sınırlar | IP başına yeni bağlantı (`MUMWEB_CONN_RATE`), **IP başına eşzamanlı oturum** (`MUMWEB_MAX_SESSIONS_PER_IP`, varsayılan 10), toplam oturum (`MUMWEB_MAX_SESSIONS`), ses 100 paket/sn (burst 150), **kontrol mesajları 50/sn (burst 200), art arda 500 düşen mesaj oturumu bitirir**, yönetim komutları 0,8/sn'ye yavaşlatılır |
+| Hız ve sınırlar | IP başına yeni bağlantı (`MUMWEB_CONN_RATE`), **IP başına eşzamanlı oturum** (`MUMWEB_MAX_SESSIONS_PER_IP`, varsayılan 10), toplam oturum (`MUMWEB_MAX_SESSIONS`), ikinci bir şifreyle açılan isteğe bağlı **ayrılmış slotlar** (`MUMWEB_RESERVED_SLOTS`; yanlış denemeler erişim şifresi gibi geciktirilir ve kilitlenir), ses 100 paket/sn (burst 150), **kontrol mesajları 50/sn (burst 200), art arda 500 düşen mesaj oturumu bitirir**, yönetim komutları 0,8/sn'ye yavaşlatılır |
 | HTTP sunucusu | başlık zaman aşımı 10 sn, boşta zaman aşımı 120 sn, başlık boyutu sınırı 16 KiB, root olmayan kullanıcı |
 | Şifreler | erişim ve yönetici şifresi özetlenip sabit zamanlı karşılaştırılır; yanlış denemede 1 sn gecikme; 5 yanlış deneme IP'yi 10 dakika kilitler; erişim ve yönetici için ayrı sayaç; asla loglanmaz |
 | Adlar | başka sertifikalı bir oturumun kullandığı ad reddedilir (`UsernameInUse`); kimse adı yeniden kullanarak başka web kullanıcısını atamaz |

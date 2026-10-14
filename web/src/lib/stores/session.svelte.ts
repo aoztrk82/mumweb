@@ -30,6 +30,8 @@ class SessionState {
   notice = $state<string | null>(null)
   /** The gateway wants its web access password (set from /config or a reject). */
   accessRequired = $state(false)
+  /** The gateway keeps some slots for a reserved-slot password (from /config). */
+  reservedSlots = $state(false)
   /** True once the first "ready" arrived; the main view stays up while reconnecting. */
   joined = $state(false)
   ready = $state(false)

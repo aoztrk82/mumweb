@@ -55,7 +55,11 @@ type Config struct {
 	AllowSuperUser bool     // allow logging in as Mumble's SuperUser from the web
 	AccessPassword string   // if set, browsers must send it in hello (separate from the Mumble server password)
 	AdminPassword  string   // enables the /admin panel; admin sessions must send it in hello (empty = panel off)
-	Logger         *slog.Logger
+	// ReservedSlots of MaxSessions can only be taken by browsers that send ReservedPassword (and by admin
+	// sessions); everyone else shares MaxSessions-ReservedSlots. Both must be set, else the feature is off.
+	ReservedSlots    int
+	ReservedPassword string
+	Logger           *slog.Logger
 }
 
 // Handler accepts browser WebSocket sessions on /ws.
@@ -68,6 +72,10 @@ type Handler struct {
 	limiter    *ipLimiter
 	fails      *failTracker
 	adminFails *failTracker // separate from fails: admin guesses must not lock the main UI out
+	slotFails  *failTracker // wrong reserved-slot passwords
+	slotMu     sync.Mutex
+	slotsGen   int // sessions in general slots
+	slotsRes   int // sessions in reserved slots
 	ipMu       sync.Mutex
 	ipSessions map[string]int
 	sessions   atomic.Int64
@@ -86,8 +94,11 @@ func New(cfg Config) *Handler {
 		origins = append(origins, normalizeOrigin(o))
 	}
 	cfg.AllowedOrigins = origins
+	if cfg.ReservedSlots >= cfg.MaxSessions || cfg.ReservedPassword == "" {
+		cfg.ReservedSlots = 0 // needs room for at least one general slot, and a password
+	}
 	base, stop := context.WithCancel(context.Background())
-	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute), fails: newFailTracker(), adminFails: newFailTracker()}
+	return &Handler{base: base, stop: stop, cfg: cfg, log: cfg.Logger, limiter: newIPLimiter(cfg.ConnsPerMinute), fails: newFailTracker(), adminFails: newFailTracker(), slotFails: newFailTracker()}
 }
 
 // Shutdown ends all sessions. Hijacked WebSocket connections are not covered
@@ -99,6 +110,41 @@ func (h *Handler) AccessPasswordRequired() bool { return h.cfg.AccessPassword !=
 
 // AdminEnabled reports whether the admin panel is switched on (MUMWEB_ADMIN_PASSWORD set).
 func (h *Handler) AdminEnabled() bool { return h.cfg.AdminPassword != "" }
+
+// ReservedSlotsEnabled reports whether some slots are kept for holders of the reserved-slot password.
+func (h *Handler) ReservedSlotsEnabled() bool { return h.cfg.ReservedSlots > 0 }
+
+// acquireSlot takes a web slot after login checks passed. Anyone may use the general slots
+// (MaxSessions-ReservedSlots); privileged sessions (reserved password, admin) may also use the
+// reserved ones. The returned func gives the slot back. Without reserved slots it always succeeds
+// (the hard MaxSessions limit is applied when the socket is accepted).
+func (h *Handler) acquireSlot(privileged bool) (func(), bool) {
+	if h.cfg.ReservedSlots <= 0 {
+		return func() {}, true
+	}
+	h.slotMu.Lock()
+	defer h.slotMu.Unlock()
+	if h.slotsGen < h.cfg.MaxSessions-h.cfg.ReservedSlots {
+		h.slotsGen++
+		return h.slotRelease(&h.slotsGen), true
+	}
+	if privileged && h.slotsRes < h.cfg.ReservedSlots {
+		h.slotsRes++
+		return h.slotRelease(&h.slotsRes), true
+	}
+	return nil, false
+}
+
+func (h *Handler) slotRelease(n *int) func() {
+	var once sync.Once
+	return func() {
+		once.Do(func() {
+			h.slotMu.Lock()
+			*n--
+			h.slotMu.Unlock()
+		})
+	}
+}
 
 // Sessions returns the number of open sessions.
 func (h *Handler) Sessions() int { return int(h.sessions.Load()) }
@@ -214,6 +260,21 @@ func (s *session) run(ctx context.Context) (websocket.StatusCode, string) {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
 		return websocket.StatusNormalClosure, "access denied"
 	}
+	privileged := s.admin
+	if !s.admin && s.h.cfg.ReservedSlots > 0 && hello.ReservedPassword != "" {
+		if reason, msg := s.checkReserved(ctx, hello.ReservedPassword); reason != "" {
+			_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: reason, Message: msg})
+			return websocket.StatusNormalClosure, "reserved password denied"
+		}
+		privileged = true
+	}
+	releaseSlot, ok := s.h.acquireSlot(privileged)
+	if !ok {
+		s.log.Info("web slots full", "privileged", privileged)
+		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: rejectWebFull, Message: "all web slots are taken"})
+		return websocket.StatusNormalClosure, "web slots full"
+	}
+	defer releaseSlot()
 	username := strings.TrimSpace(hello.Username)
 	if username == "" || len(username) > maxUsernameLen || !utf8.ValidString(username) {
 		_ = s.sendJSON(ctx, rejectMsg{T: "reject", Reason: "InvalidUsername", Message: "invalid username"})
@@ -331,6 +392,26 @@ func (s *session) checkAccess(ctx context.Context, given string) (reason, msg st
 	case <-ctx.Done():
 	}
 	return rejectAccessWrong, "wrong access password"
+}
+
+// checkReserved verifies the reserved-slot password with the same delay and lockout as the access password.
+func (s *session) checkReserved(ctx context.Context, given string) (reason, msg string) {
+	now := time.Now()
+	if s.h.slotFails.locked(s.ip, now) {
+		s.log.Warn("reserved password: ip locked out")
+		return rejectReservedRateLimited, "too many wrong reserved-slot passwords, try again later"
+	}
+	if passwordMatches(given, s.h.cfg.ReservedPassword) {
+		s.h.slotFails.ok(s.ip)
+		return "", ""
+	}
+	s.h.slotFails.fail(s.ip, now)
+	s.log.Warn("reserved password: wrong password")
+	select {
+	case <-time.After(accessFailDelay):
+	case <-ctx.Done():
+	}
+	return rejectReservedWrong, "wrong reserved-slot password"
 }
 
 func (s *session) readHello(ctx context.Context) (clientMsg, error) {

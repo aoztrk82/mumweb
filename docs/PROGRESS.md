@@ -661,6 +661,17 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   rate limit, HTTP idle/header limits, hardened compose files, HSTS in the Caddyfiles. `release` in `main.go` is `mumweb 0.3`.
   Version chosen as a minor bump because of the new setting. Pushed as `:0.3.0` and `:latest` (amd64+arm64, index digest `sha256:d6657463…`); Trivy on it: 0 HIGH/CRITICAL; the container answers with the new headers. GitHub private vulnerability reporting was enabled by the owner.
 
+## Addendum: reserved web slots (2026-10-14)
+
+- New `MUMWEB_RESERVED_SLOTS` + `MUMWEB_RESERVED_PASSWORD`: of `MUMWEB_MAX_SESSIONS` web slots, N can only be taken by
+  browsers that send the reserved password in hello (optional login field, shown when `/config` says `reservedSlots`) and
+  by admin sessions. Decisions: the total stays the hard limit applied at socket accept; the slot split is applied after
+  the login checks (`acquireSlot`), so privileged users fill general slots first and keep the reserved ones for when the
+  general area is full; a wrong reserved password is rejected (own failure tracker, same delay and lockout as the access
+  password) instead of silently falling back; off unless both values are set and a general slot remains. New reject
+  reasons `WebFull`, `ReservedPasswordWrong`, `ReservedRateLimited`. The web limit itself already existed
+  (`MUMWEB_MAX_SESSIONS`, independent of the Mumble server's user limit). Unit tests: `slots_test.go`.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

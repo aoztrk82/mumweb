@@ -44,3 +44,6 @@ Security checks (see [SECURITY.md](SECURITY.md)):
     `docker exec <gateway container> touch /x` fails (read-only).
 20. Open more than `MUMWEB_MAX_SESSIONS_PER_IP` tabs from one computer: the extra ones are refused ("too many
     sessions") while the first ones keep working.
+21. Reserved slots: start with `MUMWEB_MAX_SESSIONS=3 MUMWEB_RESERVED_SLOTS=1 MUMWEB_RESERVED_PASSWORD=vip`. The login
+    screen shows "Reserved slot password". Two users without it connect; a third gets "All web slots are taken"; the
+    same third user with `vip` gets in. A wrong password is refused with its own message.

@@ -13,6 +13,11 @@ const (
 	rejectAccessRequired    = "AccessPasswordRequired"
 	rejectAccessWrong       = "AccessPasswordWrong"
 	rejectAccessRateLimited = "AccessRateLimited"
+
+	// Reserved web slots (MUMWEB_RESERVED_SLOTS).
+	rejectReservedWrong       = "ReservedPasswordWrong"
+	rejectReservedRateLimited = "ReservedRateLimited"
+	rejectWebFull             = "WebFull"
 )
 
 const (

@@ -42,3 +42,6 @@ Güvenlik kontrolleri ([SECURITY.md](SECURITY.md)):
     `docker exec <gateway container> touch /x` başarısız olur (salt okunur).
 20. Tek bilgisayardan `MUMWEB_MAX_SESSIONS_PER_IP`'den fazla sekme açın: fazlalıklar reddedilir ("too many sessions"),
     ilk açılanlar çalışmaya devam eder.
+21. Ayrılmış slotlar: `MUMWEB_MAX_SESSIONS=3 MUMWEB_RESERVED_SLOTS=1 MUMWEB_RESERVED_PASSWORD=vip` ile başlatın. Giriş ekranında
+    "Ayrılmış slot şifresi" alanı görünür. Şifresiz iki kullanıcı bağlanır; üçüncüsü "Web slotları dolu" görür; aynı üçüncü
+    kullanıcı `vip` ile girer. Yanlış şifre kendi mesajıyla reddedilir.

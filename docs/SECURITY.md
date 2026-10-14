@@ -27,7 +27,7 @@ stores no certificates; it sees a user's private key in memory while that user's
 |---|---|
 | Target | one fixed `MUMWEB_MUMBLE_ADDR`; the browser cannot choose an address (no SSRF) |
 | WebSocket | Origin allow-list (`MUMWEB_ALLOWED_ORIGINS`), 16 KiB JSON limit (512 KiB on admin sessions), 4 KiB audio frames, hello within 10 s, 60 s idle timeout, 10 s write timeout |
-| Rates and limits | per-IP new connections (`MUMWEB_CONN_RATE`), **per-IP concurrent sessions** (`MUMWEB_MAX_SESSIONS_PER_IP`, default 10), total sessions (`MUMWEB_MAX_SESSIONS`), audio 100 packets/s (burst 150), **control messages 50/s (burst 200), 500 dropped in a row ends the session**, admin commands paced to 0.8/s |
+| Rates and limits | per-IP new connections (`MUMWEB_CONN_RATE`), **per-IP concurrent sessions** (`MUMWEB_MAX_SESSIONS_PER_IP`, default 10), total sessions (`MUMWEB_MAX_SESSIONS`), optional **reserved slots** for a second password (`MUMWEB_RESERVED_SLOTS`; wrong guesses delayed and locked out like the access password), audio 100 packets/s (burst 150), **control messages 50/s (burst 200), 500 dropped in a row ends the session**, admin commands paced to 0.8/s |
 | HTTP server | header timeout 10 s, idle timeout 120 s, header size limit 16 KiB, non-root user |
 | Passwords | access and admin password compared in constant time after hashing; 1 s delay per wrong guess; 5 wrong guesses lock the IP for 10 minutes; separate counters for access and admin; never logged |
 | Names | a name already used by a session with another certificate is refused (`UsernameInUse`), so nobody can kick another web user by reusing their name |

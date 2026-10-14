@@ -636,6 +636,17 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   mesajı hız sınırı, HTTP boşta/başlık sınırları, sertleştirilmiş compose dosyaları, Caddyfile'larda HSTS. `main.go`'daki
   `release` artık `mumweb 0.3`. Yeni ayar nedeniyle minor sürüm seçildi. `:0.3.0` ve `:latest` gönderildi (amd64+arm64, index digest `sha256:d6657463…`); Trivy: 0 HIGH/CRITICAL; container yeni başlıklarla yanıt veriyor. Sahibi GitHub özel güvenlik açığı bildirimini açtı.
 
+## Ek — ayrılmış web slotları (2026-10-14)
+
+- Yeni `MUMWEB_RESERVED_SLOTS` + `MUMWEB_RESERVED_PASSWORD`: `MUMWEB_MAX_SESSIONS` web slotundan N tanesini yalnızca hello'da
+  ayrılmış şifreyi gönderen tarayıcılar (isteğe bağlı giriş alanı, `/config` `reservedSlots` dediğinde görünür) ve yönetim
+  oturumları alabilir. Kararlar: toplam sınır soket kabulünde uygulanan sert sınır olarak kalır; slot ayrımı giriş
+  kontrollerinden sonra uygulanır (`acquireSlot`), ayrıcalıklı kullanıcılar önce genel slotları doldurur, ayrılmışlar genel
+  alan dolunca kullanılır; yanlış ayrılmış şifre sessizce genel slota düşmek yerine reddedilir (ayrı hata sayacı, erişim
+  şifresiyle aynı bekleme ve kilit); iki değer de ayarlı ve en az bir genel slot kalıyorsa açılır. Yeni reject nedenleri
+  `WebFull`, `ReservedPasswordWrong`, `ReservedRateLimited`. Web sınırı zaten vardı (`MUMWEB_MAX_SESSIONS`, Mumble
+  sunucusunun kullanıcı sınırından bağımsız). Birim testleri: `slots_test.go`.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

@@ -13,6 +13,8 @@ export type ClientMessage =
       username: string
       password: string
       accessPassword: string
+      /** Opens the reserved web slots (MUMWEB_RESERVED_PASSWORD); optional. */
+      reservedPassword?: string
       cert: CertPair | null
       tokens: string[]
       /** 'admin' for the /admin panel (needs the gateway's admin password). */

@@ -39,9 +39,11 @@ type clientMsg struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	// AccessPassword is the web access password (MUMWEB_ACCESS_PASSWORD), not the Mumble server password.
-	AccessPassword string    `json:"accessPassword"`
-	Cert           *certPair `json:"cert"`
-	Tokens         []string  `json:"tokens"`
+	AccessPassword string `json:"accessPassword"`
+	// ReservedPassword opens the reserved web slots (MUMWEB_RESERVED_PASSWORD); optional.
+	ReservedPassword string    `json:"reservedPassword"`
+	Cert             *certPair `json:"cert"`
+	Tokens           []string  `json:"tokens"`
 	// Role is "admin" for the /admin panel (needs AdminPassword); anything else is a normal session.
 	Role          string `json:"role"`
 	AdminPassword string `json:"adminPassword"`

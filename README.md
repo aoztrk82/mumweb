@@ -129,6 +129,9 @@ Requirements: a Linux server (x86-64 or ARM64) with Docker and Docker Compose, p
          MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
          # Switches on the /admin panel (empty = panel off). Separate from the access password.
          MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
+         # Keep some of the MUMWEB_MAX_SESSIONS slots for people who know this password (off if either is empty).
+         MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
+         MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
        # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
        # internet: the gateway only sits on the internal network with Mumble and Caddy.
        read_only: true
@@ -290,6 +293,8 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Allow logging in as Mumble's `SuperUser` from the web (when off the name is rejected in the main client; administer with the admin panel or the desktop client) |
 | `MUMWEB_ACCESS_PASSWORD` | empty | If set, every web user must enter this password on the login screen. Separate from the Mumble server password and only enforced by the gateway (see below) |
 | `MUMWEB_ADMIN_PASSWORD` | empty | If set, switches on the admin panel at `/admin`; admin sessions must send it. Empty = panel off (see below) |
+| `MUMWEB_RESERVED_SLOTS` | `0` | How many of `MUMWEB_MAX_SESSIONS` are reserved for holders of `MUMWEB_RESERVED_PASSWORD` (and for admin sessions). Other users share the remaining slots. Needs the password and a limit above the reserved count, else off |
+| `MUMWEB_RESERVED_PASSWORD` | empty | Password for the reserved slots, typed in an optional login field |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 ### Compose variables (`deploy/.env`)
@@ -305,6 +310,7 @@ channels live in the `mumble-data` volume. Back it up with:
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | See above |
 | `MUMWEB_ACCESS_PASSWORD` | empty | See above |
 | `MUMWEB_ADMIN_PASSWORD` | empty | See above |
+| `MUMWEB_RESERVED_SLOTS`, `MUMWEB_RESERVED_PASSWORD` | `0`, empty | See above |
 
 ### Web access password
 
@@ -317,6 +323,20 @@ Set `MUMWEB_ACCESS_PASSWORD` to keep strangers out of the web client. The login 
   guess, and locks an IP out for 10 minutes after 5 wrong guesses.
 - It travels over the same HTTPS/WSS connection as everything else, so use HTTPS. Treat it as a shared "door code",
   not as per-user authentication.
+
+### Reserved web slots
+
+`MUMWEB_MAX_SESSIONS` limits how many people use the web client at once, whatever the Mumble server allows (for
+example `MUMWEB_MAX_SESSIONS=10` on a 50 slot server). To keep some of them for yourself and friends, like an admin
+slot in a game server, set `MUMWEB_RESERVED_SLOTS=2` and `MUMWEB_RESERVED_PASSWORD`. With 10 web slots, everyone shares
+8; people who enter the reserved password in the optional "Reserved slot password" field of the login screen can also
+use the last 2. The field appears only when the feature is on.
+
+- Normal users who find the 8 slots taken see "All web slots are taken" and can retry with the password.
+- Admin panel sessions count as privileged too, so you can always get in to manage the server.
+- A wrong reserved password is refused (same delay and 10 minute lockout as the access password, counted separately),
+  so a typo does not silently use up a general slot.
+- It is a shared "door code" like the access password: use HTTPS. Desktop Mumble clients are not affected.
 
 ### Admin panel (`/admin`)
 

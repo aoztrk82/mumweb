@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '../i18n/index.svelte'
   import LangSwitch from './LangSwitch.svelte'
-  import { accessPassword, fetchAccessRequired } from '../lib/accessPassword'
+  import { accessPassword, fetchLoginConfig, reservedPassword } from '../lib/accessPassword'
   import { connect } from '../lib/client'
   import { getSetting, setSetting } from '../lib/settings'
   import { session } from '../lib/stores/session.svelte'
@@ -11,12 +11,16 @@
   const savedAccess = accessPassword.saved()
   let access = $state(savedAccess)
   let rememberAccess = $state(savedAccess !== '')
+  const savedReserved = reservedPassword.saved()
+  let reserved = $state(savedReserved)
+  let rememberReserved = $state(savedReserved !== '')
   const busy = $derived(session.status === 'connecting' || session.status === 'reconnecting')
 
   // Ask the gateway whether it wants its web access password; the field only appears then.
   $effect(() => {
-    void fetchAccessRequired().then((required) => {
-      if (required) session.accessRequired = true
+    void fetchLoginConfig().then((cfg) => {
+      if (cfg.accessPassword) session.accessRequired = true
+      if (cfg.reservedSlots) session.reservedSlots = true
     })
   })
 
@@ -29,7 +33,11 @@
       if (rememberAccess && access) accessPassword.save(access)
       else accessPassword.forget()
     }
-    connect(name, password, session.accessRequired ? access : '')
+    if (session.reservedSlots) {
+      if (rememberReserved && reserved) reservedPassword.save(reserved)
+      else reservedPassword.forget()
+    }
+    connect(name, password, session.accessRequired ? access : '', session.reservedSlots ? reserved : '')
   }
 </script>
 
@@ -48,6 +56,19 @@
         <input type="checkbox" bind:checked={rememberAccess} />
         <span>{t.login.accessPasswordRemember}</span>
       </label>
+    {/if}
+
+    {#if session.reservedSlots}
+      <label>
+        <span>{t.login.reservedPassword} <small>({t.login.passwordHint})</small></span>
+        <input type="password" bind:value={reserved} autocomplete="off" />
+      </label>
+      {#if reserved}
+        <label class="remember">
+          <input type="checkbox" bind:checked={rememberReserved} />
+          <span>{t.login.accessPasswordRemember}</span>
+        </label>
+      {/if}
     {/if}
 
     <label>

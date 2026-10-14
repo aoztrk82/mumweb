@@ -44,6 +44,9 @@ services:
       MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
       # Switches on the /admin panel (empty = panel off). Separate from the access password.
       MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
+      # Keep some of the MUMWEB_MAX_SESSIONS slots for people who know this password (off if either is empty).
+      MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
+      MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
     # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
     # internet: the gateway only sits on the internal network with Mumble and Caddy.
     read_only: true

@@ -106,6 +106,9 @@ portları açık, bir alan adı. Derlenecek bir şey yok: hazır imaj Docker Hub
          MUMWEB_ACCESS_PASSWORD: ${MUMWEB_ACCESS_PASSWORD:-}
          # Switches on the /admin panel (empty = panel off). Separate from the access password.
          MUMWEB_ADMIN_PASSWORD: ${MUMWEB_ADMIN_PASSWORD:-}
+         # Keep some of the MUMWEB_MAX_SESSIONS slots for people who know this password (off if either is empty).
+         MUMWEB_RESERVED_SLOTS: ${MUMWEB_RESERVED_SLOTS:-0}
+         MUMWEB_RESERVED_PASSWORD: ${MUMWEB_RESERVED_PASSWORD:-}
        # Hardening: nothing writable, no capabilities, resource limits, and no way out to the
        # internet: the gateway only sits on the internal network with Mumble and Caddy.
        read_only: true
@@ -254,6 +257,8 @@ location / {
 | `MUMWEB_ALLOW_SUPERUSER` | `false` | Web'den Mumble `SuperUser` hesabıyla girişe izin ver (kapalıyken bu ad ana istemcide reddedilir; yönetim için yönetim paneli veya masaüstü istemci) |
 | `MUMWEB_ACCESS_PASSWORD` | boş | Doluysa her web kullanıcısı giriş ekranında bu şifreyi girmek zorundadır. Mumble sunucu şifresinden ayrıdır ve yalnızca gateway uygular (aşağıya bakın) |
 | `MUMWEB_ADMIN_PASSWORD` | boş | Doluysa `/admin` yönetim panelini açar; yönetim oturumları bunu göndermek zorundadır. Boşsa panel kapalıdır (aşağıya bakın) |
+| `MUMWEB_RESERVED_SLOTS` | `0` | `MUMWEB_MAX_SESSIONS` içinden kaç slotun `MUMWEB_RESERVED_PASSWORD` sahiplerine (ve yönetim oturumlarına) ayrılacağı. Diğer kullanıcılar kalan slotları paylaşır. Şifre ve ayrılan sayıdan büyük bir sınır gerekir, yoksa kapalıdır |
+| `MUMWEB_RESERVED_PASSWORD` | boş | Ayrılmış slotların şifresi; giriş ekranındaki isteğe bağlı alana yazılır |
 | `MUMWEB_LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 ### Web erişim şifresi
@@ -267,6 +272,20 @@ alanı çıkar ("bu tarayıcıda hatırla" seçeneğiyle); alan yalnızca özell
   5 yanlış denemeden sonra o IP'yi 10 dakika engeller.
 - Diğer her şey gibi HTTPS/WSS üzerinden gider, bu yüzden HTTPS kullanın. Kullanıcı başına kimlik doğrulama değil,
   ortak bir "kapı kodu" olarak düşünün.
+
+### Ayrılmış web slotları
+
+`MUMWEB_MAX_SESSIONS`, Mumble sunucusu ne kadar izin verirse versin web istemcisini aynı anda kaç kişinin kullanacağını
+sınırlar (örneğin 50 kişilik sunucuda `MUMWEB_MAX_SESSIONS=10`). Bunlardan bazılarını kendinize ve arkadaşlarınıza ayırmak
+için (oyun sunucularındaki yönetici slotu gibi) `MUMWEB_RESERVED_SLOTS=2` ve `MUMWEB_RESERVED_PASSWORD` ayarlayın. 10 web
+slotunda herkes 8'ini paylaşır; giriş ekranındaki isteğe bağlı "Ayrılmış slot şifresi" alanına şifreyi yazanlar son 2 slotu
+da kullanabilir. Alan yalnızca özellik açıkken görünür.
+
+- 8 slot doluyken gelen normal kullanıcı "Web slotları dolu" mesajını görür ve şifreyle tekrar deneyebilir.
+- Yönetim paneli oturumları da ayrıcalıklı sayılır; sunucuyu yönetmek için her zaman girebilirsiniz.
+- Yanlış ayrılmış slot şifresi reddedilir (erişim şifresiyle aynı bekleme ve 10 dakikalık kilit, ayrı sayaçla); böylece yazım
+  hatası sessizce genel bir slot harcamaz.
+- Erişim şifresi gibi ortak bir "kapı kodu"dur: HTTPS kullanın. Masaüstü Mumble istemcileri etkilenmez.
 
 ### Yönetim paneli (`/admin`)
 
