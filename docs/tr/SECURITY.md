@@ -51,6 +51,36 @@ saklamaz; bir kullanıcının oturumu açıkken özel anahtarını bellekte gör
 | XSS | `sanitizeHtml` için 21 yük testi ve gerçek tarayıcıda kontrol: yapıştırılan `<img onerror>` metin olarak görünür; CSP sesli istemcide ve yönetim panelinde ihlal üretmedi |
 | Log denetimi | her `slog` çağrısı okundu: hiçbir şifre, token, anahtar, sohbet metni veya ACL grup adı loglanmıyor. Loglanan saldırgan kaynaklı metinler (Origin başlığı, bilinmeyen mesaj tipi) log işleyicisi tarafından JSON kaçışlanır. Kullanıcı adları loglanır (operasyonel veri, sır değil) |
 
+### Canlı test dağıtımı incelemesi (2026-10-14, `mumweb.aozturk.site`, 0.3.1 sürümü)
+
+Çalışan test dağıtımına ([docs/tr/TEST-DEPLOYMENT.md](TEST-DEPLOYMENT.md)) dışarıdan yapılan kara kutu testleri; yukarıdaki
+kontrollerin sadece birim testlerinde değil gerçek ağ koşullarında da tuttuğunu görmek için. Hiçbir kod değişikliği
+gerekmedi: tüm kontroller geçti.
+
+| Kontrol | Sonuç |
+|---|---|
+| Yanıt başlıkları / TLS | CSP, HSTS, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP mevcut; geçerli Let's Encrypt sertifikası; TLS 1.0/1.1 reddediliyor, 1.2/1.3 kabul ediliyor; HTTP, HTTPS'e yönleniyor (308) |
+| Açık portlar | yalnızca 22 (sunucu SSH), 80, 443, 64738 (Mumble) erişilebilir; gateway'in kendi portu, `/metrics`, `/debug/pprof/`, `/.env` erişilemiyor veya 404 |
+| WebSocket Origin kontrolü | sahte bir `Origin` başlığı, soket yükseltilmeden HTTP 403 ile reddediliyor |
+| Erişim şifresi kilitleme | bir IP'den 5 yanlış `MUMWEB_ACCESS_PASSWORD` denemesi IP'yi kilitledi (`AccessRateLimited`); 10 dakikalık pencere dolunca kilit açıldı ve doğru şifre tekrar çalıştı |
+| Ayrılmış web slotları | doğru erişim şifresiyle giriş yapılıyor; yanlış `MUMWEB_RESERVED_PASSWORD` slot vermeden reddediliyor (`ReservedPasswordWrong`); doğrusu girişe izin veriyor |
+| Yönetim şifresi | yanlış `MUMWEB_ADMIN_PASSWORD` reddediliyor (`AdminPasswordWrong`); doğrusu paneli açıyor; başarısızlıklar ana erişim şifresinden ayrı sayılıyor, biri test edilirken diğeri kilitlenmiyor |
+| IP başına oturum sınırı | bir IP'den 120 eşzamanlı bağlantı denemesi, test dağıtımının `MUMWEB_MAX_SESSIONS_PER_IP=100` değerine karşı tam 100'ünü açtı, diğer 20'sini HTTP 429 ile reddetti |
+| Aşırı büyük / bozuk ilk çerçeve | 16 KiB sınırının üstündeki 17 KiB'lık hello soketi kapatıyor (`1009`); binary ilk çerçeve "expected hello" ile kapatıyor (`1008`) |
+| Kontrol mesajı seli | bir oturum art arda 3000 `ping` gönderdi; ~200'ü yanıtlandı (burst boyutu), kalanı düşürüldü; 500 ardışık düşürmeden sonra oturum tasarlandığı gibi kendini kapattı (`1008`, protokol hatası) |
+| Ses çerçevesi seli | bir oturum art arda 2000 geçerli biçimli ama sessiz ses çerçevesi gönderdi; hız sınırlayıcı fazlasını düşürdü (gateway'in kendi logunda doğrulandı, görünür bir yanıtla değil) ve oturum açık kaldı — ses selleri kontrol mesajları gibi oturumu bitirmez, sadece düşürülür, çünkü düşürülen bir çerçevenin maliyeti tek bir ucuz ayrıştırma ve token-bucket kontrolüdür, sınırsız iş değildir |
+| Yavaş / boşta istemciler | hiç `hello` göndermeyen bir soket 10 sn sonra kapatılıyor; `ready` sonrası sessizleşen bir oturum 60 sn sonra kapatılıyor. Hiçbiri sonsuza kadar açık tutulamıyor (slowloris tarzı kaynak sızıntısı yok) |
+| Sohbet seli | art arda gönderilen 30 `text` mesajı (gateway'in kontrol bütçesi içinde, Mumble'ın kendi ~1/sn sınırından hızlı) ne oturumu çökertti ne de gönderene geri yansıdı (Mumble kendi sohbetinizi size geri yansıtmaz; bu normal Mumble davranışı, gateway hatası değil) |
+| XSS vektörü olarak kullanıcı adı | Mumble'ın kendi sunucu tarafı kullanıcı adı kuralı `<`, `>` ve benzeri karakterleri gateway veya tarayıcı görmeden reddediyor (`InvalidUsername`); birkaç yükle doğrulandı (`<img onerror>`, `<script>`, `<b>`). Boşluklu düz bir ad kabul ediliyor. Bu, zaten test edilmiş istemci tarafı temizlemenin arkasında ek bir katman |
+| Eşzamanlı giriş yükü | bir IP'den aynı anda 60 tam giriş (hello'dan gerçek Mumble el sıkışmasına) 4 saniyeden kısa sürede tamamlandı; sonrasında `/healthz` hemen normal hızda yanıt vermeye devam etti |
+| Gerçek tarayıcı (sohbet + yönetim) | gerçek giriş formundan (yeni "Ayrılmış slot şifresi" alanı dahil) giriş yapıldı, sohbete `<img onerror>` yükü gönderildi (metin olarak göründü, çalışmadı) ve yönetim paneli açıldı; her iki sayfada da konsol veya CSP hatası yok |
+
+Canlıda test edilmeyenler (birden fazla kaynak IP gerektirdiğinden veya sahibinin kendi erişimini bozma riski taşıdığından
+birim testlerine ve yerel dağıtım incelemesine bırakıldı): genel web slotlarını tüketip ayrılmışların devreye girdiğini
+kanıtlamak (yerel dağıtımda ve `slots_test.go`'da zaten doğrulandı) ve sunucuya karşı gerçek bir SSH kaba kuvvet denemesine
+benzer herhangi bir şey (mumweb kapsamı dışında; sunucu, sahibinin kendi sertleştirmesi altında güncel bir sürüm olan
+OpenSSH 10.0 çalıştırıyor).
+
 ## 4. Bulgular ve kararlar
 
 1. **Güvenlik başlıkları yoktu (düzeltildi).** Gateway hiç göndermiyordu. Yukarıdaki CSP ve diğerleri (gateway) ile HSTS

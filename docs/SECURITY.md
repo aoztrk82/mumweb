@@ -51,6 +51,36 @@ stores no certificates; it sees a user's private key in memory while that user's
 | XSS | 21 payload tests of `sanitizeHtml`, plus a real-browser check: a pasted `<img onerror>` shows as text, and the CSP produced no violation in the voice client or the admin panel |
 | Log audit | read every `slog` call: no password, token, key, chat text or ACL group name is logged. Attacker-supplied strings that are logged (Origin header, unknown message type) are JSON-escaped by the log handler. User names are logged (operational data, not secrets) |
 
+### Live test deployment review (2026-10-14, `mumweb.aozturk.site`, release 0.3.1)
+
+Black-box tests from outside against the running test deployment ([docs/TEST-DEPLOYMENT.md](TEST-DEPLOYMENT.md)), to see
+the controls above hold under real network conditions, not just in unit tests. No code change was needed: every check
+passed.
+
+| Check | Result |
+|---|---|
+| Response headers / TLS | CSP, HSTS, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP present; valid Let's Encrypt certificate; TLS 1.0/1.1 refused, 1.2/1.3 accepted; HTTP redirects to HTTPS (308) |
+| Exposed ports | only 22 (host SSH), 80, 443, 64738 (Mumble) reachable; the gateway's own port, `/metrics`, `/debug/pprof/`, `/.env` all unreachable or 404 |
+| WebSocket Origin check | a forged `Origin` header is refused with HTTP 403 before the socket upgrades |
+| Access password lockout | 5 wrong `MUMWEB_ACCESS_PASSWORD` guesses from one IP locked it out (`AccessRateLimited`); the lock cleared after the 10 minute window and a correct password then worked again |
+| Reserved web slots | correct access password logs in; a wrong `MUMWEB_RESERVED_PASSWORD` is refused (`ReservedPasswordWrong`) without granting a slot; the correct one logs in |
+| Admin password | a wrong `MUMWEB_ADMIN_PASSWORD` is refused (`AdminPasswordWrong`); the correct one opens the panel; failures are tracked separately from the main access password, so testing one does not lock out the other |
+| Per-IP session limit | 120 simultaneous connection attempts from one IP against `MUMWEB_MAX_SESSIONS_PER_IP=100` (the test deployment's value) opened exactly 100 and refused the other 20 with HTTP 429 |
+| Oversized / malformed first frame | a 17 KiB hello (over the 16 KiB limit) closes the socket (`1009`); a binary first frame closes it with "expected hello" (`1008`) |
+| Control-message flood | one session sent 3000 `ping` messages back to back; about 200 were answered (the burst size) and the rest dropped; the session ended itself (`1008`, protocol error) once 500 had been dropped in a row, exactly as designed |
+| Audio-frame flood | one session sent 2000 well-formed but silent audio frames back to back; the rate limiter dropped the excess (confirmed in the gateway's own log, not by a visible reply) and the session stayed open — audio floods are only ever dropped, never a reason to end the session (unlike control messages), because a dropped frame costs one cheap parse and a token-bucket check, not unbounded work |
+| Slow / idle clients | a socket that never sends `hello` is closed after 10 s; a session that goes silent after `ready` is closed after 60 s. Neither can be held open indefinitely (no slowloris-style resource leak) |
+| Chat flood | 30 `text` messages sent back to back (within the gateway's control budget, faster than Mumble's own ~1/s limit) neither crashed the session nor got anything echoed back to the sender (Mumble does not echo your own chat to yourself; this is normal Mumble behaviour, not a gateway bug) |
+| Username as an XSS vector | Mumble's own server-side username rule rejects `<`, `>` and similar characters before the gateway or browser ever see them (`InvalidUsername`); confirmed with several payloads (`<img onerror>`, `<script>`, `<b>`). A plain name with spaces is accepted. This is an extra layer behind the client-side sanitisation that was already tested |
+| Concurrent login load | 60 full logins (hello through a real Mumble handshake) from one IP at once all completed in under 4 s; `/healthz` kept answering normally straight afterwards |
+| Real browser (chat + admin) | logged in through the actual login form (including the new "Reserved slot password" field), sent a `<img onerror>` chat payload (shown as text, did not run), and opened the admin panel; no console or CSP errors on either page |
+
+Not tested live (would need more than one source IP, or risks disrupting the owner's own access, so left to the unit
+tests and the local deployment review instead): exhausting the general web slots to prove the reserved ones take over
+(already verified against a local deployment and in `slots_test.go`), and anything resembling an actual SSH brute force
+against the host (out of scope for mumweb; the host runs OpenSSH 10.0, a current release, under the owner's own
+hardening).
+
 ## 4. Findings and decisions
 
 1. **No security headers (fixed).** The gateway sent none. Added CSP and the others listed above (gateway) and HSTS

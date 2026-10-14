@@ -678,6 +678,18 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   Trivy: 0 HIGH/CRITICAL; the image answers `/config` with `reservedSlots:true` when configured; Docker Hub page refreshed.
   The server test deployment (`deploy/test/`) pulls this image.
 
+## Addendum: live security and load test on mumweb.aozturk.site (2026-10-14)
+
+- Ran a round of black-box tests from outside against the running test deployment (release 0.3.1): response
+  headers/TLS, exposed ports, WebSocket Origin check, access-password lockout (and its 10 minute expiry), reserved
+  web slots (right/wrong password), admin password (separate lockout from the access password), the per-IP session
+  limit under 120 concurrent attempts, oversized/malformed first frames, a control-message flood (ends the session
+  after 500 drops, as designed), an audio-frame flood (dropped only, session stays open, by design), idle/no-hello
+  timeouts (no slowloris leak), a chat flood, a real-browser XSS attempt in chat and in the username field (Mumble's
+  own server rejects `<`/`>` in usernames before the gateway or browser see them), and 60 concurrent full logins
+  (completed in under 4 s, `/healthz` unaffected). Everything held; no code change was needed. Full detail and the
+  reasoning for each: [SECURITY.md](SECURITY.md).
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

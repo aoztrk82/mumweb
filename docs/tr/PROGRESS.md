@@ -653,6 +653,18 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   Trivy: 0 HIGH/CRITICAL; ayarlıyken imaj `/config` için `reservedSlots:true` döner; Docker Hub sayfası yenilendi.
   Sunucu test dağıtımı (`deploy/test/`) bu imajı çeker.
 
+## Ek — mumweb.aozturk.site üzerinde canlı güvenlik ve yük testi (2026-10-14)
+
+- Çalışan test dağıtımına (0.3.1 sürümü) dışarıdan bir tur kara kutu testi çalıştırıldı: yanıt başlıkları/TLS, açık
+  portlar, WebSocket Origin kontrolü, erişim şifresi kilitlemesi (ve 10 dakikalık süresinin dolması), ayrılmış web
+  slotları (doğru/yanlış şifre), yönetim şifresi (erişim şifresinden ayrı kilitleme), 120 eşzamanlı denemede IP başına
+  oturum sınırı, aşırı büyük/bozuk ilk çerçeveler, kontrol mesajı seli (tasarlandığı gibi 500 düşürmeden sonra oturumu
+  bitiriyor), ses çerçevesi seli (tasarlandığı gibi sadece düşürülüyor, oturum açık kalıyor), boşta/hello'suz zaman
+  aşımları (slowloris sızıntısı yok), sohbet seli, sohbette ve kullanıcı adı alanında gerçek tarayıcıyla XSS denemesi
+  (Mumble'ın kendi sunucusu `<`/`>` karakterlerini gateway veya tarayıcı görmeden reddediyor) ve 60 eşzamanlı tam giriş
+  (4 saniyeden kısa sürede tamamlandı, `/healthz` etkilenmedi). Her şey tuttu; kod değişikliği gerekmedi. Ayrıntı ve her
+  birinin gerekçesi: [SECURITY.md](SECURITY.md).
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,
