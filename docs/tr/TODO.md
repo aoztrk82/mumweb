@@ -8,8 +8,9 @@ Son güncelleme: 2026-10-14. Bu sadece özellik yol haritası. Yapılan işler v
 
 ## Planlanan özellikler
 
-- Diğer tarayıcı dilleri için varsayılanın Türkçe yerine İngilizce olup olmayacağına karar ver
-  (`web/src/i18n/index.svelte.ts` içinde `FALLBACK`); başka diller eklenecek mi?
+- Mevcut yedi dilin (İngilizce, Türkçe, Arapça, Almanca, İspanyolca, İtalyanca, Rusça — 2026-10-14'te eklendi, bkz.
+  `web/src/i18n/`) ötesinde başka arayüz dilleri; ve eşleşmeyen bir tarayıcı dili için varsayılanın Türkçe kalıp
+  kalmayacağına karar ver (`web/src/i18n/index.svelte.ts` içinde `FALLBACK`).
 - Reddit duyurusu için README cilası: sürüm ve CI rozetleri, diğer Mumble web istemcileriyle "Neden mumweb?"
   karşılaştırması (ekran görüntüsü ve demo GIF'i tamam, bkz. `docs/images/`).
 - Davet bağlantısı (imzalı, süreli token), erişim şifresine alternatif veya ek olarak.

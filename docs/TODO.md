@@ -8,8 +8,9 @@ Last updated: 2026-10-14. This is a feature roadmap only. Completed work and ver
 
 ## Planned features
 
-- Decide the i18n fallback for browser languages other than English/Turkish (`FALLBACK` in
-  `web/src/i18n/index.svelte.ts`), and whether to add more languages.
+- More UI languages beyond the current seven (English, Turkish, Arabic, German, Spanish, Italian, Russian — added
+  2026-10-14, see `web/src/i18n/`), and whether the fallback for an unmatched browser language should stay Turkish
+  (`FALLBACK` in `web/src/i18n/index.svelte.ts`).
 - README polish for a public announcement: a release badge, a CI badge, a "why mumweb?" comparison with other
   Mumble web clients (the screenshot and demo GIF are done, see `docs/images/`).
 - Invite link (signed, expiring token) as an alternative or addition to the access password.
