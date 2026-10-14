@@ -779,6 +779,28 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
   and the five new UI languages — all feature/doc work above, no breaking changes. `aoztrk82/mumweb:0.4.0` and
   `:latest` pushed with `make publish VERSION=0.4.0` (amd64+arm64).
 
+## Addendum: show/copy on password fields (2026-10-14)
+
+- User feedback: typing a password blind into a field is error-prone, and if it's wrong there's no way to tell
+  where. Added a reusable `PasswordField.svelte` (an input plus an eye toggle and a copy button, absolutely
+  positioned over the right side of the field) and swapped it in everywhere a `type="password"` input existed: the
+  login screen's access/reserved/server-password fields, the admin login's admin/Mumble-password fields, and the
+  generic password prompt dialog used for joining a password-protected channel. The channel-password *editor* in
+  the edit-channel dialog and the admin panel's channel-password editor were left as plain visible `type="text"`
+  fields, unchanged — those are already shown in the clear by design (an operator/channel-owner setting a password,
+  not someone typing one in blind).
+  - New `t.password` i18n section (`show`/`hide`/`copy`/`copied`) added to all seven dictionaries.
+  - Copy uses `navigator.clipboard.writeText`; failures (no Clipboard API, permission denied) are swallowed
+    silently since there's nothing actionable to show the user without a toast system, and the button's own
+    "Copied" state simply never appears. Verified the component's eye toggle and the clipboard write call with a
+    puppeteer script: toggling switches the input's `type` between `password`/`text` and the typed value renders;
+    clipboard write was attempted with the correct value but denied by headless Chrome's permission model
+    (`overridePermissions` doesn't make `navigator.clipboard.writeText` succeed in headless) — a known
+    headless-automation limitation, not a product issue, consistent with the other Puppeteer/headless gotchas
+    logged above.
+  - Verified: `npm run check` (0 errors), `npm test` (50 passed), `npm run build`, and visual checks against the
+    local dev stack in English and Turkish (screenshots).
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

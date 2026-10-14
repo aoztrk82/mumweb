@@ -418,6 +418,13 @@ export const de: Translations = {
     },
   },
 
+  password: {
+    show: 'Passwort anzeigen',
+    hide: 'Passwort verbergen',
+    copy: 'Passwort kopieren',
+    copied: 'Kopiert',
+  },
+
   errors: {
     generic: 'Ein Fehler ist aufgetreten.',
     mumbleUnavailable: 'Der Mumble-Server ist nicht erreichbar.',

@@ -415,6 +415,13 @@ export const tr = {
     },
   },
 
+  password: {
+    show: 'Şifreyi göster',
+    hide: 'Şifreyi gizle',
+    copy: 'Şifreyi kopyala',
+    copied: 'Kopyalandı',
+  },
+
   errors: {
     generic: 'Bir hata oluştu.',
     mumbleUnavailable: 'Mumble sunucusuna ulaşılamıyor.',

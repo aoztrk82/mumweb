@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from '../i18n/index.svelte'
   import LangSwitch from '../components/LangSwitch.svelte'
+  import PasswordField from '../components/PasswordField.svelte'
   import { getSetting, setSetting } from '../lib/settings'
   import { connect } from './client'
   import { admin } from './state.svelte'
@@ -27,8 +28,7 @@
 
     <label>
       <span>{t.admin.login.adminPassword}</span>
-      <!-- svelte-ignore a11y_autofocus -->
-      <input type="password" bind:value={adminPassword} autocomplete="off" required autofocus />
+      <PasswordField bind:value={adminPassword} autocomplete="off" required autofocus />
     </label>
     <label>
       <span>{t.admin.login.username}</span>
@@ -36,7 +36,7 @@
     </label>
     <label>
       <span>{t.admin.login.password} <small>({t.admin.login.passwordHint})</small></span>
-      <input type="password" bind:value={password} autocomplete="off" />
+      <PasswordField bind:value={password} autocomplete="off" />
     </label>
 
     {#if admin.error}<p class="error" role="alert">{admin.error}</p>{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from '../i18n/index.svelte'
   import LangSwitch from './LangSwitch.svelte'
+  import PasswordField from './PasswordField.svelte'
   import { accessPassword, fetchLoginConfig, reservedPassword } from '../lib/accessPassword'
   import { connect } from '../lib/client'
   import { getSetting, setSetting } from '../lib/settings'
@@ -56,7 +57,7 @@
     {#if session.accessRequired}
       <label>
         <span>{t.login.accessPassword}</span>
-        <input type="password" bind:value={access} autocomplete="off" required />
+        <PasswordField bind:value={access} autocomplete="off" required />
       </label>
       <label class="remember">
         <input type="checkbox" bind:checked={rememberAccess} />
@@ -67,7 +68,7 @@
     {#if session.reservedSlots}
       <label>
         <span>{t.login.reservedPassword} <small>({t.login.passwordHint})</small></span>
-        <input type="password" bind:value={reserved} autocomplete="off" />
+        <PasswordField bind:value={reserved} autocomplete="off" />
       </label>
       {#if reserved}
         <label class="remember">
@@ -85,7 +86,7 @@
 
     <label>
       <span>{t.login.password} <small>({t.login.passwordHint})</small></span>
-      <input type="password" bind:value={password} autocomplete="current-password" />
+      <PasswordField bind:value={password} autocomplete="current-password" />
     </label>
 
     {#if session.error}

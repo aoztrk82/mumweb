@@ -418,6 +418,13 @@ export const en: Translations = {
     },
   },
 
+  password: {
+    show: 'Show password',
+    hide: 'Hide password',
+    copy: 'Copy password',
+    copied: 'Copied',
+  },
+
   errors: {
     generic: 'An error occurred.',
     mumbleUnavailable: 'Cannot reach the Mumble server.',

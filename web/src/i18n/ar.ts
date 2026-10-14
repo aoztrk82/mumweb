@@ -419,6 +419,13 @@ export const ar: Translations = {
     },
   },
 
+  password: {
+    show: 'إظهار كلمة المرور',
+    hide: 'إخفاء كلمة المرور',
+    copy: 'نسخ كلمة المرور',
+    copied: 'تم النسخ',
+  },
+
   errors: {
     generic: 'حدث خطأ.',
     mumbleUnavailable: 'تعذّر الوصول إلى خادم Mumble.',

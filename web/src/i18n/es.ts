@@ -419,6 +419,13 @@ export const es: Translations = {
     },
   },
 
+  password: {
+    show: 'Mostrar contraseña',
+    hide: 'Ocultar contraseña',
+    copy: 'Copiar contraseña',
+    copied: 'Copiado',
+  },
+
   errors: {
     generic: 'Se produjo un error.',
     mumbleUnavailable: 'No se puede conectar con el servidor de Mumble.',

@@ -418,6 +418,13 @@ export const ru: Translations = {
     },
   },
 
+  password: {
+    show: 'Показать пароль',
+    hide: 'Скрыть пароль',
+    copy: 'Скопировать пароль',
+    copied: 'Скопировано',
+  },
+
   errors: {
     generic: 'Произошла ошибка.',
     mumbleUnavailable: 'Не удаётся подключиться к серверу Mumble.',

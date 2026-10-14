@@ -758,6 +758,28 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
   ayarlayacağı sunucu adı/açıklaması ve beş yeni arayüz dili dahil — yukarıdaki tüm özellik/dokümantasyon işi, kırıcı
   değişiklik yok. `aoztrk82/mumweb:0.4.0` ve `:latest`, `make publish VERSION=0.4.0` ile gönderildi (amd64+arm64).
 
+## Ek — şifre alanlarında göster/kopyala (2026-10-14)
+
+- Kullanıcı geri bildirimi: bir şifreyi körlemesine yazmak hataya açık, ve yanlışsa nerede yanlış olduğunu
+  anlamanın yolu yok. Yeniden kullanılabilir bir `PasswordField.svelte` eklendi (bir input artı sağ üzerine mutlak
+  konumlandırılmış bir göz-aç/kapat düğmesi ve bir kopyala düğmesi) ve `type="password"` olan her yerde buna
+  geçildi: giriş ekranının erişim/ayrılmış-slot/sunucu şifresi alanları, yönetim girişindeki yönetici/Mumble şifresi
+  alanları, ve şifreli bir kanala girerken kullanılan genel şifre promptu diyalogu. Kanal düzenleme diyalogundaki
+  kanal şifresi *düzenleyicisi* ile yönetim panelindeki kanal şifresi düzenleyicisi değiştirilmedi, düz görünür
+  `type="text"` olarak kaldı — bunlar zaten tasarım gereği açıkça gösteriliyor (körlemesine yazan biri değil, şifreyi
+  belirleyen bir operatör/kanal sahibi).
+  - Yedi sözlüğün hepsine yeni bir `t.password` bölümü eklendi (`show`/`hide`/`copy`/`copied`).
+  - Kopyalama `navigator.clipboard.writeText` kullanıyor; başarısızlıklar (Clipboard API yok, izin reddedildi)
+    sessizce yutuluyor çünkü bir toast sistemi olmadan kullanıcıya gösterilecek anlamlı bir şey yok, düğmenin kendi
+    "Kopyalandı" durumu sadece hiç görünmüyor. Bileşenin göz-aç/kapat düğmesi ve clipboard yazma çağrısı bir
+    puppeteer betiğiyle doğrulandı: düğmeye basmak input'un `type`'ını `password`/`text` arasında değiştiriyor ve
+    yazılan değer görünüyor; clipboard yazma doğru değerle denendi ama headless Chrome'un izin modeli tarafından
+    reddedildi (`overridePermissions` headless'ta `navigator.clipboard.writeText`'i başarılı kılmıyor) — yukarıda
+    kayıtlı diğer Puppeteer/headless tuhaflıklarıyla tutarlı, bilinen bir headless-otomasyon kısıtı, ürün sorunu
+    değil.
+  - Doğrulandı: `npm run check` (0 hata), `npm test` (50 geçti), `npm run build`, ve yerel dev yığınına karşı
+    İngilizce ve Türkçe görsel kontroller (ekran görüntüleri).
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,

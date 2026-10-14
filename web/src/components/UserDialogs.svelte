@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from '../i18n/index.svelte'
+  import PasswordField from './PasswordField.svelte'
   import { editChannel, queryChannelPassword, requestDescription, setChannelPassword, userCommand } from '../lib/client'
   import { sanitizeHtml } from '../lib/sanitize'
   import { session } from '../lib/stores/session.svelte'
@@ -107,8 +108,7 @@
       <label class="field">
         <span>{d.label}</span>
         {#if d.password}
-          <!-- svelte-ignore a11y_autofocus -->
-          <input type="password" bind:value maxlength="128" autocomplete="off" autofocus />
+          <PasswordField bind:value maxlength={128} autocomplete="off" autofocus />
         {:else if d.multiline}
           <!-- svelte-ignore a11y_autofocus -->
           <textarea rows="4" bind:value onkeydown={onKey} autofocus></textarea>
