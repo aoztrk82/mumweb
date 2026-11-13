@@ -835,6 +835,23 @@ Full write-up in [SECURITY.md](SECURITY.md); this entry records the decisions an
     password while its absence still requires one), `go vet`, `gofmt`, `npm run check` (0 errors across all seven
     i18n dictionaries), `npm test` (50 passed) and `npm run build` all pass.
 
+## Addendum: release 0.4.1, dependency maintenance (2026-11-13)
+
+- Raised the web dependencies to their latest compatible releases (lockfile and `package.json` floors):
+  `@sveltejs/vite-plugin-svelte` 7.3.1, `@tsconfig/svelte` 5.0.9, `@types/node` 24.19.2, `jsdom` 30.1.3,
+  `svelte` 5.57.3, `svelte-check` 4.7.8, `typescript` 6.0.3, `vite` 8.3.8, `vitest` 5.1.0. `dompurify` 3.4.17 was
+  already current. No source changes were needed.
+- **Decision: majors left out on purpose** (`typescript` 7, `jsdom` 31, `@types/node` 26): they may need code
+  changes, and the Node types must stay on 24 to match the Node 24 LTS toolchain. Revisit in a later release.
+- Go: `google.golang.org/protobuf` v1.36.12 and `github.com/coder/websocket` v1.8.15 are current, `go.mod` unchanged.
+  Docker base images use floating tags (`node:24-alpine`, `golang:1.27-alpine`, `alpine:3.24`; no Alpine 3.25 yet),
+  so a rebuild picks up their patches.
+- `npm audit`: 2 low-severity findings (`deepmerge` via `@sveltejs/vite-plugin-svelte`), build-time only, no fix
+  upstream; nothing of it reaches the shipped bundle.
+- Release 0.4.1 also contains the password field show/copy toggle and invite links (both above). `VERSION` in the
+  `Makefile` is 0.4.1; `release` in `main.go` stays "mumweb 0.4" (major.minor only).
+- Verified: `npm run check` (0 errors), `npm test` (50 passed), `npm run build`, `go vet ./...`, `go test ./...`.
+
 ## Open issues
 - When a web user is banned from the desktop client the ban entry also contains the gateway IP and blocks new web
   logins (existing sessions stay). **Decision (2026-10-13): no mitigation for now**: the target use is small

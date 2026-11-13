@@ -815,6 +815,24 @@ Tam metin [SECURITY.md](SECURITY.md)'de; bu kayıt kararları ve doğrulamayı t
     şifresini atladığını ama yokluğunda şifrenin hâlâ gerektiğini kontrol eder), `go vet`, `gofmt`, `npm run check`
     (yedi i18n sözlüğünün hepsinde 0 hata), `npm test` (50 geçti) ve `npm run build` hepsi geçiyor.
 
+## Ek — 0.4.1 sürümü, bağımlılık bakımı (2026-11-13)
+
+- Web bağımlılıkları uyumlu en son sürümlerine yükseltildi (lockfile ve `package.json` alt sınırları):
+  `@sveltejs/vite-plugin-svelte` 7.3.1, `@tsconfig/svelte` 5.0.9, `@types/node` 24.19.2, `jsdom` 30.1.3,
+  `svelte` 5.57.3, `svelte-check` 4.7.8, `typescript` 6.0.3, `vite` 8.3.8, `vitest` 5.1.0. `dompurify` 3.4.17 zaten
+  günceldi. Kaynak kodda değişiklik gerekmedi.
+- **Karar: büyük sürümler bilerek dışarıda bırakıldı** (`typescript` 7, `jsdom` 31, `@types/node` 26): kod değişikliği
+  gerektirebilirler ve Node tipleri, Node 24 LTS araç zinciriyle eşleşmek için 24'te kalmalı. Sonraki bir sürümde
+  yeniden ele alınacak.
+- Go: `google.golang.org/protobuf` v1.36.12 ve `github.com/coder/websocket` v1.8.15 güncel, `go.mod` değişmedi.
+  Docker taban imajları kayan etiket kullanıyor (`node:24-alpine`, `golang:1.27-alpine`, `alpine:3.24`; Alpine 3.25
+  henüz yok), yeniden derleme yamalarını alır.
+- `npm audit`: 2 düşük önemli bulgu (`@sveltejs/vite-plugin-svelte` üzerinden `deepmerge`), yalnızca derleme anında,
+  upstream'de düzeltme yok; yayınlanan pakete hiçbir parçası girmiyor.
+- 0.4.1 sürümü ayrıca şifre alanlarında göster/kopyala ve davet bağlantılarını da içerir (ikisi de yukarıda).
+  `Makefile`'daki `VERSION` 0.4.1; `main.go`'daki `release` "mumweb 0.4" olarak kalıyor (yalnızca major.minor).
+- Doğrulandı: `npm run check` (0 hata), `npm test` (50 geçti), `npm run build`, `go vet ./...`, `go test ./...`.
+
 ## Açık konular
 - Masaüstünden bir web kullanıcısı yasaklanınca ban kaydı gateway IP'sini de içerir ve yeni web girişlerini engeller
   (mevcut oturumlar düşmez). **Karar (2026-10-13): şimdilik önlem alınmayacak** — hedef kullanım küçük gruplar/takımlar,
